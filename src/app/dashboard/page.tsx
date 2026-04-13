@@ -3,12 +3,15 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/app/lib/supabase'
+import { getRecaptchaToken, verifyRecaptcha } from '@/lib/recaptcha'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import RichTextEditor from '@/components/RichTextEditor'
 import Chart from 'chart.js/auto'
 import RenderInstrumentosMenter from '@/app/dashboard/components/renderInstrumentosMenter'
 import RenderResultadosTests from '@/app/dashboard/components/renderResultadosTests'
 import RenderInstrumentosEmpresa from '@/app/dashboard/components/renderInstrumentosEmpresa'
+import RenderCompras from '@/app/dashboard/components/renderCompras'
+import { dispararEmail } from '@/lib/email/send'
 
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
@@ -28,6 +31,7 @@ const icons = {
   directorio:     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>,
   instrumentos:   <path d="M19.8 18.4L14 10.67V6h1c.55 0 1-.45 1-1s-.45-1-1-1H9c-.55 0-1 .45-1 1s.45 1 1 1h1v4.67L4.2 18.4C3.71 19.06 4.18 20 5 20h14c.82 0 1.29-.94.8-1.6z"/>,
   resultados:     <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/>,
+  certificados:   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>,
 } as const
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -122,7 +126,88 @@ type MenterProfile = {
   descuento_codigo?: string
 }
 type Availability = { id?: string; day_of_week: number; start_time: string; end_time: string; is_active: boolean }
-type TabId = 'perfil' | 'editar' | 'perfil-pro' | 'membresia' | 'citas' | 'mis-citas' | 'ingresos' | 'destacados' | 'compras' | 'escribir' | 'eventos' | 'comunidad' | 'soporte' | 'roadmap' | 'objetivos' | 'instrumentos' | 'resultados_tests' | 'instrumentos_empresa'
+type TabId = 'perfil' | 'editar' | 'perfil-pro' | 'membresia' | 'citas' | 'mis-citas' | 'ingresos' | 'destacados' | 'compras' | 'escribir' | 'eventos' | 'comunidad' | 'soporte' | 'roadmap' | 'objetivos' | 'instrumentos' | 'resultados_tests' | 'instrumentos_empresa' | 'certificados'
+
+// ─── Selector de cliente para Roadmap ────────────────────────────────────────
+function ClienteSelectorRoadmap({ clientes, loading, clienteActivo, onSelect }: {
+  clientes: any[]
+  loading: boolean
+  clienteActivo: string | null
+  onSelect: (id: string) => void
+}) {
+  const [busqueda, setBusqueda] = useState('')
+  const [mostrarTodos, setMostrarTodos] = useState(false)
+  const LIMITE = 6
+
+  const filtrados = busqueda.trim()
+    ? clientes.filter(c => c.client_name?.toLowerCase().includes(busqueda.toLowerCase()))
+    : clientes
+
+  const visibles = mostrarTodos || busqueda.trim() ? filtrados : filtrados.slice(0, LIMITE)
+  const hayMas = !busqueda.trim() && !mostrarTodos && clientes.length > LIMITE
+
+  if (loading && clientes.length === 0) {
+    return <p style={{ color: '#999', fontSize: 13, marginBottom: 20 }}>Cargando clientes...</p>
+  }
+  if (clientes.length === 0) {
+    return (
+      <div style={{ padding: '16px 20px', background: '#fff8e1', borderRadius: 12, border: '2px solid #ffa719', fontSize: 14, color: '#e65100', marginBottom: 20 }}>
+        Aún no tienes clientes con citas confirmadas. Cuando confirmes una cita, podrás crear el roadmap de ese cliente aquí.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Cliente</div>
+      {clientes.length > LIMITE && (
+        <input
+          type="text"
+          placeholder="Buscar cliente..."
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          style={{ width: '100%', maxWidth: 280, padding: '7px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 13, fontFamily: 'DM Sans', marginBottom: 10, outline: 'none', boxSizing: 'border-box' as const }}
+        />
+      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+        {visibles.map((c: any) => (
+          <button
+            key={c.client_id}
+            onClick={() => onSelect(c.client_id)}
+            style={{
+              padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans',
+              border: clienteActivo === c.client_id ? '2px solid #7F77DD' : '2px solid #e0e0e0',
+              background: clienteActivo === c.client_id ? '#EEEDFE' : 'white',
+              color: clienteActivo === c.client_id ? '#3C3489' : '#555',
+              fontSize: 13, fontWeight: clienteActivo === c.client_id ? 700 : 400,
+            }}
+          >
+            {c.client_name}
+          </button>
+        ))}
+        {hayMas && (
+          <button
+            onClick={() => setMostrarTodos(true)}
+            style={{ padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans', border: '2px dashed #e0e0e0', background: 'none', color: '#999', fontSize: 13 }}
+          >
+            +{clientes.length - LIMITE} más
+          </button>
+        )}
+        {mostrarTodos && !busqueda.trim() && (
+          <button
+            onClick={() => setMostrarTodos(false)}
+            style={{ padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans', border: '2px solid #e0e0e0', background: 'none', color: '#999', fontSize: 13 }}
+          >
+            Ver menos
+          </button>
+        )}
+      </div>
+      {busqueda.trim() && filtrados.length === 0 && (
+        <p style={{ fontSize: 13, color: '#999', margin: '8px 0 0' }}>Sin resultados para "{busqueda}"</p>
+      )}
+    </div>
+  )
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function Dashboard() {
@@ -140,12 +225,12 @@ export default function Dashboard() {
   const [reprogramarHoraFin, setReprogramarHoraFin] = useState('')
   const [reprogramarNotas, setReprogramarNotas] = useState('')
   const [reprogramarLoading, setReprogramarLoading] = useState(false)
-  const [missingProfileFields, setMissingProfileFields] = useState({ telefono: false, pais: false, cumpleanos: false })
+  const [missingProfileFields, setMissingProfileFields] = useState({ nombre: false, apellidos: false, telefono: false, pais: false, cumpleanos: false })
   const [scrolled, setScrolled] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [showCompleteProfile, setShowCompleteProfile] = useState(false)
-  const [completeForm, setCompleteForm] = useState({ telefono: '', pais: '', cumpleanos: '' })
+  const [completeForm, setCompleteForm] = useState({ nombre: '', apellidos: '', telefono: '', pais: '', cumpleanos: '' })
   const [completeSaving, setCompleteSaving] = useState(false)
   const [editForm, setEditForm] = useState({ nombre: '', apellidos: '', telefono: '', pais: '', empresa: '', cargo: '', cumpleanos: '' })
   const [editSaving, setEditSaving]   = useState(false)
@@ -201,6 +286,10 @@ const [ingresosTab, setIngresosTab]                 = useState<'sesiones' | 'eve
   const [inscritosModal, setInscritosModal] = useState<any>(null)
 const [inscritosList, setInscritosList] = useState<any[]>([])
 const [inscritosLoading, setInscritosLoading] = useState(false)
+const [certifiedMap, setCertifiedMap] = useState<Record<string, boolean>>({})
+const [certIssuing, setCertIssuing] = useState<string | 'all' | null>(null)
+const [misCertificados, setMisCertificados] = useState<any[]>([])
+const [misCertificadosLoading, setMisCertificadosLoading] = useState(false)
   const [eventos, setEventos] = useState<any[]>([])
 const [eventosPublicos, setEventosPublicos] = useState<any[]>([])
 const [eventosLoading, setEventosLoading] = useState(false)
@@ -209,7 +298,8 @@ const [eventoView, setEventoView] = useState<'lista' | 'editor'>('lista')
 const [eventoForm, setEventoForm] = useState({
   title: '', description: '', cover_image: '', date: '', start_time: '',
   end_time: '', modality: 'virtual', location_address: '', meeting_link: '',
-  max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador'
+  max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador',
+  certificate_image: ''
 })
 const [eventoEditId, setEventoEditId] = useState<string | null>(null)
 const [eventoTickets, setEventoTickets] = useState<any[]>([])
@@ -225,6 +315,8 @@ const [eventosComunidadLimit, setEventosComunidadLimit] = useState(6)
 const [eventoFiltroOrden, setEventoFiltroOrden] = useState<'proximo' | 'popular' | 'destacado'>('proximo')
   const [editMsg, setEditMsg]         = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [membership, setMembership]   = useState<Membership | null>(null)
+  const [subLoading, setSubLoading]   = useState<string | null>(null)
+  const [ppModal, setPpModal] = useState<{ type: 'success' | 'confirm' | 'error'; msg: string; onConfirm?: () => void } | null>(null)
   const [showAgenda, setShowAgenda] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [menterProfile, setMenterProfile] = useState<MenterProfile>({
@@ -286,10 +378,24 @@ const [mentersVinculados, setMentresVinculados] = useState<Record<string, any[]>
   const [filtros, setFiltros]           = useState({ especialidad: '', precio_max: '', pais: '', soloDescuento: false })
   const [featuredMenters, setFeaturedMenters] = useState<MenterResult[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(false)
+  const [tourActive, setTourActive] = useState(false)
+  const [tourStep, setTourStep] = useState(0)
 
 
    const [citas, setCitas] = useState<any[]>([])
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [reviewModal, setReviewModal] = useState<{appointmentId: string, reviewedId: string, reviewedName: string} | null>(null)
+  const [reviewForm, setReviewForm] = useState({ estrellas: 0, comentario: '', puntualidad: 0, comunicacion: 0, efectividad: 0 })
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [misResenas, setMisResenas] = useState<Record<string, any>>({})
+  const [resenasMenter, setResenasMenter] = useState<Record<string, any>>({})
+  const [menterRatings, setMenterRatings] = useState<Record<string, {avg: number, count: number}>>({})
+  const [comunidadDraft, setComunidadDraft] = useState<{
+    menterId: string; menterName: string; menterAvatarUrl: string | null; estrellas: number; comentario: string
+  } | null>(null)
+  const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
+  const [comunidadPostTexto, setComunidadPostTexto] = useState('')
+  const [comunidadPosting, setComunidadPosting] = useState(false)
 
   useEffect(() => {
   if (!user?.id) return
@@ -633,6 +739,21 @@ useEffect(() => {
       if (!error && data) setCitasMenter(data)
       setCitasMenterLoading(false)
     })
+  supabase.from('reviews').select('*').eq('reviewed_id', user.id)
+    .then(({ data }) => {
+      if (data) {
+        const map: Record<string, any> = {}
+        data.forEach((r: any) => { map[r.appointment_id] = r })
+        setResenasMenter(map)
+      }
+    })
+}, [activeTab, user?.id])
+
+useEffect(() => {
+  if (!user?.id) return
+  if (activeTab !== 'comunidad') return
+  supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(30)
+    .then(({ data }) => { if (data) setComunidadPosts(data) })
 }, [activeTab, user?.id])
 
 useEffect(() => {
@@ -719,6 +840,28 @@ const handleCancelar = async () => {
   if (!error) {
     setCitas(prev => prev.map(c => c.id === modalReprogramar.id ? { ...c, status: 'reprogramacion_pendiente', reprogramacion_fecha: reprogramarFecha, reprogramacion_hora_inicio: reprogramarHoraInicio, reprogramacion_hora_fin: reprogramarHoraFin } : c))
     setCitasMenter(prev => prev.map(c => c.id === modalReprogramar.id ? { ...c, status: 'reprogramacion_pendiente' } : c))
+
+    // Email al otro participante notificando la solicitud
+    const esMenter = isMenter
+    const solicitante = esMenter ? modalReprogramar.menter_name : modalReprogramar.client_name
+    const destinatarioEmail = esMenter ? (modalReprogramar.client_email || '') : (user?.email || '')
+    const destinatarioName  = esMenter ? modalReprogramar.client_name : modalReprogramar.menter_name
+    if (destinatarioEmail) {
+      dispararEmail('solicitud_reprogramacion', {
+        destinatarioEmail,
+        destinatarioName,
+        solicitanteNombre: solicitante,
+        citaOriginal: {
+          date:      new Date(modalReprogramar.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }),
+          startTime: modalReprogramar.start_time?.slice(0, 5) || '',
+        },
+        nuevaFecha:      new Date(reprogramarFecha + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        nuevaHoraInicio: reprogramarHoraInicio,
+        nuevaHoraFin:    reprogramarHoraFin,
+        appointmentId:   modalReprogramar.id,
+      })
+    }
+
     setModalReprogramar(null)
     setReprogramarFecha('')
     setReprogramarHoraInicio('')
@@ -759,6 +902,22 @@ const handleAceptarReprogramacion = async (c: any) => {
     }
     setCitas(prev => prev.map(x => x.id === c.id ? updated : x))
     setCitasMenter(prev => prev.map(x => x.id === c.id ? updated : x))
+
+    // Email al que propuso la reprogramación indicando que fue aceptada
+    const propuestoPor = c.reprogramacion_propuesta_por  // 'menter' | 'persona'
+    const destinatarioEmail = propuestoPor === 'menter' ? (user?.email || '') : (c.client_email || '')
+    const destinatarioName  = propuestoPor === 'menter' ? c.menter_name : c.client_name
+    const contraparte       = propuestoPor === 'menter' ? c.client_name : c.menter_name
+    if (destinatarioEmail) {
+      dispararEmail('reprogramacion_aceptada', {
+        destinatarioEmail,
+        destinatarioName,
+        contraparte,
+        nuevaFecha:      new Date(c.reprogramacion_fecha + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        nuevaHoraInicio: c.reprogramacion_hora_inicio?.slice(0, 5) || '',
+        nuevaHoraFin:    c.reprogramacion_hora_fin?.slice(0, 5) || '',
+      })
+    }
   }
 }
 
@@ -787,8 +946,39 @@ const handleRechazarReprogramacion = async (c: any) => {
     }
     setCitas(prev => prev.map(x => x.id === c.id ? updated : x))
     setCitasMenter(prev => prev.map(x => x.id === c.id ? updated : x))
+
+    // Email al que propuso indicando que fue rechazada
+    const propuestoPor = c.reprogramacion_propuesta_por
+    const destinatarioEmail = propuestoPor === 'menter' ? (user?.email || '') : (c.client_email || '')
+    const destinatarioName  = propuestoPor === 'menter' ? c.menter_name : c.client_name
+    const contraparte       = propuestoPor === 'menter' ? c.client_name : c.menter_name
+    if (destinatarioEmail) {
+      dispararEmail('reprogramacion_rechazada', {
+        destinatarioEmail,
+        destinatarioName,
+        contraparte,
+        fechaOriginal: new Date(c.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        horaOriginal:  c.start_time?.slice(0, 5) || '',
+      })
+    }
   }
 }
+
+// Fetch mis certificados
+useEffect(() => {
+  if (!user?.id) return
+  if (activeTab !== 'certificados') return
+  setMisCertificadosLoading(true)
+  supabase
+    .from('event_certificates')
+    .select('*, event:events(title, date, certificate_image, cover_image)')
+    .eq('user_id', user.id)
+    .order('issued_at', { ascending: false })
+    .then(({ data }) => {
+      setMisCertificados(data || [])
+      setMisCertificadosLoading(false)
+    })
+}, [activeTab, user?.id])
 
 // Fetch eventos del Menter
 useEffect(() => {
@@ -1016,8 +1206,17 @@ const cargarRutaEmpresas = async () => {
     const init = async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) { window.location.href = '/'; return }
+
+  // Validar que el usuario sigue activo en el servidor (detecta cuentas eliminadas/baneadas)
+  const { data: { user: freshUser }, error: authError } = await supabase.auth.getUser()
+  if (authError || !freshUser || freshUser.app_metadata?.deleted) {
+    await supabase.auth.signOut()
+    window.location.href = '/'
+    return
+  }
+
   const u = session.user
-  const m = u.user_metadata as UserMeta & { full_name?: string; name?: string; picture?: string }
+  let m = u.user_metadata as UserMeta & { full_name?: string; name?: string; picture?: string }
 
   const nombre    = m.nombre    || m.full_name?.split(' ')[0]                || m.name?.split(' ')[0]                || ''
   const apellidos = m.apellidos || m.full_name?.split(' ').slice(1).join(' ') || m.name?.split(' ').slice(1).join(' ') || ''
@@ -1025,30 +1224,58 @@ const cargarRutaEmpresas = async () => {
 
   setUser({ email: u.email!, id: u.id })
 
-  // Leer teléfono, país y cumpleaños de la tabla propia
+  // Detectar si es usuario de Google OAuth
+  const isGoogleUser = u.app_metadata?.provider === 'google' ||
+    (u.app_metadata?.providers as string[] | undefined)?.includes('google') || false
+
+  // Consumir pendingRole para usuarios Google que aún no tienen role asignado
+  if (!m.role && isGoogleUser && typeof window !== 'undefined') {
+    const pending = localStorage.getItem('pendingRole')
+    if (pending) {
+      await supabase.auth.updateUser({ data: { ...m, role: pending } })
+      m = { ...m, role: pending as any }
+      localStorage.removeItem('pendingRole')
+    }
+  }
+
+  // Leer todos los campos de perfil desde la tabla (fuente única de verdad)
   const { data: perfil } = await supabase
     .from('user_profiles')
-    .select('telefono, pais, cumpleanos')
+    .select('telefono, pais, cumpleanos, empresa, cargo')
     .eq('user_id', u.id)
     .single()
 
-  const telefono  = perfil?.telefono  || ''
-  const pais      = perfil?.pais      || ''
+  const telefono   = perfil?.telefono   || ''
+  const pais       = perfil?.pais       || ''
   const cumpleanos = perfil?.cumpleanos || ''
+  const empresa    = perfil?.empresa    || m.empresa || ''
+  const cargo      = perfil?.cargo      || m.cargo   || ''
 
-  setMeta({ ...m, nombre, apellidos, telefono, pais, cumpleanos })
+  setMeta({ ...m, nombre, apellidos, telefono, pais, cumpleanos, empresa, cargo })
   if (googleAvatar) setAvatarUrl(googleAvatar)
-  setEditForm({ nombre, apellidos, telefono, pais, empresa: m.empresa||'', cargo: m.cargo||'', cumpleanos })
+  setEditForm({ nombre, apellidos, telefono, pais, empresa, cargo, cumpleanos })
 
-  // Verificar campos faltantes desde la tabla, no desde metadata
-  const missingFields = {
-    telefono: false,
-    pais: false,
-    cumpleanos: !cumpleanos,
-  }
-  if (Object.values(missingFields).some(Boolean)) {
-    setMissingProfileFields(missingFields)
-    setShowCompleteProfile(true)
+  // Modal de completar perfil: SOLO para usuarios de Google con datos faltantes
+  if (isGoogleUser) {
+    const missingFields = {
+      nombre:     !m.nombre,
+      apellidos:  !m.apellidos,
+      telefono:   !perfil?.telefono,
+      pais:       !perfil?.pais,
+      cumpleanos: !perfil?.cumpleanos,
+    }
+    if (Object.values(missingFields).some(Boolean)) {
+      setMissingProfileFields(missingFields)
+      // Pre-rellenar con los valores de Google que ya tengamos
+      setCompleteForm({
+        nombre:     nombre,
+        apellidos:  apellidos,
+        telefono:   perfil?.telefono || '',
+        pais:       perfil?.pais     || '',
+        cumpleanos: perfil?.cumpleanos || '',
+      })
+      setShowCompleteProfile(true)
+    }
   }
 
   await supabase.rpc('sincronizar_insignias_menter', { p_menter_id: u.id })
@@ -1087,11 +1314,57 @@ const cargarRutaEmpresas = async () => {
       }
       setLoading(false)
 
-      
+      // Welcome email pendiente (registro con email — diferido hasta tener sesión activa)
+      const pendingRaw = typeof window !== 'undefined' && localStorage.getItem('pendingWelcomeEmail')
+      if (pendingRaw) {
+        localStorage.removeItem('pendingWelcomeEmail')
+        try {
+          const pending = JSON.parse(pendingRaw)
+          const wName  = pending.userName  || `${nombre} ${apellidos}`.trim() || u.email
+          const wEmail = pending.userEmail || u.email
+          dispararEmail('bienvenida_dia1', { userName: wName, userEmail: wEmail })
+        } catch {
+          // si es string simple (usuarios Google pre-migración)
+          const wName = `${nombre} ${apellidos}`.trim() || u.email
+          dispararEmail('bienvenida_dia1', { userName: wName, userEmail: u.email })
+        }
+      }
+
+      // Cargar reseñas del usuario
+      const { data: resenas } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('reviewer_id', u.id)
+      if (resenas) {
+        const map: Record<string, any> = {}
+        resenas.forEach((r: any) => { map[r.appointment_id] = r })
+        setMisResenas(map)
+      }
+
     const params = new URLSearchParams(window.location.search)
     const tabParam = params.get('tab')
-    if (tabParam && ['perfil','editar','mis-citas','roadmap','destacados','escribir','eventos','comunidad','compras','objetivos'].includes(tabParam)) {
+    if (tabParam && ['perfil','editar','mis-citas','roadmap','destacados','escribir','eventos','comunidad','compras','objetivos','membresia'].includes(tabParam)) {
       setActiveTab(tabParam as TabId)
+    }
+    // PayPal redirect de vuelta tras aprobar suscripción
+    if (params.get('pp') === 'ok') {
+      setActiveTab('membresia')
+      setTimeout(() => setPpModal({ type: 'success', msg: '¡Suscripción iniciada! PayPal activará tu plan en los próximos minutos. Recarga la página para ver tu nuevo plan.' }), 400)
+      window.history.replaceState({}, '', window.location.pathname + (tabParam ? `?tab=${tabParam}` : ''))
+    }
+
+    // Tour para usuarios con perfil ya completo (no Google con datos faltantes)
+    if (typeof window !== 'undefined' && !localStorage.getItem('giro_tour_done')) {
+      const hasIncomplete = Object.values({
+        nombre:     !m.nombre,
+        apellidos:  !m.apellidos,
+        telefono:   !perfil?.telefono,
+        pais:       !perfil?.pais,
+        cumpleanos: !perfil?.cumpleanos,
+      }).some(Boolean) && isGoogleUser
+      if (!hasIncomplete) {
+        setTimeout(() => { setTourStep(0); setTourActive(true) }, 800)
+      }
     }
     }
     init()
@@ -1100,20 +1373,58 @@ const cargarRutaEmpresas = async () => {
   // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleLogout = async () => { await supabase.auth.signOut(); window.location.href = '/' }
 
+  const guardarResena = async () => {
+    if (!reviewModal || !user?.id) return
+    setReviewSaving(true)
+    const { error } = await supabase
+      .from('reviews')
+      .upsert({
+        appointment_id: reviewModal.appointmentId,
+        reviewer_id: user.id,
+        reviewed_id: reviewModal.reviewedId,
+        reviewer_role: meta?.role || 'persona',
+        estrellas: reviewForm.estrellas,
+        comentario: reviewForm.comentario || null,
+        puntualidad: reviewForm.puntualidad,
+        comunicacion: reviewForm.comunicacion,
+        efectividad: reviewForm.efectividad,
+      }, { onConflict: 'appointment_id,reviewer_id' })
+    if (!error) {
+      setMisResenas(prev => ({ ...prev, [reviewModal.appointmentId]: { ...reviewForm, reviewer_id: user.id } }))
+      setReviewModal(null)
+      setToastMsg('Resena guardada')
+      setTimeout(() => setToastMsg(null), 3000)
+    }
+    setReviewSaving(false)
+  }
+
+  const compartirResena = (cita: any, resena: any) => {
+    const menterData = menters.find(m => m.menter_id === cita.menter_id)
+    sessionStorage.setItem('comunidad_draft_resena', JSON.stringify({
+      menter_name:   cita.menter_name   || '',
+      menter_avatar: menterData?.avatar_url || '',
+      estrellas:     resena.estrellas,
+      comentario:    resena.comentario  || '',
+    }))
+    router.push('/comunidad')
+  }
+
  const handleSaveEdit = async () => {
   setEditSaving(true); setEditMsg(null)
 
-  // Actualizar nombre/apellidos en auth (estos sí son de Google)
-  await supabase.auth.updateUser({ 
-    data: { ...meta, nombre: editForm.nombre, apellidos: editForm.apellidos } 
+  // Actualizar nombre/apellidos en auth
+  await supabase.auth.updateUser({
+    data: { ...meta, nombre: editForm.nombre, apellidos: editForm.apellidos }
   })
 
-  // Guardar teléfono, país y cumpleaños en tabla propia
+  // Guardar todos los campos de perfil en la tabla (fuente única de verdad)
   const { error } = await supabase.from('user_profiles').upsert({
-    user_id: user!.id,
-    telefono: editForm.telefono,
-    pais: editForm.pais,
+    user_id:    user!.id,
+    telefono:   editForm.telefono,
+    pais:       editForm.pais,
     cumpleanos: editForm.cumpleanos,
+    empresa:    editForm.empresa || null,
+    cargo:      editForm.cargo   || null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
 
@@ -1127,22 +1438,40 @@ const cargarRutaEmpresas = async () => {
 }
 
 const handleCompleteProfile = async () => {
-  if (!completeForm.cumpleanos) { alert('Por favor ingresa tu fecha de cumpleaños'); return }
+  if (missingProfileFields.nombre    && !completeForm.nombre.trim())    { alert('Por favor ingresa tu nombre'); return }
+  if (missingProfileFields.apellidos && !completeForm.apellidos.trim()) { alert('Por favor ingresa tus apellidos'); return }
+  if (missingProfileFields.telefono  && !completeForm.telefono.trim())  { alert('Por favor ingresa tu teléfono'); return }
+  if (missingProfileFields.pais      && !completeForm.pais)             { alert('Por favor selecciona tu país'); return }
+  if (missingProfileFields.cumpleanos && !completeForm.cumpleanos)      { alert('Por favor ingresa tu fecha de nacimiento'); return }
 
   setCompleteSaving(true)
 
-  // Guardar en tabla propia en lugar de user_metadata
+  // Guardar nombre/apellidos en auth metadata si faltaban
+  if (missingProfileFields.nombre || missingProfileFields.apellidos) {
+    await supabase.auth.updateUser({
+      data: { ...meta, nombre: completeForm.nombre.trim(), apellidos: completeForm.apellidos.trim() }
+    })
+  }
+
   const { error } = await supabase.from('user_profiles').upsert({
-    user_id: user!.id,
-    cumpleanos: completeForm.cumpleanos,
+    user_id:    user!.id,
+    ...(completeForm.telefono   && { telefono:   completeForm.telefono }),
+    ...(completeForm.pais       && { pais:       completeForm.pais }),
+    ...(completeForm.cumpleanos && { cumpleanos: completeForm.cumpleanos }),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
 
   setCompleteSaving(false)
   if (!error) {
     setMeta(prev => prev ? { ...prev, ...completeForm } : prev)
-    setMissingProfileFields({ telefono: false, pais: false, cumpleanos: false })
+    setMissingProfileFields({ nombre: false, apellidos: false, telefono: false, pais: false, cumpleanos: false })
     setShowCompleteProfile(false)
+
+    // Lanzar tour si es la primera vez
+    if (typeof window !== 'undefined' && !localStorage.getItem('giro_tour_done')) {
+      setTimeout(() => { setTourStep(0); setTourActive(true) }, 400)
+    }
+
     const returnUrl = localStorage.getItem('returnUrl')
     if (returnUrl) { localStorage.removeItem('returnUrl'); window.location.href = returnUrl }
   }
@@ -1226,7 +1555,28 @@ const handleCompleteProfile = async () => {
   p_especialidad: f.especialidad || null,
   p_solo_descuento: f.soloDescuento || false,    
   })
-  if (!error && data) setMenters(data as MenterResult[])
+  if (!error && data) {
+    setMenters(data as MenterResult[])
+    const ids = (data as any[]).map(m => m.menter_id)
+    if (ids.length > 0) {
+      supabase.from('reviews').select('reviewed_id, estrellas').in('reviewed_id', ids)
+        .then(({ data: rv }) => {
+          if (rv) {
+            const raw: Record<string, {sum: number, count: number}> = {}
+            rv.forEach((r: any) => {
+              if (!raw[r.reviewed_id]) raw[r.reviewed_id] = { sum: 0, count: 0 }
+              raw[r.reviewed_id].sum += r.estrellas
+              raw[r.reviewed_id].count += 1
+            })
+            const ratings: Record<string, {avg: number, count: number}> = {}
+            Object.entries(raw).forEach(([k, v]) => {
+              ratings[k] = { avg: Math.round(v.sum / v.count * 10) / 10, count: v.count }
+            })
+            setMenterRatings(ratings)
+          }
+        })
+    }
+  }
   setMentersLoading(false)
 }
 
@@ -1342,6 +1692,7 @@ const fetchFeaturedMenters = async () => {
     { id: 'eventos',    icon: 'eventos',    label: 'Eventos'     },
     { id: 'comunidad', icon: 'directorio', label: 'Comunidad' },
     { id: 'compras',    icon: 'compras',    label: 'Compras'     },
+    { id: 'certificados', icon: 'certificados', label: 'Certificados' },
     { id: 'editar',     icon: 'editar',     label: 'Editar'      },
   ] : [
     
@@ -1359,8 +1710,59 @@ const fetchFeaturedMenters = async () => {
     { id: 'escribir',    icon: 'escribir',    label: 'Blog'      }, 
     { id: 'eventos',     icon: 'eventos',     label: 'Eventos'   },
     { id: 'comunidad', icon: 'directorio', label: 'Comunidad' },  
-    { id: 'compras',    icon: 'compras',    label: 'Compras'     },
+    { id: 'compras',       icon: 'compras',       label: 'Compras'      },
+    { id: 'certificados',  icon: 'certificados',  label: 'Certificados' },
   ]
+
+  // ─── Tour ────────────────────────────────────────────────────────────────────
+  type TourStep = { icon: string; tab?: TabId; title: string; desc: string }
+  const tourSteps: TourStep[] = isMenter ? [
+    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar. Te mostramos las secciones clave para que puedas sacarle el máximo provecho desde el primer día.' },
+    { icon: '⭐', tab: 'perfil-pro', title: 'Perfil Pro', desc: 'Configura tu perfil profesional: especialidades, precios, disponibilidad y enlaces. Este es el perfil que verán tus futuros clientes.' },
+    { icon: '📅', tab: 'citas', title: 'Agenda', desc: 'Aquí gestionas las solicitudes de cita de tus clientes: confirma, rechaza o reprograma sesiones. Las solicitudes pendientes aparecen con una notificación.' },
+    { icon: '🗺️', tab: 'roadmap', title: 'Roadmap', desc: 'Diseña y monitorea la ruta de bienestar de cada uno de tus clientes. Agrega objetivos e hitos para llevar un seguimiento claro del progreso.' },
+    { icon: '💰', tab: 'ingresos', title: 'Ingresos', desc: 'Visualiza tus ingresos por sesiones y eventos. Filtra por período y exporta el historial para llevar el control de tu actividad.' },
+    { icon: '✍️', tab: 'escribir', title: 'Blog', desc: 'Publica artículos de bienestar para posicionarte como referente. El contenido que escribas será visible para toda la comunidad.' },
+    { icon: '💎', tab: 'membresia', title: '¡Elige tu plan y despega!', desc: 'Los planes Starter y Premium desbloquean instrumentos de evaluación, reportes de ingresos y más herramientas para hacer crecer tu práctica. ¡Comienza hoy!' },
+  ] : meta?.role === 'empresa' ? [
+    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar organizacional. Te mostramos las secciones clave para que tu equipo empiece a transformarse.' },
+    { icon: '👤', tab: 'perfil', title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar la información de tu cuenta. Agrega una foto, completa tus datos y mantén tu perfil al día.' },
+    { icon: '📅', tab: 'mis-citas', title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones o cancelar con anticipación.' },
+    { icon: '🎯', tab: 'objetivos', title: 'Objetivos Empresariales', desc: 'Define los objetivos de bienestar de tu organización, asigna colaboradores y Menters, y monitorea el avance con hitos medibles.' },
+    { icon: '🧪', tab: 'instrumentos_empresa', title: 'Instrumentos', desc: 'Aplica evaluaciones psicológicas validadas a tu equipo para medir clima laboral, inteligencia emocional y otras dimensiones.' },
+    { icon: '🌐', tab: 'destacados', title: '¡Encuentra a tu Menter ideal!', desc: 'Explora el directorio de profesionales de bienestar validados. Filtra por especialidad, precio o país y agenda la primera sesión para tu equipo hoy mismo.' },
+  ] : [
+    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Tu espacio de bienestar personal. Te mostramos las secciones clave para que comiences tu camino hacia el bienestar.' },
+    { icon: '👤', tab: 'perfil', title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar tu información. Agrega una foto, revisa tus insignias y accede rápidamente a tus datos.' },
+    { icon: '📅', tab: 'mis-citas', title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones y dejar reseñas.' },
+    { icon: '🗺️', tab: 'roadmap', title: 'Mi Ruta de Bienestar', desc: 'Tu Menter diseña aquí tu plan personalizado. Sigue el progreso de tus objetivos e hitos semana a semana.' },
+    { icon: '📊', tab: 'resultados_tests', title: 'Mis Resultados', desc: 'Consulta los resultados de los instrumentos que hayas completado. Son una guía de autoconocimiento para tu proceso.' },
+    { icon: '🎟️', tab: 'eventos', title: 'Eventos', desc: 'Descubre talleres y webinars de la comunidad. Inscríbete y obtén certificados de participación.' },
+    { icon: '🌐', tab: 'destacados', title: '¡Agenda tu primera sesión!', desc: 'Explora nuestro directorio de Menters certificados. Filtra por especialidad, modalidad o precio y da el primer paso hacia tu bienestar hoy mismo.' },
+  ]
+
+  const closeTour = () => {
+    setTourActive(false)
+    localStorage.setItem('giro_tour_done', '1')
+  }
+  const tourNext = () => {
+    if (tourStep < tourSteps.length - 1) {
+      const next = tourStep + 1
+      setTourStep(next)
+      const tab = tourSteps[next].tab
+      if (tab) switchTab(tab)
+    } else {
+      closeTour()
+    }
+  }
+  const tourPrev = () => {
+    if (tourStep > 0) {
+      const prev = tourStep - 1
+      setTourStep(prev)
+      const tab = tourSteps[prev].tab
+      if (tab) switchTab(tab)
+    }
+  }
 
   // ─── Render helpers ──────────────────────────────────────────────────────────
   const planBadge = (p: string) => {
@@ -1387,21 +1789,21 @@ const fetchFeaturedMenters = async () => {
   )
 
   const INSIGNIAS_CLIENTE = [
-  { id: 'primer_paso',       nombre: 'Primer paso',           color: '#3C3489', bg: '#EEEDFE', desc: 'Primer objetivo completado',           icono: '' },
-  { id: 'en_camino',         nombre: 'En camino',             color: '#085041', bg: '#E1F5EE', desc: 'Superaste el 50% del roadmap',          icono: '' },
-  { id: 'transformacion',    nombre: 'Transformación lograda',color: '#633806', bg: '#FAEEDA', desc: '100% del roadmap completado',           icono: '' },
-  { id: 'constancia',        nombre: 'Constancia',            color: '#72243E', bg: '#FBEAF0', desc: '4 semanas de actividad continua',       icono: '' },
-  { id: 'colaborador',       nombre: 'Colaborador activo',    color: '#0C447C', bg: '#E6F1FB', desc: '5 o más objetivos propios creados',     icono: '' },
-  { id: 'equilibrio',        nombre: 'Equilibrio total',      color: '#27500A', bg: '#EAF3DE', desc: 'Objetivos en 4 áreas distintas',        icono: '' },
+  { id: 'primer_paso',       nombre: 'Primer paso',           color: '#3C3489', bg: '#EEEDFE', desc: 'Primer objetivo completado'           },
+  { id: 'en_camino',         nombre: 'En camino',             color: '#085041', bg: '#E1F5EE', desc: 'Superaste el 50% del roadmap'          },
+  { id: 'transformacion',    nombre: 'Transformación lograda',color: '#633806', bg: '#FAEEDA', desc: '100% del roadmap completado'           },
+  { id: 'constancia',        nombre: 'Constancia',            color: '#72243E', bg: '#FBEAF0', desc: '4 semanas de actividad continua'       },
+  { id: 'colaborador',       nombre: 'Colaborador activo',    color: '#0C447C', bg: '#E6F1FB', desc: '5 o más objetivos propios creados'     },
+  { id: 'equilibrio',        nombre: 'Equilibrio total',      color: '#27500A', bg: '#EAF3DE', desc: 'Objetivos en 4 áreas distintas'        },
 ]
  
 const INSIGNIAS_MENTER = [
-  { id: 'menter_destacado',  nombre: 'Menter destacado',      color: '#3C3489', bg: '#EEEDFE', desc: 'Valoración promedio 4.8+',             icono: '' },
-  { id: 'red_activa',        nombre: 'Red activa',            color: '#085041', bg: '#E1F5EE', desc: '5+ clientes con roadmap activo',        icono: '' },
-  { id: 'guia_constante',    nombre: 'Guía constante',        color: '#633806', bg: '#FAEEDA', desc: 'Actualizaciones semanales por un mes',  icono: '' },
-  { id: 'transformador',     nombre: 'Transformador',         color: '#72243E', bg: '#FBEAF0', desc: 'Un cliente completó su ruta',           icono: '' },
-  { id: 'maestro',           nombre: 'Maestro del bienestar', color: '#27500A', bg: '#EAF3DE', desc: '5 clientes graduados',                  icono: '' },
-  { id: 'chispa',            nombre: 'Chispa Giro Lab',       color: '#633806', bg: '#FAEEDA', desc: 'Otorgada por el equipo Giro Lab',       icono: '' },
+  { id: 'menter_destacado',  nombre: 'Menter destacado',      color: '#3C3489', bg: '#EEEDFE', desc: 'Valoración promedio 4.8+'             },
+  { id: 'red_activa',        nombre: 'Red activa',            color: '#085041', bg: '#E1F5EE', desc: '5+ clientes con roadmap activo'        },
+  { id: 'guia_constante',    nombre: 'Guía constante',        color: '#633806', bg: '#FAEEDA', desc: 'Actualizaciones semanales por un mes'  },
+  { id: 'transformador',     nombre: 'Transformador',         color: '#72243E', bg: '#FBEAF0', desc: 'Un cliente completó su ruta'           },
+  { id: 'maestro',           nombre: 'Maestro del bienestar', color: '#27500A', bg: '#EAF3DE', desc: '5 clientes graduados'                  },
+  { id: 'chispa',            nombre: 'Chispa Giro Lab',       color: '#633806', bg: '#FAEEDA', desc: 'Otorgada por el equipo Giro Lab'       },
 ]
 
 const AREAS_EMPRESA = [
@@ -2028,7 +2430,7 @@ setObjMenterSearch(`${m.nombre} ${m.apellidos || ''}`.trim())
                               <div style={{ display: 'flex', gap: 4 }}>
                                 {INSIGNIAS_CLIENTE.filter(ins => insigniasColab.includes(ins.id)).map(ins => (
                                   <span key={ins.id} title={ins.desc} style={{ fontSize: 12, padding: '2px 8px', borderRadius: 20, background: ins.bg, color: ins.color, fontWeight: 700, border: `0.5px solid ${ins.color}44` }}>
-                                    {ins.icono}
+                                    {ins.nombre}
                                   </span>
                                 ))}
                               </div>
@@ -2824,34 +3226,12 @@ const renderRoadmap = () => {
 
       {/* ── SELECTOR DE CLIENTE (Menter viendo sus clientes) ── */}
       {isMenter && roadmapVistaActiva === 'como_menter' && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Cliente</div>
-          {roadmapLoading && roadmapClientes.length === 0 ? (
-            <p style={{ color: '#999', fontSize: 13 }}>Cargando clientes...</p>
-          ) : roadmapClientes.length === 0 ? (
-            <div style={{ padding: '16px 20px', background: '#fff8e1', borderRadius: 12, border: '2px solid #ffa719', fontSize: 14, color: '#e65100' }}>
-              Aún no tienes clientes con citas confirmadas. Cuando confirmes una cita, podrás crear el roadmap de ese cliente aquí.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {roadmapClientes.map((c: any) => (
-                <button
-                  key={c.client_id}
-                  onClick={() => { setRoadmapClienteActivo(c.client_id); cargarRoadmap(c.client_id) }}
-                  style={{
-                    padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans',
-                    border: roadmapClienteActivo === c.client_id ? '2px solid #7F77DD' : '2px solid #e0e0e0',
-                    background: roadmapClienteActivo === c.client_id ? '#EEEDFE' : 'white',
-                    color: roadmapClienteActivo === c.client_id ? '#3C3489' : '#555',
-                    fontSize: 13, fontWeight: roadmapClienteActivo === c.client_id ? 700 : 400,
-                  }}
-                >
-                  {c.client_name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ClienteSelectorRoadmap
+          clientes={roadmapClientes}
+          loading={roadmapLoading}
+          clienteActivo={roadmapClienteActivo}
+          onSelect={(id) => { setRoadmapClienteActivo(id); cargarRoadmap(id) }}
+        />
       )}
 
       {/* ── TOGGLE PERSONAL / EMPRESA (solo Persona con objetivos de empresa) ── */}
@@ -3132,7 +3512,6 @@ const renderRoadmap = () => {
                     transition: 'opacity 0.3s',
                   }}
                 >
-                  <span style={{ fontSize: 12, color: ins.color, fontWeight: 700 }}>{ins.icono}</span>
                   <span style={{ fontSize: 11, color: ganada ? ins.color : '#999', fontWeight: ganada ? 600 : 400 }}>{ins.nombre}</span>
                 </div>
               )
@@ -3729,6 +4108,46 @@ const renderIngresos = () => {
           }
         </p>
       </div>
+
+      {/* Zona de peligro */}
+      <div style={{ marginTop: 40, paddingTop: 32, borderTop: '2px solid #fee2e2' }}>
+        <h4 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 15, fontWeight: 800, color: '#c62828', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Zona de peligro</h4>
+        <p style={{ fontSize: 13, color: '#888', margin: '0 0 16px' }}>Al eliminar tu cuenta se borrarán permanentemente todos tus datos, sesiones, publicaciones y cualquier información asociada. Esta acción no se puede deshacer.</p>
+        <button
+          onClick={async () => {
+            const confirmado = window.confirm('¿Estás seguro de que quieres eliminar tu cuenta? Esta acción es permanente e irreversible.')
+            if (!confirmado) return
+            const segunda = window.confirm('Última confirmación: se eliminarán TODOS tus datos. ¿Continuar?')
+            if (!segunda) return
+            // Guardar datos antes de borrar
+            const nombreUsuario = `${meta?.nombre || ''} ${meta?.apellidos || ''}`.trim() || 'Usuario'
+            const emailUsuario  = user!.email || ''
+
+            const res = await fetch('/api/account/delete', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ userId: user!.id }),
+            })
+            if (res.ok) {
+              // Email de despedida antes del signOut
+              if (emailUsuario) {
+                await fetch('/api/email', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ tipo: 'despedida', data: { userName: nombreUsuario, userEmail: emailUsuario } }),
+                })
+              }
+              await supabase.auth.signOut()
+              window.location.href = '/'
+            } else {
+              alert('Error al eliminar la cuenta. Escríbenos a contacto@girolab.net')
+            }
+          }}
+          style={{ padding: '10px 24px', borderRadius: 20, border: '2px solid #c62828', background: 'white', color: '#c62828', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}
+        >
+          Eliminar mi cuenta
+        </button>
+      </div>
     </div>
   )
 
@@ -3761,15 +4180,47 @@ const renderIngresos = () => {
     </div>
   )
 
-  const renderMembresia = () => (
+  const renderMembresia = () => {
+    const trialEndsAt = (membership as any)?.trial_ends_at
+    const trialDaysLeft = trialEndsAt
+      ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
+      : null
+    const enTrial = trialDaysLeft !== null && trialDaysLeft > 0 && plan !== 'free'
+    const downgradeReason = (membership as any)?.downgrade_reason
+
+    return (
     <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+      {/* Banner trial */}
+      {enTrial && (
+        <div style={{ padding: '14px 20px', borderRadius: 12, background: '#e8f5e9', border: '1.5px solid #4caf50', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#2e7d32"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, color: '#1b5e20', fontSize: 14 }}>
+              Período de prueba — {trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''} restante{trialDaysLeft !== 1 ? 's' : ''}
+            </p>
+            <p style={{ margin: 0, color: '#2e7d32', fontSize: 12 }}>
+              Tu tarjeta será cobrada automáticamente al terminar. Puedes cancelar cuando quieras.
+            </p>
+          </div>
+        </div>
+      )}
+      {/* Banner downgrade */}
+      {downgradeReason && plan === 'free' && (
+        <div style={{ padding: '14px 20px', borderRadius: 12, background: '#FFEBEE', border: '1.5px solid #ef5350', marginBottom: 20 }}>
+          <p style={{ margin: 0, fontWeight: 700, color: '#b71c1c', fontSize: 14 }}>
+            {downgradeReason === 'payment_failed'
+              ? 'Tu plan fue reducido a Free por un problema de pago. Suscríbete de nuevo para recuperar el acceso.'
+              : 'Tu suscripción fue cancelada. Suscríbete de nuevo para continuar con tu plan.'}
+          </p>
+        </div>
+      )}
       <div style={{ padding: 24, borderRadius: 16, background: planInfo.bg, border: `2px solid ${planInfo.color}`, marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 36 }}>{planInfo.emoji}</span>
           <div>
             <h3 style={{ margin: 0, color: planInfo.color, fontFamily: 'Raleway, sans-serif', fontSize: 22, fontWeight: 900 }}>Plan {planInfo.label}</h3>
             <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-              {membership?.expires_at ? `Vence: ${new Date(membership.expires_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}` : plan === 'free' ? 'Plan gratuito' : plan === 'master' ? 'Otorgado por Giro Lab' : 'Activo'}
+              {membership?.expires_at ? `Vence: ${new Date(membership.expires_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}` : plan === 'free' ? 'Plan gratuito' : plan === 'master' ? 'Otorgado por Giro Lab' : enTrial ? `Prueba gratuita hasta el ${new Date(trialEndsAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}` : 'Activo'}
             </p>
           </div>
         </div>
@@ -3802,8 +4253,61 @@ const renderIngresos = () => {
                     {p === 'starter' && <><span>Todo lo de Free</span><br/><span>Matching automático</span><br/><span>Idiomas</span><br/><span>Formación académica</span><br/><span>Experiencia laboral</span></>}
                     {p === 'premium' && <><span>Todo lo de Starter</span><br/><span>Número de colegiatura</span><br/><span>Certificados</span><br/><span>Escribir en blog</span><br/><span>Redes y enlaces</span></>}
                   </div>
-                  {!esPlanActual && p !== 'free' && <button onClick={() => alert('Próximamente: pago con MercadoPago')} style={{ width: '100%', padding: '10px', borderRadius: 30, border: 'none', background: pi.color, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>Elegir {pi.label} →</button>}
-                  {esPlanActual && <div style={{ textAlign: 'center', fontSize: 13, color: pi.color, fontWeight: 600 }}>Tu plan actual</div>}
+                  {!esPlanActual && p !== 'free' && (
+                    <button
+                      disabled={subLoading === p}
+                      onClick={async () => {
+                        setSubLoading(p)
+                        try {
+                          const res = await fetch('/api/paypal/create-subscription', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ plan: p, billing_cycle: billingCycle }),
+                          })
+                          const data = await res.json()
+                          if (data.approve_url) {
+                            window.location.href = data.approve_url
+                          } else {
+                            setPpModal({ type: 'error', msg: data.error || 'Error al iniciar suscripción' })
+                          }
+                        } catch {
+                          setPpModal({ type: 'error', msg: 'Error de conexión. Intenta de nuevo.' })
+                        } finally {
+                          setSubLoading(null)
+                        }
+                      }}
+                      style={{ width: '100%', padding: '10px', borderRadius: 30, border: 'none', background: subLoading === p ? '#ccc' : pi.color, color: 'white', fontWeight: 700, fontSize: 13, cursor: subLoading === p ? 'not-allowed' : 'pointer', fontFamily: 'Raleway, sans-serif' }}
+                    >
+                      {subLoading === p ? 'Redirigiendo…' : `Elegir ${pi.label} →`}
+                    </button>
+                  )}
+                  {esPlanActual && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center', fontSize: 13, color: pi.color, fontWeight: 600 }}>Tu plan actual</div>
+                      {(membership as any)?.paypal_subscription_id && plan !== 'free' && (plan as string) !== 'master' && (
+                        <button
+                          onClick={() => setPpModal({
+                            type: 'confirm',
+                            msg: '¿Cancelar suscripción? Tu plan bajará a Free de inmediato.',
+                            onConfirm: async () => {
+                              setPpModal(null)
+                              const res = await fetch('/api/paypal/cancel-subscription', { method: 'POST' })
+                              const data = await res.json()
+                              if (data.ok) {
+                                setMembership(prev => prev ? { ...prev, plan: 'free', is_active: false } : prev)
+                                setPpModal({ type: 'success', msg: 'Suscripción cancelada. Tu plan es ahora Free.' })
+                              } else {
+                                setPpModal({ type: 'error', msg: data.error || 'Error al cancelar. Intenta de nuevo.' })
+                              }
+                            },
+                          })}
+                          style={{ fontSize: 11, color: '#999', background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '4px 14px', cursor: 'pointer' }}
+                        >
+                          Cancelar suscripción
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -3812,7 +4316,7 @@ const renderIngresos = () => {
       )}
       {plan === 'master' && <div style={{ padding: 20, background: '#fff3e0', borderRadius: 12, border: '2px solid #e65100' }}><p style={{ margin: 0, color: '#e65100', fontWeight: 600, fontSize: 15 }}>Tienes acceso Master otorgado por Giro Lab. Disfrutas de todos los beneficios de la plataforma.</p></div>}
     </div>
-  )
+  )}
 
 const renderCitasMenter = () => {
   const hoy = new Date().toISOString().split('T')[0]
@@ -3836,6 +4340,25 @@ const renderCitasMenter = () => {
     if (!error) {
       setCitasMenter(prev => prev.map(c => c.id === id ? { ...c, status: nuevoEstado } : c))
       setCitas(prev => prev.map(c => c.id === id ? { ...c, status: nuevoEstado } : c))
+
+      // Disparar email al cliente según el nuevo estado
+      const cita = citasMenter.find(c => c.id === id)
+      if (cita && cita.client_email && (nuevoEstado === 'confirmada' || nuevoEstado === 'rechazada')) {
+        const citaData = {
+          clientName:    cita.client_name,
+          clientEmail:   cita.client_email,
+          menterName:    cita.menter_name,
+          menterEmail:   user?.email || '',
+          date:          new Date(cita.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          startTime:     cita.start_time?.slice(0, 5) || '',
+          endTime:       cita.end_time?.slice(0, 5) || '',
+          modality:      cita.modality || 'online',
+          price:         cita.price || 0,
+          appointmentId: id,
+        }
+        if (nuevoEstado === 'confirmada') dispararEmail('confirmacion_cliente', citaData)
+        if (nuevoEstado === 'rechazada')  dispararEmail('rechazo_cliente', citaData)
+      }
     }
   }
 
@@ -3880,7 +4403,30 @@ const renderCitasMenter = () => {
         <div>
           <Section title="Por confirmar" items={pendientes} empty="No tienes citas pendientes." />
           <Section title="Confirmadas próximas" items={confirmadas} empty="No tienes citas confirmadas próximas." />
-          <Section title="Historial" items={pasadasVisible} empty="Aún no tienes citas pasadas." />
+          <div style={{ marginBottom: 32 }}>
+            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 16, fontWeight: 800, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>Historial</h3>
+            {pasadasVisible.length === 0
+              ? <p style={{ color: '#aaa', fontSize: 14, padding: '20px 0' }}>Aún no tienes citas pasadas.</p>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {pasadasVisible.map(c => (
+                    <div key={c.id}>
+                      <CitaCardMenter c={c} onEstado={handleEstado} onReprogramar={(c) => { setModalReprogramar(c); setReprogramarFecha(c.date); setReprogramarHoraInicio(c.start_time?.slice(0,5)||''); setReprogramarHoraFin(c.end_time?.slice(0,5)||'') }} onCancelar={(c) => setModalCancelar(c)} onAceptar={handleAceptarReprogramacion} onRechazar={handleRechazarReprogramacion} />
+                      {c.status === 'completada' && resenasMenter[c.id] && (
+                        <div style={{ marginTop: 8, padding: '10px 16px', background: '#fdf8ff', border: '1px solid #e9d5ff', borderRadius: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: resenasMenter[c.id].comentario ? 6 : 0 }}>
+                            <span style={{ color: '#ffa719', fontSize: 16, letterSpacing: 1 }}>{'★'.repeat(resenasMenter[c.id].estrellas)}{'☆'.repeat(5 - resenasMenter[c.id].estrellas)}</span>
+                            <span style={{ fontSize: 12, color: '#6a1b9a', fontWeight: 600 }}>{resenasMenter[c.id].estrellas}/5</span>
+                          </div>
+                          {resenasMenter[c.id].comentario && (
+                            <p style={{ margin: 0, fontSize: 13, color: '#555', fontStyle: 'italic' }}>"{resenasMenter[c.id].comentario}"</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
           {pasadasTotal > historialMenterLimit && (
             <button onClick={() => setHistorialMenterLimit(prev => prev + 3)}
               style={{ width: '100%', padding: '12px', marginTop: 12, borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway' }}>
@@ -3951,7 +4497,52 @@ const renderMisCitas = () => {
         <>
           <Section title="Pendientes de confirmación" items={pendientes} empty="No tienes citas pendientes." />
           <Section title="Próximas confirmadas" items={confirmadas} empty="No tienes citas confirmadas próximas." />
-          <Section title="Historial" items={pasadasVisible} empty="Aún no tienes citas pasadas." />
+          <div style={{ marginBottom: 32 }}>
+            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 16, fontWeight: 800, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>Historial</h3>
+            {pasadasVisible.length === 0
+              ? <p style={{ color: '#aaa', fontSize: 14, padding: '20px 0' }}>Aún no tienes citas pasadas.</p>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {pasadasVisible.map(c => (
+                    <div key={c.id}>
+                      <CitaCardPersona
+                        c={c}
+                        onReprogramar={(c) => { setModalReprogramar(c); setReprogramarFecha(c.date); setReprogramarHoraInicio(c.start_time?.slice(0,5)||''); setReprogramarHoraFin(c.end_time?.slice(0,5)||'') }}
+                        onCancelar={(c) => setModalCancelar(c)}
+                        onAceptar={handleAceptarReprogramacion}
+                        onRechazar={handleRechazarReprogramacion}
+                      />
+                      {c.status === 'completada' && (
+                        <div style={{ marginTop: 8, paddingLeft: 4 }}>
+                          {misResenas[c.id] ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#085041', background: '#E1F5EE', padding: '4px 12px', borderRadius: 20 }}>
+                                <span style={{ color: '#ffa719' }}>{'★'.repeat(misResenas[c.id].estrellas)}</span> Ya reseñaste esta sesión
+                              </div>
+                              <button
+                                onClick={() => compartirResena(c, misResenas[c.id])}
+                                style={{ padding: '4px 12px', borderRadius: 20, border: '0.5px solid #421869', background: 'transparent', color: '#421869', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                Compartir en comunidad
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setReviewModal({ appointmentId: c.id, reviewedId: c.menter_id, reviewedName: c.menter_name })
+                                setReviewForm({ estrellas: 0, comentario: '', puntualidad: 0, comunicacion: 0, efectividad: 0 })
+                              }}
+                              style={{ padding: '6px 14px', borderRadius: 20, border: '0.5px solid #421869', background: '#f3e8ff', color: '#421869', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              Dejar resena
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
           {pasadasTotal > historialClienteLimit && (
             <button onClick={() => setHistorialClienteLimit(prev => prev + 3)}
               style={{ width: '100%', padding: '12px', marginTop: 12, borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway' }}>
@@ -4295,8 +4886,9 @@ const renderBlogModal = () => {
 }
 
  const abrirBlogPost = async (post: any) => {
-  console.log('Post menter data:', post.menter)  // agrega esto
-  setBlogModalPost(post)
+  const { sanitizeHtml } = await import('@/lib/sanitize')
+  const safeContent = await sanitizeHtml(post.content || '')
+  setBlogModalPost({ ...post, content: safeContent })
   
   const { data: likesData, count } = await supabase
     .from('blog_likes').select('*', { count: 'exact' }).eq('post_id', post.id)
@@ -4489,7 +5081,7 @@ const saveEvento = async (status: string) => {
 
   setEventoView('lista')
   setEventoEditId(null)
-  setEventoForm({ title: '', description: '', cover_image: '', date: '', start_time: '', end_time: '', modality: 'virtual', location_address: '', meeting_link: '', max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador' })
+  setEventoForm({ title: '', description: '', cover_image: '', date: '', start_time: '', end_time: '', modality: 'virtual', location_address: '', meeting_link: '', max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador', certificate_image: '' })
   setEventoTickets([])
  const { data } = await supabase
   .from('events')
@@ -4538,7 +5130,7 @@ const renderInscritosModal = () => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-      onClick={() => { setInscritosModal(null); setInscritosList([]) }}>
+      onClick={() => { setInscritosModal(null); setInscritosList([]); setCertifiedMap({}) }}>
       <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 700, maxHeight: '85vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}>
 
@@ -4550,12 +5142,34 @@ const renderInscritosModal = () => {
             </h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#666' }}>{inscritosModal.title}</p>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {inscritosModal?.certificate_image && inscritosList.length > 0 && (
+              <button
+                disabled={certIssuing === 'all'}
+                onClick={async () => {
+                  setCertIssuing('all')
+                  const pendientes = inscritosList.filter(r => !certifiedMap[r.user_id])
+                  if (pendientes.length === 0) { setCertIssuing(null); return }
+                  const rows = pendientes.map(r => ({
+                    event_id: inscritosModal.id,
+                    user_id: r.user_id,
+                    menter_id: user?.id
+                  }))
+                  await supabase.from('event_certificates').upsert(rows, { onConflict: 'event_id,user_id' })
+                  const newMap = { ...certifiedMap }
+                  pendientes.forEach(r => { newMap[r.user_id] = true })
+                  setCertifiedMap(newMap)
+                  setCertIssuing(null)
+                }}
+                style={{ padding: '8px 16px', borderRadius: 20, border: 'none', background: certIssuing === 'all' ? '#ccc' : '#6d28d9', color: 'white', fontWeight: 700, fontSize: 13, cursor: certIssuing === 'all' ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                {certIssuing === 'all' ? 'Emitiendo...' : 'Emitir a todos'}
+              </button>
+            )}
             <button onClick={descargarCSV}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
               Descargar CSV
             </button>
-            <button onClick={() => { setInscritosModal(null); setInscritosList([]) }}
+            <button onClick={() => { setInscritosModal(null); setInscritosList([]); setCertifiedMap({}) }}
               style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}>✕</button>
           </div>
         </div>
@@ -4593,16 +5207,17 @@ const renderInscritosModal = () => {
               {/* Tabla */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}>
                 {/* Header tabla */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr 1fr', gap: 0, background: '#f8f9fa', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: '#666' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: inscritosModal?.certificate_image ? '2fr 2fr 1.5fr 1fr 1fr 1.2fr' : '2fr 2fr 1.5fr 1fr 1fr', gap: 0, background: '#f8f9fa', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: '#666' }}>
                   <span>Nombre</span>
                   <span>Email</span>
                   <span>Entrada</span>
                   <span>Cant.</span>
                   <span>Pago</span>
+                  {inscritosModal?.certificate_image && <span>Certificado</span>}
                 </div>
                 {/* Filas */}
                 {inscritosList.map((r, i) => (
-                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr 1fr', gap: 0, padding: '12px 16px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', alignItems: 'center' }}>
+                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: inscritosModal?.certificate_image ? '2fr 2fr 1.5fr 1fr 1fr 1.2fr' : '2fr 2fr 1.5fr 1fr 1fr', gap: 0, padding: '12px 16px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', alignItems: 'center' }}>
                     <span style={{ fontWeight: 600 }}>{r.user?.nombre || '—'}</span>
                     <span style={{ color: '#666', fontSize: 12 }}>{r.user?.email || '—'}</span>
                     <span style={{ fontSize: 12 }}>{r.ticket?.name || '—'}</span>
@@ -4616,6 +5231,29 @@ const renderInscritosModal = () => {
                         {r.payment_status === 'pagado' ? 'Pagado' : r.payment_status === 'gratis' ? 'Gratis' : 'Pendiente'}
                       </span>
                     </span>
+                    {inscritosModal?.certificate_image && (
+                      <span>
+                        {certifiedMap[r.user_id] ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20' }}>Emitido</span>
+                        ) : (
+                          <button
+                            disabled={certIssuing === r.user_id}
+                            onClick={async () => {
+                              setCertIssuing(r.user_id)
+                              await supabase.from('event_certificates').upsert({
+                                event_id: inscritosModal.id,
+                                user_id: r.user_id,
+                                menter_id: user?.id
+                              }, { onConflict: 'event_id,user_id' })
+                              setCertifiedMap(prev => ({ ...prev, [r.user_id]: true }))
+                              setCertIssuing(null)
+                            }}
+                            style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: 'none', background: certIssuing === r.user_id ? '#ccc' : '#f3e8ff', color: '#6d28d9', cursor: certIssuing === r.user_id ? 'default' : 'pointer' }}>
+                            {certIssuing === r.user_id ? '...' : 'Emitir'}
+                          </button>
+                        )}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -4626,6 +5264,22 @@ const renderInscritosModal = () => {
     </div>
   )
 }
+
+const renderEventosMenterWrapper = () => (
+  <div>
+    {!canPremium && (
+      <div style={{ marginBottom: 24, padding: '16px 20px', background: '#fff8e1', border: '2px solid #ffa719', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 14, color: '#7c4a00', fontWeight: 600 }}>
+          Publicar eventos está disponible a partir del plan <strong>Premium</strong>.
+        </p>
+        <button onClick={() => switchTab('membresia')} style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway', whiteSpace: 'nowrap' }}>
+          Ver planes →
+        </button>
+      </div>
+    )}
+    {canPremium ? renderEventosMenter() : renderEventosPersona()}
+  </div>
+)
 
 const renderEventosMenter = () => {
   if (eventoView === 'editor') return (
@@ -4723,6 +5377,29 @@ const renderEventosMenter = () => {
         <input placeholder="Auspiciadores (separados por coma)" value={eventoForm.sponsors}
           onChange={e => setEventoForm(prev => ({ ...prev, sponsors: e.target.value }))}
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #ddd', fontSize: 14, fontFamily: 'inherit' }} />
+
+        {/* Certificado de participación */}
+        <div style={{ background: '#f3e8ff', borderRadius: 16, padding: '20px', border: '1px solid #e9d5ff' }}>
+          <h3 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 6px', fontSize: 16 }}>Certificado de participación</h3>
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b21a8' }}>
+            Sube la imagen que se usará como certificado para los asistentes. Disponible para planes Premium y Master.
+          </p>
+          {eventoForm.certificate_image && (
+            <div style={{ position: 'relative', marginBottom: 10 }}>
+              <img src={eventoForm.certificate_image} style={{ width: '100%', maxHeight: 180, objectFit: 'cover' as const, borderRadius: 10, border: '1px solid #ddd' }} />
+              <button type="button" onClick={() => setEventoForm(prev => ({ ...prev, certificate_image: '' }))}
+                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+            </div>
+          )}
+          <input type="file" accept="image/*" onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            if (file.size > 5 * 1024 * 1024) { alert('Máx. 5MB'); return }
+            const reader = new FileReader()
+            reader.onload = () => setEventoForm(prev => ({ ...prev, certificate_image: reader.result as string }))
+            reader.readAsDataURL(file)
+          }} style={{ padding: '10px', borderRadius: 12, border: '1px dashed #a855f7', fontSize: 13, width: '100%', boxSizing: 'border-box' as const, cursor: 'pointer', background: 'white' }} />
+        </div>
 
         <div style={{ background: '#f8f9fa', borderRadius: 16, padding: '20px' }}>
           <h3 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 16 }}>Tipos de entrada</h3>
@@ -4865,15 +5542,19 @@ const renderEventosMenter = () => {
                           .order('created_at', { ascending: true })
                         if (regs && regs.length > 0) {
                           const userIds = regs.map(r => r.user_id)
-                          const { data: users } = await supabase
-                            .from('user_public_data')
-                            .select('id, nombre, email')
-                            .in('id', userIds)
+                          const [{ data: users }, { data: certs }] = await Promise.all([
+                            supabase.from('user_public_data').select('id, nombre, email').in('id', userIds),
+                            supabase.from('event_certificates').select('user_id').eq('event_id', evento.id)
+                          ])
+                          const certMap: Record<string, boolean> = {}
+                          certs?.forEach(c => { certMap[c.user_id] = true })
+                          setCertifiedMap(certMap)
                           setInscritosList(regs.map(r => ({
                             ...r,
                             user: users?.find(u => u.id === r.user_id) || null
                           })))
                         } else {
+                          setCertifiedMap({})
                           setInscritosList([])
                         }
                         setInscritosLoading(false)
@@ -4891,7 +5572,8 @@ const renderEventosMenter = () => {
                           meeting_link: evento.meeting_link || '', max_participants: evento.max_participants?.toString() || '',
                           presenter: evento.presenter || '',
                           organizers: (evento.organizers || []).join(', '),
-                          sponsors: (evento.sponsors || []).join(', '), status: evento.status
+                          sponsors: (evento.sponsors || []).join(', '), status: evento.status,
+                          certificate_image: evento.certificate_image || ''
                         })
                         setEventoTickets(evento.event_tickets || [])
                         setEventoView('editor')
@@ -4915,7 +5597,8 @@ const renderEventosMenter = () => {
                           presenter: evento.presenter || '',
                           organizers: (evento.organizers || []).join(', '),
                           sponsors: (evento.sponsors || []).join(', '),
-                          status: 'borrador'
+                          status: 'borrador',
+                          certificate_image: evento.certificate_image || ''
                         })
                         setEventoTickets(evento.event_tickets?.map((t: any) => ({
                           name: t.name, type: t.type, price: t.price,
@@ -4938,10 +5621,32 @@ const renderEventosMenter = () => {
                       </button>
 
                       <button onClick={async () => {
-                        if (confirm('¿Eliminar este evento?')) {
-                          await supabase.from('events').delete().eq('id', evento.id)
-                          setEventos(prev => prev.filter(e => e.id !== evento.id))
+                        if (!confirm('¿Eliminar este evento? Se notificará por email a todos los inscritos.')) return
+                        // Notificar a inscritos antes de eliminar
+                        const { data: regs } = await supabase
+                          .from('event_registrations')
+                          .select('user_id, payment_status')
+                          .eq('event_id', evento.id)
+                        if (regs && regs.length > 0) {
+                          const userIds = regs.map((r: any) => r.user_id)
+                          const { data: usersData } = await supabase
+                            .from('user_public_data')
+                            .select('id, nombre, email')
+                            .in('id', userIds)
+                          const eventoFecha = new Date(evento.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                          for (const u of (usersData || [])) {
+                            const reg = regs.find((r: any) => r.user_id === u.id)
+                            dispararEmail('evento_cancelado', {
+                              clientName:   u.nombre || u.email.split('@')[0],
+                              clientEmail:  u.email,
+                              eventoTitulo: evento.title,
+                              eventoFecha,
+                              tuvioPago:    reg?.payment_status === 'pagado',
+                            })
+                          }
                         }
+                        await supabase.from('events').delete().eq('id', evento.id)
+                        setEventos(prev => prev.filter(e => e.id !== evento.id))
                       }} style={{ padding: '8px 14px', borderRadius: 20, border: '1px solid #ffebee', background: 'white', color: '#c62828', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
 
                       </button>
@@ -5024,7 +5729,7 @@ const renderEventoModal = () => {
 
   const handleInscribirse = async () => {
     if (!user?.id || !ticketSeleccionado) return
-    const { error } = await supabase.from('event_registrations').insert({
+    const { data: reg, error } = await supabase.from('event_registrations').insert({
       event_id: eventoModal.id,
       ticket_id: ticketSeleccionado.id,
       user_id: user.id,
@@ -5032,15 +5737,50 @@ const renderEventoModal = () => {
       total_price: precioFinal,
       discount_code: codigoDescuento || null,
       payment_status: precioFinal === 0 ? 'gratis' : 'pendiente'
-    })
-    if (!error) {
-      setToastMsg('¡Inscripción confirmada!')
-      setTimeout(() => setToastMsg(null), 5000)
-      setEventoModal(null)
-      setTicketSeleccionado(null)
-      setCantidadTickets(1)
-      setCodigoDescuento('')
+    }).select('id').single()
+    if (error || !reg) return
+
+    // Evento de pago → redirigir a MercadoPago
+    if (precioFinal > 0) {
+      const res = await fetch('/api/mp/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'event_reg', id: reg.id }),
+      })
+      const data = await res.json()
+      if (data.init_point) { window.location.href = data.init_point; return }
     }
+
+    // Evento gratis → email de confirmación inmediato
+    const fechaFormato = new Date(eventoModal.date + 'T12:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: 'confirmacion_evento',
+        data: {
+          clientName:     meta?.nombre || user.email || 'Usuario',
+          clientEmail:    user.email,
+          eventoTitulo:   eventoModal.title,
+          eventoFecha:    fechaFormato,
+          eventoHora:     eventoModal.start_time || '',
+          eventoLugar:    eventoModal.location_address || eventoModal.meeting_link || 'Por confirmar',
+          modalidad:      eventoModal.modality || 'presencial',
+          tipoEntrada:    ticketSeleccionado.name || 'Entrada',
+          cantidad:       cantidadTickets,
+          precioTotal:    0,
+          registrationId: reg.id,
+          eventoId:       eventoModal.id,
+        }
+      })
+    }).catch(() => {})
+
+    setToastMsg('¡Inscripción confirmada! Revisa tu correo.')
+    setTimeout(() => setToastMsg(null), 5000)
+    setEventoModal(null)
+    setTicketSeleccionado(null)
+    setCantidadTickets(1)
+    setCodigoDescuento('')
   }
 
   const addToGoogleCalendar = () => {
@@ -5449,15 +6189,38 @@ const renderBlogPersona = () => {
           <div style={{ marginBottom: 24 }}><FormField label="Número de colegiatura" value={menterProfile.numero_colegiatura} onChange={v => setMenterProfile(p => ({ ...p, numero_colegiatura: v }))} /></div>
           <SectionHeader emoji="" title="Redes sociales y enlaces" subtitle="Agrega los que tengas." />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
-            {(['linkedin','instagram','facebook','tiktok','x','youtube','whatsapp'] as const).map(red => (
+            {(['linkedin','instagram','facebook','tiktok','x','youtube'] as const).map(red => (
               <FormField key={red} label={red.charAt(0).toUpperCase() + red.slice(1)} value={menterProfile.enlaces[red]} onChange={v => setMenterProfile(p => ({ ...p, enlaces: { ...p.enlaces, [red]: v } }))} />
             ))}
           </div>
         </PlanGate>
+        {/* WhatsApp disponible para todos los planes — necesario para coordinar pagos */}
+        <div style={{ marginTop: 8 }}>
+          <SectionHeader emoji="" title="WhatsApp de contacto" subtitle="Los clientes usarán este enlace para coordinar el pago contigo." />
+          <div style={{ maxWidth: 320, marginBottom: 24 }}>
+            <FormField label="WhatsApp (ej: https://wa.me/51999999999)" value={menterProfile.enlaces.whatsapp} onChange={v => setMenterProfile(p => ({ ...p, enlaces: { ...p.enlaces, whatsapp: v } }))} />
+          </div>
+        </div>
       </PlanGatesRow>
 
       <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: 32, marginBottom: 32 }}>
         <SectionHeader emoji="" title="Disponibilidad semanal" subtitle="Activa los días que atiendes y define tus horarios." />
+
+        {/* Aplicar mismo horario a todos los días activos */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '12px 16px', background: '#f3e8ff', borderRadius: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#421869', whiteSpace: 'nowrap' }}>Aplicar a todos:</span>
+          <input type="time" defaultValue="09:00" id="bulk-start" style={{ padding: '6px 10px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 13, fontFamily: 'DM Sans' }} />
+          <span style={{ fontSize: 13, color: '#666' }}>a</span>
+          <input type="time" defaultValue="18:00" id="bulk-end" style={{ padding: '6px 10px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 13, fontFamily: 'DM Sans' }} />
+          <button onClick={() => {
+            const start = (document.getElementById('bulk-start') as HTMLInputElement)?.value || '09:00'
+            const end   = (document.getElementById('bulk-end')   as HTMLInputElement)?.value || '18:00'
+            setAvailability(prev => prev.map(a => ({ ...a, is_active: true, start_time: start, end_time: end })))
+          }} style={{ padding: '7px 18px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Raleway' }}>
+            Marcar todos
+          </button>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {DIAS_SEMANA.map((dia, i) => { const av = availability[i]; return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderRadius: 12, background: av.is_active ? '#f3e8ff' : '#f8f9fa', border: `2px solid ${av.is_active ? '#995bd5' : '#e0e0e0'}`, flexWrap: 'wrap' }}>
@@ -5561,23 +6324,23 @@ const renderDestacados = () => (
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end' }}>
         <button onClick={() => setFiltros({ especialidad: '', precio_max: '', pais: '', soloDescuento: false })} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #e0e0e0', background: 'white', color: '#666', fontSize: 13, cursor: 'pointer' }}>✕ Limpiar filtros</button>
-      {isMenter && (
-  <button
-    onClick={() => setFiltros(p => ({ ...p, soloDescuento: !p.soloDescuento }))}
-    style={{
-      padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
-      border: `2px solid ${(filtros as any).soloDescuento ? '#ffa719' : '#e0e0e0'}`,
-      background: (filtros as any).soloDescuento ? '#fff8e1' : 'white',
-      color: (filtros as any).soloDescuento ? '#e65100' : '#666',
-      fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans',
-      display: 'flex', alignItems: 'center', gap: 6,
-    }}
-  >
-    {(filtros as any).soloDescuento ? 'Con descuento' : 'Con descuento Menter'}
-  </button>
-)}
       </div>
     </div>
+
+    {isMenter && (
+      <button
+        onClick={() => setFiltros(p => ({ ...p, soloDescuento: !p.soloDescuento }))}
+        style={{
+          marginBottom: 16, padding: '9px 20px', borderRadius: 20, cursor: 'pointer',
+          border: `2px solid ${(filtros as any).soloDescuento ? '#ffa719' : '#e0e0e0'}`,
+          background: (filtros as any).soloDescuento ? '#fff8e1' : 'white',
+          color: (filtros as any).soloDescuento ? '#e65100' : '#666',
+          fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans',
+        }}
+      >
+        {(filtros as any).soloDescuento ? '✓ Mostrando: con descuento Menter' : '% Ver solo con descuento Menter'}
+      </button>
+    )}
 
     {/* GRILLA */}
     {mentersLoading && <div style={{ textAlign: 'center', padding: 40 }}><div style={{ fontSize: 32, marginBottom: 8 }}></div><p style={{ color: '#666' }}>Buscando Menters...</p></div>}
@@ -5643,7 +6406,7 @@ const renderDestacados = () => (
                       fontWeight: 700, border: `0.5px solid ${ins.color}44`,
                     }}
                   >
-                    {ins.icono} {ins.nombre}
+                    {ins.nombre}
                   </span>
                 ))}
               </div>
@@ -5664,12 +6427,18 @@ const renderDestacados = () => (
           <span>{m.precio_sesion ? <strong style={{ color: '#421869' }}>${m.precio_sesion} USD</strong> : 'Precio a acordar'}{m.duracion_sesion ? ` · ${m.duracion_sesion} min` : ''}</span>
           {m.pais && <span>{m.pais}</span>}
         </div>
-        {m.modalidad && <div style={{ fontSize: 12, color: '#666', marginBottom: 14 }}>{modalidadLabel[m.modalidad] || m.modalidad}</div>}
-        <button onClick={() => setSelectedMenter(m)} style={{ 
-  width: '100%', padding: '11px', borderRadius: 30, border: 'none', 
-  background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14, 
+        {m.modalidad && <div style={{ fontSize: 12, color: '#666', marginBottom: 10 }}>{modalidadLabel[m.modalidad] || m.modalidad}</div>}
+        {menterRatings[m.menter_id] ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <span style={{ color: '#ffa719', fontSize: 15, letterSpacing: 1 }}>{'★'.repeat(Math.round(menterRatings[m.menter_id].avg))}</span>
+            <span style={{ fontSize: 12, color: '#666' }}>{menterRatings[m.menter_id].avg} ({menterRatings[m.menter_id].count} {menterRatings[m.menter_id].count === 1 ? 'reseña' : 'reseñas'})</span>
+          </div>
+        ) : <div style={{ marginBottom: 12 }} />}
+        <button onClick={() => setSelectedMenter(m)} style={{
+  width: '100%', padding: '11px', borderRadius: 30, border: 'none',
+  background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14,
   cursor: 'pointer', fontFamily: 'Raleway, sans-serif',
-  marginTop: 'auto'  // ← agregar
+  marginTop: 'auto'
 }}>
   Ver perfil y agendar →
         </button>
@@ -5694,9 +6463,15 @@ const renderDestacados = () => (
             <h2 style={{ margin: 0, color: 'white', fontFamily: 'Raleway, sans-serif', fontSize: 22 }}>{selectedMenter.nombre} {selectedMenter.apellidos}</h2>
             <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {selectedMenter.especialidad && <span style={{ fontSize: 11, background: '#ffa719', color: '#2d2926', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>{selectedMenter.especialidad}</span>}
-              {selectedMenter.pais && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>{selectedMenter.pais}</span>}
+              {selectedMenter.pais && <span style={{ fontSize: 11, color: 'white', background: 'rgba(255,255,255,0.18)', padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>📍 {selectedMenter.pais}</span>}
               <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.2)', color: 'white', padding: '3px 10px', borderRadius: 20, fontWeight: 700, textTransform: 'uppercase' }}>{selectedMenter.plan}</span>
             </div>
+            {menterRatings[selectedMenter.menter_id] && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                <span style={{ color: '#ffa719', fontSize: 16, letterSpacing: 1 }}>{'★'.repeat(Math.round(menterRatings[selectedMenter.menter_id].avg))}</span>
+                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{menterRatings[selectedMenter.menter_id].avg} · {menterRatings[selectedMenter.menter_id].count} {menterRatings[selectedMenter.menter_id].count === 1 ? 'reseña' : 'reseñas'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -5720,7 +6495,6 @@ const renderDestacados = () => (
               background: ins.bg, border: `1px solid ${ins.color}44`,
             }}
           >
-            <span style={{ fontSize: 13, color: ins.color, fontWeight: 700 }}>{ins.icono}</span>
             <span style={{ fontSize: 12, color: ins.color, fontWeight: 600 }}>{ins.nombre}</span>
           </div>
         ))}
@@ -5918,6 +6692,82 @@ const renderDestacados = () => (
   </div>
 )
 
+const renderMisCertificados = () => {
+  if (misCertificadosLoading) {
+    return <p style={{ color: '#999', padding: '40px 0', textAlign: 'center' }}>Cargando certificados...</p>
+  }
+  if (misCertificados.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 20px', color: '#999' }}>
+        <svg viewBox="0 0 24 24" width={56} height={56} style={{ fill: '#ddd', marginBottom: 16 }}>
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+        </svg>
+        <p style={{ fontSize: 16, fontWeight: 600, color: '#666', marginBottom: 6 }}>Aún no tienes certificados</p>
+        <p style={{ fontSize: 14, color: '#aaa' }}>Cuando un Menter emita tu certificado de participación en un evento, aparecerá aquí.</p>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>
+        {misCertificados.length} {misCertificados.length === 1 ? 'certificado' : 'certificados'} recibidos
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+        {misCertificados.map(cert => {
+          const evento = cert.event
+          const fechaEvento = evento?.date
+            ? new Date(evento.date + 'T00:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '—'
+          const fechaEmision = cert.issued_at
+            ? new Date(cert.issued_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '—'
+          const imgSrc = evento?.certificate_image || evento?.cover_image || null
+          return (
+            <div key={cert.id} style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(66,24,105,0.1)', border: '1px solid #f0e6ff' }}>
+              {/* Imagen del certificado */}
+              <div style={{ position: 'relative', background: '#f3e8ff', minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {imgSrc ? (
+                  <img src={imgSrc} alt="Certificado" style={{ width: '100%', height: 180, objectFit: 'cover' as const }} />
+                ) : (
+                  <svg viewBox="0 0 24 24" width={48} height={48} style={{ fill: '#c4b5fd' }}>
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+                  </svg>
+                )}
+                {/* Badge emitido */}
+                <span style={{ position: 'absolute', top: 10, right: 10, background: '#16a34a', color: 'white', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>
+                  Emitido
+                </span>
+              </div>
+              {/* Info */}
+              <div style={{ padding: '14px 16px' }}>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: '0 0 4px', fontSize: 15, lineHeight: 1.3 }}>
+                  {evento?.title || 'Evento'}
+                </h3>
+                <p style={{ margin: '0 0 2px', fontSize: 12, color: '#888' }}>Evento: {fechaEvento}</p>
+                <p style={{ margin: '0 0 14px', fontSize: 12, color: '#aaa' }}>Emitido el {fechaEmision}</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {imgSrc && (
+                    <a href={imgSrc} target="_blank" rel="noopener noreferrer"
+                      style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none' }}>
+                      Ver certificado
+                    </a>
+                  )}
+                  {imgSrc && (
+                    <a href={imgSrc} download={`certificado_${evento?.title || 'evento'}.jpg`}
+                      style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none' }}>
+                      Descargar
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
   const sectionContent: SectionMap = {
     perfil:       { title: 'Tu Perfil',                                                    content: renderPerfil() },
@@ -5933,72 +6783,42 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     instrumentos:         { title: 'Instrumentos Psicométricos', content: isMenter && user?.id ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} /> : renderProximamente('Instrumentos', '') },
     resultados_tests:     { title: 'Mis Resultados', content: !isMenter && user?.id ? <RenderResultadosTests userId={user.id} /> : renderProximamente('Mis Resultados', '') },
     instrumentos_empresa: { title: 'Instrumentos', content: meta?.role === 'empresa' && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} /> : renderProximamente('Instrumentos', '') },
-     compras:      { title: 'Historial de Compras',                                         content: renderProximamente('Historial de Compras', '') },
+     compras:      { title: 'Historial de Compras',                                         content: user?.id ? <RenderCompras userId={user.id} isMenter={isMenter} /> : null },
+     certificados: { title: 'Mis Certificados',                                             content: renderMisCertificados() },
    comunidad: {
   title: 'Comunidad',
   content: (
-    <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
-
-      {/* Frase del día */}
-      <div style={{
-        background: 'linear-gradient(135deg, #421869, #995bd5)',
-        borderRadius: 16, padding: '28px 32px', marginBottom: 24,
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* Círculo decorativo */}
-        <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-        <div style={{ position: 'absolute', bottom: -30, left: -10, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,167,25,0.15)' }} />
-
+    <div style={{ fontFamily: 'DM Sans, sans-serif', maxWidth: 560, margin: '0 auto' }}>
+      <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', borderRadius: 16, padding: '22px 28px', marginBottom: 28, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 16 }}></span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#ffa719', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
-              La frase del día
-            </span>
-          </div>
-          <blockquote style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'white', lineHeight: 1.6, fontStyle: 'italic', fontFamily: 'Raleway, sans-serif' }}>
-  {fraseDelDia
-    ? `"${fraseDelDia.frase}"`
-    : '"El bienestar no es un destino, es una forma de caminar cada día."'
-  }
-</blockquote>
-{fraseDelDia?.autor && (
-  <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.6)', fontStyle: 'normal' }}>
-    — {fraseDelDia.autor}
-  </div>
-)}
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#ffa719', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>La frase del día</span>
+          <blockquote style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 600, color: 'white', lineHeight: 1.6, fontStyle: 'italic', fontFamily: 'Raleway, sans-serif' }}>
+            {fraseDelDia ? `"${fraseDelDia.frase}"` : '"El bienestar no es un destino, es una forma de caminar cada día."'}
+          </blockquote>
+          {fraseDelDia?.autor && <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>— {fraseDelDia.autor}</div>}
         </div>
       </div>
-
-      {/* Descripción y botón */}
-      <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <p style={{ color: '#666', fontSize: 15, marginBottom: 24, lineHeight: 1.7 }}>
-          Conecta con otros usuarios, comparte tu progreso<br/>y descubre contenido de bienestar.
+      <div style={{ textAlign: 'center', padding: '8px 0 24px' }}>
+        <p style={{ color: '#666', fontSize: 14, marginBottom: 20, lineHeight: 1.7 }}>
+          Conecta con la comunidad Giro Lab, comparte tu progreso<br/>y descubre contenido de bienestar.
         </p>
         <button
-          onClick={() => window.open('/comunidad', '_blank')}
-          style={{
-            padding: '14px 32px', borderRadius: 30, border: 'none',
-            background: '#421869', color: 'white', fontWeight: 700,
-            fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway',
-            boxShadow: '0 4px 16px rgba(66,24,105,0.3)',
-          }}>
+          onClick={() => router.push('/comunidad')}
+          style={{ padding: '13px 32px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway', boxShadow: '0 4px 16px rgba(66,24,105,0.3)' }}>
           Ir a la Comunidad →
         </button>
       </div>
-
     </div>
   )
 },
 
 escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona() : canPremium ? renderBlogMenter() : renderUpgradeRequired('Escribir en el Blog') },  
-   eventos: { 
-  title: 'Eventos', 
-  content: !isMenter 
-    ? renderEventosPersona() 
-    : canPremium 
-      ? renderEventosMenter() 
-      : renderUpgradeRequired('Eventos') 
+   eventos: {
+  title: 'Eventos',
+  content: !isMenter
+    ? renderEventosPersona()
+    : renderEventosMenterWrapper()
 },
     soporte:      { title: 'Centro de Ayuda',                                              content: renderSoporte() },
   }
@@ -6016,10 +6836,59 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
     boxShadow: activeTab === id ? '0 8px 20px rgba(255,167,25,0.3)' : 'none',
   })
 
-  const allFilled = !missingProfileFields.cumpleanos || !!completeForm.cumpleanos
+  const allFilled = (
+    (!missingProfileFields.nombre     || !!completeForm.nombre.trim()) &&
+    (!missingProfileFields.apellidos  || !!completeForm.apellidos.trim()) &&
+    (!missingProfileFields.telefono   || !!completeForm.telefono.trim()) &&
+    (!missingProfileFields.pais       || !!completeForm.pais) &&
+    (!missingProfileFields.cumpleanos || !!completeForm.cumpleanos)
+  )
 
   return (
     <div style={{ position: 'relative' }}>
+
+      {/* ── Tour overlay ─────────────────────────────────────────────────── */}
+      {tourActive && tourSteps[tourStep] && (() => {
+        const step = tourSteps[tourStep]
+        const isLast = tourStep === tourSteps.length - 1
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 16px 40px', pointerEvents: 'none' }}>
+            {/* backdrop semi-transparent */}
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(30,0,50,0.55)', backdropFilter: 'blur(1.5px)', WebkitBackdropFilter: 'blur(8px)', pointerEvents: 'auto' }} onClick={closeTour} />
+            {/* card */}
+            <div style={{ position: 'relative', background: 'white', borderRadius: 24, padding: '32px 32px 28px', maxWidth: 440, width: '100%', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', pointerEvents: 'auto', animation: 'tourSlideUp 0.35s cubic-bezier(.22,.68,0,1.2) both' }}>
+              {/* close */}
+              <button onClick={closeTour} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+              
+              {/* title */}
+              <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 20, fontWeight: 900, margin: '0 0 10px', textAlign: 'center' }}>{step.title}</h3>
+              {/* desc */}
+              <p style={{ color: '#555', fontSize: 15, lineHeight: 1.65, margin: '0 0 24px', textAlign: 'center' }}>{step.desc}</p>
+              {/* progress dots */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 24 }}>
+                {tourSteps.map((_, i) => (
+                  <div key={i} style={{ width: i === tourStep ? 20 : 8, height: 8, borderRadius: 4, background: i === tourStep ? '#421869' : '#e0d6f0', transition: 'all 0.3s' }} />
+                ))}
+              </div>
+              {/* buttons */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                {tourStep > 0 && (
+                  <button onClick={tourPrev} style={{ flex: 1, padding: '12px', borderRadius: 30, border: '2px solid #e0e0e0', background: 'white', color: '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>← Anterior</button>
+                )}
+                {tourStep === 0 && (
+                  <button onClick={closeTour} style={{ flex: 1, padding: '12px', borderRadius: 30, border: '2px solid #e0e0e0', background: 'white', color: '#999', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>Saltar tour</button>
+                )}
+                <button onClick={tourNext} style={{ flex: 2, padding: '12px', borderRadius: 30, border: 'none', background: 'linear-gradient(135deg,#421869,#6a1b9a)', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                  {isLast ? '¡Listo!' : 'Siguiente →'}
+                </button>
+              </div>
+              {/* step counter */}
+              <p style={{ textAlign: 'center', color: '#bbb', fontSize: 12, margin: '14px 0 0', fontFamily: 'DM Sans, sans-serif' }}>{tourStep + 1} de {tourSteps.length}</p>
+            </div>
+          </div>
+        )
+      })()}
+
       {showCompleteProfile && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: 'white', borderRadius: 20, padding: 40, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
@@ -6029,6 +6898,18 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
               <p style={{ color: '#666', fontSize: 15, margin: 0 }}>Completa estos datos para encontrar tu match perfecto</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {missingProfileFields.nombre && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Nombre *</label>
+                    <input type="text" placeholder="Tu nombre" value={completeForm.nombre} onChange={e => setCompleteForm(p => ({ ...p, nombre: e.target.value }))} style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Apellidos *</label>
+                    <input type="text" placeholder="Tus apellidos" value={completeForm.apellidos} onChange={e => setCompleteForm(p => ({ ...p, apellidos: e.target.value }))} style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              )}
               {missingProfileFields.telefono && (
                 <div>
                   <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Teléfono *</label>
@@ -6046,7 +6927,7 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
               )}
               {missingProfileFields.cumpleanos && (
                 <div>
-                  <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Fecha de cumpleaños *</label>
+                  <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Fecha de nacimiento *</label>
                   <input type="date" value={completeForm.cumpleanos} onChange={e => setCompleteForm(p => ({ ...p, cumpleanos: e.target.value }))} style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans', boxSizing: 'border-box' }} />
                 </div>
               )}
@@ -6067,6 +6948,7 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
         <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
           @keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}}
+          @keyframes tourSlideUp{from{opacity:0;transform:translateY(40px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
           .giro-icon-btn:hover{background:#ffa719!important;border-color:#ffa719!important;color:#2d2926!important;box-shadow:0 8px 20px rgba(255,167,25,.3)!important}
           .giro-icon-btn:hover svg{transform:scale(1.1)}
           @media(max-width:900px){
@@ -6080,8 +6962,8 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
           @media(min-width:901px){.giro-mobile-header{display:none!important}}
         `}</style>
 
-        <div className="giro-lottie-desktop" style={{ position:'fixed', top:15, right:30, width:100, height:100, zIndex:50, pointerEvents:'none', opacity:scrolled?0:1, transition:'opacity 0.4s ease' }}>
-          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width:100, height:100 }} />
+        <div className="giro-lottie-desktop" style={{ position:'fixed', top:30, right:15, width:100, height:100, zIndex:50, pointerEvents:'none', opacity:scrolled?0:1, transition:'opacity 0.4s ease' }}>
+          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width:70, height:70 }} />
         </div>
 
         <div className="giro-mobile-header" style={{ position:'fixed', top:0, left:0, width:'100%', padding:'10px 20px', zIndex:9999, alignItems:'center', justifyContent:'space-between', background:'rgba(66,24,105,.98)', borderBottom:'1px solid rgba(255,255,255,.1)', height:70, boxSizing:'border-box' }}>
@@ -6126,6 +7008,8 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
             </div>
           </div>
         </div>
+          {/* Tour floating button — always visible, fixed at bottom-left */}
+          <button onClick={() => { setTourStep(0); setTourActive(true) }} title="Iniciar tour" style={{ position:'fixed', left:20, bottom:24, zIndex:200, width:44, height:44, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', background:'rgba(66,24,105,0.85)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', color:'white', fontWeight:900, fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(0,0,0,0.3)', transition:'all 0.2s' }} onMouseEnter={e=>(e.currentTarget.style.background='#ffa719')} onMouseLeave={e=>(e.currentTarget.style.background='rgba(66,24,105,0.85)')}>?</button>
 
         <main className="giro-main-panel" style={{ marginLeft:110, padding:'40px 40px 100px 40px', position:'relative', zIndex:10, maxWidth:1200 }}>
           <h1 className="giro-desktop-header" style={{ fontFamily:'Raleway, sans-serif', fontWeight:900, fontSize:'2.5rem', marginBottom:30, color:'white', lineHeight:1.2 }}>
@@ -6224,6 +7108,100 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
       </div>
 )}
 
+    {/* ── MODAL PAYPAL (éxito / error / confirmación cancelar) ── */}
+    {ppModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10010, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: 'white', borderRadius: 20, maxWidth: 420, width: '100%', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: ppModal.type === 'success' ? 'linear-gradient(135deg,#2e7d32,#43a047)' : ppModal.type === 'error' ? 'linear-gradient(135deg,#b71c1c,#e53935)' : 'linear-gradient(135deg,#421869,#995bd5)', padding: '20px 24px' }}>
+            <div style={{ fontSize: 32, textAlign: 'center' }}>
+              {ppModal.type === 'success' ? '✅' : ppModal.type === 'error' ? '⚠️' : '🔔'}
+            </div>
+          </div>
+          <div style={{ padding: '24px 28px' }}>
+            <p style={{ margin: '0 0 20px', fontSize: 15, color: '#2d2926', lineHeight: 1.6, textAlign: 'center' }}>{ppModal.msg}</p>
+            {ppModal.type === 'confirm' ? (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setPpModal(null)} style={{ flex: 1, padding: '11px', borderRadius: 30, border: '1.5px solid #ddd', background: 'white', color: '#666', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                  Mantener plan
+                </button>
+                <button onClick={ppModal.onConfirm} style={{ flex: 1, padding: '11px', borderRadius: 30, border: 'none', background: '#b71c1c', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                  Sí, cancelar
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setPpModal(null)} style={{ width: '100%', padding: '12px', borderRadius: 30, border: 'none', background: 'linear-gradient(135deg,#421869,#995bd5)', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                Entendido
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── MODAL RESEÑA ── */}
+    {reviewModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: 'white', borderRadius: 20, maxWidth: 480, width: '100%', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', padding: '20px 24px' }}>
+            <h3 style={{ color: 'white', margin: 0, fontFamily: 'Raleway', fontSize: 17, fontWeight: 800 }}>Resenar sesion</h3>
+            <p style={{ color: 'rgba(255,255,255,0.8)', margin: '4px 0 0', fontSize: 13 }}>{reviewModal.reviewedName}</p>
+          </div>
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Calificación general</label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                {[1,2,3,4,5].map(n => (
+                  <button key={n} onClick={() => setReviewForm(p => ({ ...p, estrellas: n }))}
+                    style={{ fontSize: 28, background: 'none', border: 'none', cursor: 'pointer', color: '#ffa719', opacity: n <= reviewForm.estrellas ? 1 : 0.25, transition: 'opacity 0.15s' }}>
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            {([
+              { key: 'puntualidad', label: 'Puntualidad' },
+              { key: 'comunicacion', label: 'Comunicacion' },
+              { key: 'efectividad', label: 'Efectividad' },
+            ] as { key: 'puntualidad' | 'comunicacion' | 'efectividad'; label: string }[]).map(({ key, label }) => (
+              <div key={key}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>{label}</label>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setReviewForm(p => ({ ...p, [key]: n }))}
+                      style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
+                        background: n <= reviewForm[key] ? '#421869' : '#f0f0f0',
+                        color: n <= reviewForm[key] ? 'white' : '#999' }}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Comentario (opcional)</label>
+              <textarea
+                value={reviewForm.comentario}
+                onChange={e => setReviewForm(p => ({ ...p, comentario: e.target.value }))}
+                placeholder="Comparte tu experiencia..."
+                rows={3}
+                style={{ width: '100%', marginTop: 6, padding: '10px 12px', borderRadius: 10, border: '0.5px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', resize: 'none', boxSizing: 'border-box' as const }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setReviewModal(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '0.5px solid #ddd', background: 'white', color: '#666', fontSize: 13, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={guardarResena} disabled={reviewSaving}
+                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: reviewSaving ? '#ccc' : '#421869', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Raleway' }}>
+                {reviewSaving ? 'Guardando...' : 'Publicar resena'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
     </div>
   )
 }
@@ -6261,9 +7239,15 @@ function CitaCardMenter({ c, onEstado, onReprogramar, onCancelar, onAceptar, onR
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#555' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#555', alignItems: 'center' }}>
         {c.modality && <span>{c.modality === 'video' ? 'Virtual' : c.modality === 'presencial' ? 'Presencial' : 'Ambas'}</span>}
-        {c.price && <span>${c.price} USD</span>}
+        {c.price > 0 && <span>${c.price} USD</span>}
+        {c.payment_method === 'directo'
+          ? <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#f0f0f0', color: '#666' }}>Trato directo</span>
+          : c.payment_status === 'pagado'
+            ? <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20' }}>Pagado</span>
+            : <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#fff8e1', color: '#e65100' }}>Pago pendiente</span>
+        }
       </div>
 
       {c.notes && <div style={{ fontSize: 13, color: '#666', background: '#f8f9fa', padding: '8px 12px', borderRadius: 8, fontStyle: 'italic' }}>{c.notes}</div>}
@@ -6346,10 +7330,16 @@ function CitaCardPersona({ c, onReprogramar, onCancelar, onAceptar, onRechazar }
         <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#555' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#555', alignItems: 'center' }}>
         {c.modality && <span>{c.modality === 'video' ? 'Virtual' : c.modality === 'presencial' ? 'Presencial' : 'Ambas'}</span>}
-        {c.price && <span>${c.price} USD</span>}
-        {c.payment_method && <span>{c.payment_method === 'online' ? 'Pago online' : 'Pago directo'}</span>}
+        {c.price > 0 && <span>${c.price} USD</span>}
+        {/* Badge de pago */}
+        {c.payment_method === 'directo'
+          ? <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#f0f0f0', color: '#666' }}>Trato directo</span>
+          : c.payment_status === 'pagado'
+            ? <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20' }}>Pagado</span>
+            : <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#fff8e1', color: '#e65100' }}>Pago pendiente</span>
+        }
       </div>
 
       {c.notes && <div style={{ fontSize: 13, color: '#666', background: '#f8f9fa', padding: '8px 12px', borderRadius: 8, fontStyle: 'italic' }}>{c.notes}</div>}
@@ -6465,7 +7455,7 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
   const [citasLoading, setCitasLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<{ slot_start: string; slot_end: string } | null>(null)
   const [modalidad, setModalidad] = useState<'video' | 'presencial'>(menter.modalidad === 'presencial' ? 'presencial' : 'video')
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'directo'>('directo')
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false)
   const [notas, setNotas] = useState('')
   const [booking, setBooking] = useState(false)
   const [bookingMsg, setBookingMsg] = useState<string | null>(null)
@@ -6492,28 +7482,55 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
   const handleConfirm = async () => {
   if (!selectedSlot || !fecha) return
   setBooking(true)
-  const { error } = await supabase.from('appointments').insert({
+  // reCAPTCHA v3 — rechazar bots silenciosamente
+  const rcToken = await getRecaptchaToken('agendar_cita')
+  if (rcToken) {
+    const ok = await verifyRecaptcha(rcToken, 'agendar_cita')
+    if (!ok) { setBooking(false); setBookingMsg('Verificación de seguridad fallida. Intenta de nuevo.'); return }
+  }
+  const { data: apt, error } = await supabase.from('appointments').insert({
     menter_id:      menter.menter_id,
     client_id:      clientId,
     menter_name:    `${menter.nombre} ${menter.apellidos}`,
     client_name:    clientName,
+    client_email:   clientEmail,
     date:           fecha,
     start_time:     selectedSlot.slot_start,
     end_time:       selectedSlot.slot_end,
     modality:       modalidad,
-    payment_method: paymentMethod,
+    payment_method: 'directo',
     payment_status: 'pendiente',
     price:          menter.precio_sesion,
     status:         'pendiente',
     notes:          notas || null,
-  })
-  setBooking(false)
-  if (error) {
+  }).select('id').single()
+  if (error || !apt) {
+    setBooking(false)
     setBookingMsg('Error al agendar. Intenta nuevamente.')
-  } else {
-    setBookingMsg('¡Solicitud enviada! El Menter confirmará tu cita pronto.')
-    setTimeout(() => onBooked(), 2500)
+    return
   }
+
+  setBooking(false)
+  // Si el Menter tiene precio y WhatsApp → mostrar modal de pago
+  if (menter.precio_sesion && menter.precio_sesion > 0 && menter.enlaces?.whatsapp) {
+    setShowWhatsappModal(true)
+    return
+  }
+  setBookingMsg('¡Solicitud enviada! El Menter confirmará tu cita pronto.')
+  const citaData = {
+    clientName:    clientName,
+    clientEmail:   clientEmail,
+    menterName:    `${menter.nombre} ${menter.apellidos}`,
+    menterEmail:   (menter as any).email || '',
+    date:          formatFecha(fecha),
+    startTime:     selectedSlot!.slot_start.slice(0, 5),
+    endTime:       selectedSlot!.slot_end.slice(0, 5),
+    modality:      modalidad,
+    price:         menter.precio_sesion,
+    appointmentId: apt.id,
+  }
+  dispararEmail('nueva_solicitud_menter', citaData)
+  setTimeout(() => onBooked(), 2500)
 }
 
   const formatTime = (t: string) => {
@@ -6529,6 +7546,44 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
     const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
     const date = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
     return `${dias[date.getDay()]}, ${parseInt(d)} de ${meses[parseInt(m)-1]} de ${y}`
+  }
+
+  if (showWhatsappModal) {
+    const whatsappUrl = menter.enlaces?.whatsapp || null
+    return (
+      <div style={{ padding: '40px 28px', textAlign: 'center' }}>
+        <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
+        <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>¡Cita reservada!</h3>
+        <p style={{ color: '#555', fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' }}>
+          Tu sesión con <strong>{menter.nombre}</strong> está pendiente de confirmación.
+        </p>
+        <div style={{ background: '#f3e8ff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#421869', margin: '0 0 4px' }}>Precio de la sesión</p>
+          <p style={{ fontSize: 22, fontWeight: 800, color: '#421869', margin: 0 }}>${menter.precio_sesion} USD</p>
+        </div>
+        <div style={{ background: '#fff8e1', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left', border: '1.5px solid #ffa719' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#e65100', margin: '0 0 6px' }}>Acuerda el pago con el Menter</p>
+          <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: 0 }}>
+            Escríbele a <strong>{menter.nombre}</strong> para confirmar el método de pago y asegurar tu cita.
+          </p>
+        </div>
+        {whatsappUrl ? (
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '14px', borderRadius: 30, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12, boxSizing: 'border-box' as const }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.107.549 4.09 1.51 5.814L0 24l6.335-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm.001 21.818a9.818 9.818 0 01-5.017-1.373l-.36-.214-3.733.977.999-3.645-.234-.374A9.817 9.817 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.416 0 9.819 4.403 9.819 9.818 0 5.416-4.403 9.818-9.819 9.818z"/></svg>
+            Escribir a {menter.nombre} por WhatsApp
+          </a>
+        ) : (
+          <div style={{ background: '#f5f5f5', borderRadius: 12, padding: '12px 16px', marginBottom: 12, fontSize: 13, color: '#666' }}>
+            Contacta directamente a <strong>{menter.nombre}</strong> para coordinar el pago.
+          </div>
+        )}
+        <button onClick={() => { setShowWhatsappModal(false); onBooked() }}
+          style={{ width: '100%', padding: '12px', borderRadius: 30, border: '2px solid #e0e0e0', background: 'white', color: '#666', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxSizing: 'border-box' as const }}>
+          Cerrar
+        </button>
+      </div>
+    )
   }
 
   if (bookingMsg) return (
@@ -6629,17 +7684,14 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
               </div>
             </div>
           )}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Método de pago</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['directo','online'] as const).map(p => (
-                <button key={p} onClick={() => setPaymentMethod(p)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: `2px solid ${paymentMethod === p ? '#ffa719' : '#e0e0e0'}`, background: paymentMethod === p ? '#fff8e1' : 'white', color: paymentMethod === p ? '#e65100' : '#666', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                  {p === 'directo' ? 'Acordar directo' : 'Pagar online'}
-                </button>
-              ))}
+          {Number(menter.precio_sesion) > 0 && (
+            <div style={{ background: '#fff8e1', borderRadius: 12, padding: '12px 16px', marginBottom: 16, border: '1.5px solid #ffa719', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 18 }}>💬</span>
+              <p style={{ fontSize: 13, color: '#e65100', margin: 0, lineHeight: 1.5 }}>
+                El pago se coordina directamente con el Menter. Al confirmar te daremos el contacto para acordarlo.
+              </p>
             </div>
-            {paymentMethod === 'online' && <p style={{ fontSize: 12, color: '#666', margin: '8px 0 0' }}>Próximamente via MercadoPago</p>}
-          </div>
+          )}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Notas para el Menter <span style={{ fontWeight: 400, color: '#999' }}>(opcional)</span></label>
             <textarea value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cuéntale brevemente sobre lo que quieres trabajar..." rows={3}

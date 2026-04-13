@@ -11,6 +11,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -120,13 +121,22 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
 
   // MDQ-C: escala 0-3 especial
   const mdqCOpciones: StepperOption[] = [
-    { valor: 0, etiqueta: 'Sin problema',      emoji: '✅' },
-    { valor: 1, etiqueta: 'Problema menor',     emoji: '🟡' },
-    { valor: 2, etiqueta: 'Problema moderado',  emoji: '🟠' },
-    { valor: 3, etiqueta: 'Problema grave',     emoji: '🔴' },
+    { valor: 0, etiqueta: 'Sin problema' },
+    { valor: 1, etiqueta: 'Problema menor' },
+    { valor: 2, etiqueta: 'Problema moderado' },
+    { valor: 3, etiqueta: 'Problema grave' },
   ];
 
   const opciones = isMDQ_C ? mdqCOpciones : config.opciones;
+
+  // Detectar formato BDI: instruccion con "0 = ... · 1 = ..."
+  const isBDI = !!currentItem?.instruccion && /^0\s*=/.test(currentItem.instruccion);
+  const bdiOpciones: StepperOption[] = isBDI
+    ? currentItem.instruccion!.split('·').map(part => {
+        const [valStr, ...rest] = part.trim().split('=')
+        return { valor: parseInt(valStr.trim()), etiqueta: rest.join('=').trim() }
+      })
+    : [];
 
   return (
     <div style={s.page}>
@@ -139,8 +149,7 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
         </button>
 
         <div style={s.logoWrap}>
-          <span style={s.logoMark}>◐</span>
-          <span style={s.logoText}>Giro Lab</span>
+          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 36, height: 36 }} />
         </div>
 
         <span style={s.counterText}>{itemIndex + 1}<span style={s.counterOf}>/{totalItems}</span></span>
@@ -168,93 +177,78 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
               : 'slideOut 0.22s ease-in forwards',
           }}
         >
-          {/* Ícono del instrumento — solo en primera pregunta */}
-          {itemIndex === 0 && (
+          {/* Ícono del instrumento — solo en primera pregunta, si existe */}
+          {itemIndex === 0 && config.icono && (
             <div style={s.instIconWrap}>
               <span style={s.instIcon}>{config.icono}</span>
             </div>
           )}
 
-          {/* Instrucción especial (MDQ partes B/C) */}
-          {currentItem.instruccion && (
-            <p style={s.instruccion}>{currentItem.instruccion}</p>
-          )}
-
-          {/* Texto principal de la pregunta */}
-          <h2 style={s.questionText}>{currentItem.texto}</h2>
-
-          {/* ── NPI: par A/B ── */}
-          {isNPI ? (
-            <div style={s.npiGrid}>
-              {(['A', 'B'] as const).map(letter => {
-                const texto = letter === 'A' ? currentItem.parA! : currentItem.parB!;
-                const isChosen = npiChoice === letter;
-                return (
-                  <button
-                    key={letter}
-                    style={{
-                      ...s.npiCard,
-                      borderColor: isChosen ? config.color : '#E8E8E4',
-                      background:  isChosen ? `${config.color}0F` : '#FAFAF8',
-                      transform:   isChosen ? 'scale(1.02)' : 'scale(1)',
-                    }}
-                    onClick={() => handleNPI(letter)}
-                  >
-                    <span style={{ ...s.npiLetter, color: isChosen ? config.color : '#C4C4BC' }}>
-                      {letter}
-                    </span>
-                    <p style={{ ...s.npiText, color: isChosen ? '#1a1a1a' : '#555' }}>{texto}</p>
-                    {isChosen && (
-                      <span style={{ ...s.checkMark, color: config.color }}>✓</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          {isBDI ? (
+            /* ── BDI: afirmaciones específicas como opciones ── */
+            <>
+              <h2 style={{ ...s.questionText, fontSize: 15, fontWeight: 500, color: '#555', marginBottom: 20 }}>
+                Elige la afirmación que mejor te describe en las últimas dos semanas:
+              </h2>
+              <div style={s.optionsList}>
+                {bdiOpciones.map((op, i) => {
+                  const isSelected = selected === op.valor
+                  return (
+                    <button key={op.valor} style={{ ...s.optionBtn, borderColor: isSelected ? config.color : '#E8E8E4', background: isSelected ? `${config.color}0F` : '#FAFAF8', transform: isSelected ? 'translateX(6px)' : 'translateX(0)', animationDelay: `${i * 60}ms` }} onClick={() => handleSelect(op.valor)}>
+                      <span style={{ ...s.optionBullet, background: isSelected ? config.color : 'transparent', borderColor: isSelected ? config.color : '#C4C4BC' }}>
+                        {isSelected && <span style={s.bulletCheck}>✓</span>}
+                      </span>
+                      <span style={{ ...s.optionLabel, color: isSelected ? '#1a1a1a' : '#444', fontWeight: isSelected ? 600 : 400 }}>
+                        {op.etiqueta}
+                      </span>
+                      {isSelected && <div style={{ ...s.optionRipple, background: config.color }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : isNPI ? (
+            /* ── NPI: par A/B ── */
+            <>
+              {currentItem.instruccion && <p style={s.instruccion}>{currentItem.instruccion}</p>}
+              <h2 style={s.questionText}>{currentItem.texto}</h2>
+              <div style={s.npiGrid}>
+                {(['A', 'B'] as const).map(letter => {
+                  const texto = letter === 'A' ? currentItem.parA! : currentItem.parB!;
+                  const isChosen = npiChoice === letter;
+                  return (
+                    <button key={letter} style={{ ...s.npiCard, borderColor: isChosen ? config.color : '#E8E8E4', background: isChosen ? `${config.color}0F` : '#FAFAF8', transform: isChosen ? 'scale(1.02)' : 'scale(1)' }} onClick={() => handleNPI(letter)}>
+                      <span style={{ ...s.npiLetter, color: isChosen ? config.color : '#C4C4BC' }}>{letter}</span>
+                      <p style={{ ...s.npiText, color: isChosen ? '#1a1a1a' : '#555' }}>{texto}</p>
+                      {isChosen && <span style={{ ...s.checkMark, color: config.color }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             /* ── OPCIONES ESTÁNDAR ── */
-            <div style={s.optionsList}>
-              {opciones.map((op, i) => {
-                const isSelected = selected === op.valor;
-                return (
-                  <button
-                    key={op.valor}
-                    style={{
-                      ...s.optionBtn,
-                      borderColor:  isSelected ? config.color : '#E8E8E4',
-                      background:   isSelected ? `${config.color}0F` : '#FAFAF8',
-                      transform:    isSelected ? 'translateX(6px)' : 'translateX(0)',
-                      animationDelay: `${i * 60}ms`,
-                    }}
-                    onClick={() => handleSelect(op.valor)}
-                  >
-                    <span style={{
-                      ...s.optionBullet,
-                      background:   isSelected ? config.color : 'transparent',
-                      borderColor:  isSelected ? config.color : '#C4C4BC',
-                    }}>
-                      {isSelected && <span style={s.bulletCheck}>✓</span>}
-                    </span>
-
-                    {op.emoji && (
-                      <span style={s.optionEmoji}>{op.emoji}</span>
-                    )}
-
-                    <span style={{
-                      ...s.optionLabel,
-                      color:      isSelected ? '#1a1a1a' : '#444',
-                      fontWeight: isSelected ? 600 : 400,
-                    }}>
-                      {op.etiqueta}
-                    </span>
-
-                    {isSelected && (
-                      <div style={{ ...s.optionRipple, background: config.color }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              {currentItem.instruccion && <p style={s.instruccion}>{currentItem.instruccion}</p>}
+              <h2 style={s.questionText}>{currentItem.texto}</h2>
+              <div style={s.optionsList}>
+                {opciones.map((op, i) => {
+                  const isSelected = selected === op.valor;
+                  return (
+                    <button key={op.valor} style={{ ...s.optionBtn, borderColor: isSelected ? config.color : '#E8E8E4', background: isSelected ? `${config.color}0F` : '#FAFAF8', transform: isSelected ? 'translateX(6px)' : 'translateX(0)', animationDelay: `${i * 60}ms` }} onClick={() => handleSelect(op.valor)}>
+                      <span style={{ ...s.optionBullet, background: isSelected ? config.color : 'transparent', borderColor: isSelected ? config.color : '#C4C4BC' }}>
+                        {isSelected && <span style={s.bulletCheck}>✓</span>}
+                      </span>
+                      {op.emoji && <span style={s.optionEmoji}>{op.emoji}</span>}
+                      <span style={{ ...s.optionLabel, color: isSelected ? '#1a1a1a' : '#444', fontWeight: isSelected ? 600 : 400 }}>
+                        {op.etiqueta}
+                      </span>
+                      {isSelected && <div style={{ ...s.optionRipple, background: config.color }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </main>
@@ -377,18 +371,6 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 6,
   },
-  logoMark: {
-    fontSize: 18,
-    color: '#1a1a1a',
-    lineHeight: 1,
-  },
-  logoText: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: '#1a1a1a',
-    letterSpacing: 0.5,
-    fontFamily: "'DM Serif Display', Georgia, serif",
-  },
   counterText: {
     fontSize: 14,
     fontWeight: 700,
@@ -442,8 +424,8 @@ const s: Record<string, React.CSSProperties> = {
 
   // INSTRUCCIÓN
   instruccion: {
-    fontSize: 12,
-    color: '#ABABAB',
+    fontSize: 13,
+    color: '#555',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -453,11 +435,11 @@ const s: Record<string, React.CSSProperties> = {
   // PREGUNTA
   questionText: {
     fontSize: 22,
-    fontWeight: 400,
+    fontWeight: 700,
     color: '#1a1a1a',
     lineHeight: 1.45,
     margin: '0 0 28px',
-    fontFamily: "'DM Serif Display', Georgia, serif",
+    fontFamily: "'Raleway', sans-serif",
   },
 
   // OPCIONES ESTÁNDAR
@@ -543,7 +525,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 800,
     flexShrink: 0,
-    fontFamily: "'DM Serif Display', Georgia, serif",
+    fontFamily: "'Raleway', sans-serif",
     lineHeight: 1,
     marginTop: 2,
   },
@@ -599,10 +581,10 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'DM Sans', system-ui, sans-serif",
   },
   footerHint: {
-    fontSize: 12,
-    color: '#ABABAB',
+    fontSize: 13,
+    color: '#555',
     margin: 0,
-    height: 16,
+    fontWeight: 500,
     transition: 'opacity 0.2s',
   },
 };

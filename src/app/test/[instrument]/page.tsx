@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { supabase } from '@/app/lib/supabase';
 import TestStepper, { type StepperConfig, type StepperItem } from '@/components/assessments/TestStepper';
 import {
@@ -11,6 +12,7 @@ import {
   type InstrumentId,
   type Responses,
 } from '@/lib/assessments/instruments';
+import { scoreBarOn } from '@/lib/assessments/baron-scoring';
 import {
   EMPRESA_INSTRUMENTS,
   scoreDISC,
@@ -21,6 +23,33 @@ import {
   type HEXACOResponses,
 } from '@/lib/assessments/instruments_empresa';
 import { ITEMS, INSTRUMENT_INSTRUCTIONS } from '@/lib/assessments/items';
+
+// ─────────────────────────────────────────────────────────────
+// WRAPPER: fondo institucional con círculos animados
+// ─────────────────────────────────────────────────────────────
+const CIRCLES = [
+  {left:'25%',size:80,delay:0,dur:25},{left:'10%',size:20,delay:2,dur:12},
+  {left:'70%',size:20,delay:4,dur:25},{left:'40%',size:60,delay:8,dur:20},
+  {left:'85%',size:30,delay:1,dur:18},
+];
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ backgroundColor: '#421869', minHeight: '100vh', position: 'relative', overflowX: 'hidden' }}>
+      <ul style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden', margin: 0, padding: 0, zIndex: 0, pointerEvents: 'none', listStyle: 'none' }}>
+        {CIRCLES.map((c, i) => (
+          <li key={i} style={{ position: 'absolute', display: 'block', width: c.size, height: c.size, background: 'rgba(255,255,255,0.05)', bottom: -150, left: c.left, borderRadius: '50%', animation: `animateUp ${c.dur}s linear ${c.delay}s infinite` }} />
+        ))}
+      </ul>
+      <style>{`@keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}}`}</style>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ width: '100%', maxWidth: 640, background: 'white', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // CONSTRUIR CONFIGURACIÓN DEL STEPPER POR INSTRUMENTO
@@ -80,14 +109,18 @@ export default function TestPage() {
   const instrumentId = rawId?.toUpperCase().replace(/-/g, '_');
   const token        = searchParams?.get('t') || '';
 
-  const [phase, setPhase]               = useState<'intro' | 'test' | 'submitting'>('intro');
+  const [phase, setPhase]               = useState<'intro' | 'datos' | 'test' | 'submitting'>('intro');
   const [sessionToken, setSessionToken] = useState(token);
+  const [anonNombre, setAnonNombre]     = useState('');
+  const [anonEmail, setAnonEmail]       = useState('');
+  const [isAnon, setIsAnon]             = useState(false);
   // DISC acumula respuestas grupo a grupo
   const [discResponses, setDiscResponses] = useState<DISCGroupResponse[]>([]);
 
   const isDisc   = instrumentId === 'DISC';
   const isHexaco = instrumentId === 'HEXACO_HH';
   const isNPI    = instrumentId === 'NPI_40';
+  const isBarOn  = instrumentId === 'BARON_ICE';
 
   const inst   = INSTRUMENTS[instrumentId as InstrumentId] ||
                  EMPRESA_INSTRUMENTS[instrumentId as EmpresaInstrumentId];
@@ -102,6 +135,13 @@ export default function TestPage() {
         instruccion: item.instruccion,
         tipo: instrumentId === 'MDQ' && item.numero === 15 ? 'mdq_c' : 'likert',
       }));
+
+  // Detectar si el usuario es anónimo para mostrar formulario de datos
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) setIsAnon(true);
+    });
+  }, []);
 
   // Crear sesión si no hay token (usuario llega directo desde anuncio)
   useEffect(() => {
@@ -126,6 +166,17 @@ export default function TestPage() {
     });
   }, [instrumentId]);
 
+  // Guardar nombre/email en la sesión y avanzar al test
+  const handleDatosConfirm = async () => {
+    if (!anonNombre.trim() || !anonEmail.trim()) return;
+    if (sessionToken) {
+      await supabase.from('assessment_sessions')
+        .update({ metadata: { nombre: anonNombre.trim(), email: anonEmail.trim() } })
+        .eq('session_token', sessionToken);
+    }
+    setPhase('test');
+  };
+
   // ── SUBMIT ──
   const handleComplete = async (responses: Responses) => {
     setPhase('submitting');
@@ -141,6 +192,10 @@ export default function TestPage() {
       result   = scoreHEXACO(responses as HEXACOResponses);
       pb       = result.scoreTotal;
       severidad = result.nivelIntegridad;
+    } else if (isBarOn) {
+      result   = scoreBarOn(responses);
+      pb       = result.puntuacionBruta;
+      severidad = result.severidadLabel;
     } else {
       const parsed = isNPI ? parseNPIResponses(responses as any) : responses;
       result    = scoreInstrument(instrumentId as InstrumentId, parsed);
@@ -183,41 +238,104 @@ export default function TestPage() {
   // ── INTRO ──
   if (phase === 'intro') {
     return (
-      <IntroScreen
-        inst={inst}
-        instruccion={INSTRUMENT_INSTRUCTIONS[instrumentId] || ''}
-        onStart={() => setPhase('test')}
-      />
+      <PageShell>
+        <IntroScreen
+          inst={inst}
+          instruccion={INSTRUMENT_INSTRUCTIONS[instrumentId] || ''}
+          onStart={() => isAnon ? setPhase('datos') : setPhase('test')}
+        />
+      </PageShell>
+    );
+  }
+
+  // ── DATOS ANÓNIMO ──
+  if (phase === 'datos') {
+    const valid = anonNombre.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(anonEmail);
+    return (
+      <PageShell>
+        <div style={{ flex: 1, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', fontFamily: "'DM Sans', system-ui" }}>
+          <div style={{ width: '100%', maxWidth: 380 }}>
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>👤</div>
+              <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 22, fontWeight: 900, margin: '0 0 8px' }}>Un paso más</h2>
+              <p style={{ color: '#888', fontSize: 15, margin: 0, lineHeight: 1.5 }}>
+                Ingresa tus datos para que el profesional que te compartió este test pueda identificar tu resultado.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Nombre completo *</label>
+                <input
+                  type="text"
+                  placeholder="ej. María García"
+                  value={anonNombre}
+                  onChange={e => setAnonNombre(e.target.value)}
+                  style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans', boxSizing: 'border-box', outline: 'none' }}
+                  onKeyDown={e => e.key === 'Enter' && valid && handleDatosConfirm()}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14 }}>Correo electrónico *</label>
+                <input
+                  type="email"
+                  placeholder="ej. maria@email.com"
+                  value={anonEmail}
+                  onChange={e => setAnonEmail(e.target.value)}
+                  style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans', boxSizing: 'border-box', outline: 'none' }}
+                  onKeyDown={e => e.key === 'Enter' && valid && handleDatosConfirm()}
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleDatosConfirm}
+              disabled={!valid}
+              style={{ width: '100%', marginTop: 24, padding: '14px', background: valid ? '#421869' : '#e0e0e0', color: valid ? 'white' : '#999', border: 'none', borderRadius: 30, fontWeight: 700, fontSize: 15, cursor: valid ? 'pointer' : 'not-allowed', fontFamily: 'Raleway, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}>
+              Continuar al test →
+            </button>
+            <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 16 }}>
+              Tus datos son confidenciales y no se compartirán con terceros.
+            </p>
+          </div>
+        </div>
+      </PageShell>
     );
   }
 
   // ── SUBMITTING ──
   if (phase === 'submitting') {
-    return <SubmittingScreen color={config.color} />;
+    return (
+      <PageShell>
+        <SubmittingScreen color={config.color} />
+      </PageShell>
+    );
   }
 
   // ── DISC: adaptador especial ──
   if (isDisc) {
     return (
-      <DISCStepperPage
-        config={config}
-        onComplete={(dr) => {
-          setDiscResponses(dr);
-          handleComplete({});
-        }}
-        onBack={() => setPhase('intro')}
-      />
+      <PageShell>
+        <DISCStepperPage
+          config={config}
+          onComplete={(dr) => {
+            setDiscResponses(dr);
+            handleComplete({});
+          }}
+          onBack={() => setPhase('intro')}
+        />
+      </PageShell>
     );
   }
 
   // ── TEST ESTÁNDAR ──
   return (
-    <TestStepper
-      config={config}
-      items={stepperItems}
-      onComplete={handleComplete}
-      onBack={() => setPhase('intro')}
-    />
+    <PageShell>
+      <TestStepper
+        config={config}
+        items={stepperItems}
+        onComplete={handleComplete}
+        onBack={() => setPhase('intro')}
+      />
+    </PageShell>
   );
 }
 
@@ -283,9 +401,11 @@ function DISCStepperPage({
   };
 
   const seleccionado = subStep === 'mas' ? masIndex : menosIndex;
-  const instruccion  = subStep === 'mas'
-    ? '¿Cuál de estas palabras te describe MÁS?'
-    : '¿Y cuál te describe MENOS?';
+  const instruccionJSX = subStep === 'mas' ? (
+    <>¿CUÁL DE ESTAS PALABRAS TE DESCRIBE <span style={{ color: '#16a34a', fontWeight: 800 }}>MÁS</span>?</>
+  ) : (
+    <>¿Y CUÁL TE DESCRIBE <span style={{ color: '#dc2626', fontWeight: 800 }}>MENOS</span>?</>
+  );
 
   return (
     <div style={s.page}>
@@ -294,8 +414,7 @@ function DISCStepperPage({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
         </button>
         <div style={s.logoWrap}>
-          <span style={s.logoMark}>◐</span>
-          <span style={s.logoText}>Giro Lab</span>
+          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 36, height: 36 }} />
         </div>
         <span style={s.counterText}>{grupoIndex + 1}<span style={s.counterOf}>/{DISC_ITEMS.length}</span></span>
       </header>
@@ -306,7 +425,7 @@ function DISCStepperPage({
 
       <main style={s.main}>
         <div key={animKey} style={{ ...s.questionWrap, animation: 'slideIn 0.32s cubic-bezier(0.22,1,0.36,1) forwards' }}>
-          <p style={s.instruccion}>{instruccion}</p>
+          <p style={s.instruccion}>{instruccionJSX}</p>
           <h2 style={{ ...s.questionText, fontSize: 18, marginBottom: 24 }}>
             Grupo {grupo.grupo} de {DISC_ITEMS.length}
           </h2>
@@ -330,7 +449,7 @@ function DISCStepperPage({
                   onClick={() => !isUsed && handleSelect(i)}
                 >
                   <span style={{ ...s.optionBullet, background: isSelected ? config.color : 'transparent', borderColor: isSelected ? config.color : '#C4C4BC' }}>
-                    {isSelected && <span style={s.bulletCheck}>✓</span>}
+                    {isSelected && <span style={s.bulletCheck}>·</span>}
                     {isUsed     && <span style={{ fontSize:10, color:'#bbb' }}>+</span>}
                   </span>
                   <span style={{ ...s.optionLabel, fontWeight: isSelected ? 700 : 400, fontSize: 17, color: isSelected ? '#1a1a1a' : isUsed ? '#bbb' : '#444' }}>
@@ -344,8 +463,12 @@ function DISCStepperPage({
       </main>
 
       <footer style={s.footer}>
-        <p style={s.footerHint}>
-          {subStep === 'mas' ? 'Selecciona la que MÁS te describe' : 'Ahora selecciona la que MENOS te describe'}
+        <p style={{ ...s.footerHint, color: '#333', fontSize: 14, fontWeight: 600 }}>
+          {subStep === 'mas' ? (
+            <>Selecciona la que te describe <span style={{ color: '#16a34a', fontWeight: 800 }}>MÁS</span></>
+          ) : (
+            <>Selecciona la que te describe <span style={{ color: '#dc2626', fontWeight: 800 }}>MENOS</span></>
+          )}
         </p>
       </footer>
 
@@ -364,9 +487,10 @@ function IntroScreen({ inst, instruccion, onStart }: { inst: any; instruccion: s
   return (
     <div style={intro.page}>
       <div style={intro.card}>
-        <span style={intro.logo}>◐ Giro Lab</span>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom: 24 }}>
+          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 70, height: 70 }} />
+        </div>
         <div style={{ ...intro.colorBar, background: inst.color }} />
-        <span style={intro.icon}>{inst.icono}</span>
         <h1 style={intro.title}>{inst.nombre}</h1>
         <p style={intro.desc}>{instruccion || inst.descripcion}</p>
 
@@ -387,7 +511,7 @@ function IntroScreen({ inst, instruccion, onStart }: { inst: any; instruccion: s
           </div>
         </div>
 
-        <button style={{ ...intro.btn, background: inst.color }} onClick={onStart}>
+        <button style={{ ...intro.btn, background: '#421869' }} onClick={onStart}>
           Comenzar
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
@@ -395,17 +519,16 @@ function IntroScreen({ inst, instruccion, onStart }: { inst: any; instruccion: s
           Validado científicamente · {inst.referencia}
         </p>
       </div>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;600;700&display=swap');`}</style>
     </div>
   );
 }
 
 function SubmittingScreen({ color }: { color: string }) {
   return (
-    <div style={{ minHeight:'100dvh', background:'#FAFAF8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20, fontFamily:"'DM Sans', system-ui" }}>
+    <div style={{ flex:1, background:'white', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20, fontFamily:"'DM Sans', system-ui" }}>
       <div style={{ width:52, height:52, border:`3px solid #EBEBE7`, borderTopColor: color, borderRadius:'50%', animation:'spin 0.9s linear infinite' }} />
-      <p style={{ fontSize:16, color:'#888', fontFamily:"'DM Serif Display', Georgia, serif" }}>Calculando tu perfil…</p>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap');`}</style>
+      <p style={{ fontSize:16, color:'#888', fontFamily:"'Raleway', sans-serif" }}>Calculando tu perfil…</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
@@ -414,42 +537,39 @@ function SubmittingScreen({ color }: { color: string }) {
 // ESTILOS COMPARTIDOS (stepper + DISC)
 // ─────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
-  page:          { minHeight:'100dvh', background:'#FAFAF8', display:'flex', flexDirection:'column', fontFamily:"'DM Sans', system-ui, sans-serif", overflowX:'hidden' },
+  page:          { flex:1, background:'white', display:'flex', flexDirection:'column', fontFamily:"'DM Sans', system-ui, sans-serif", overflowX:'hidden' },
   header:        { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px 10px', position:'sticky', top:0, background:'rgba(250,250,248,0.92)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', zIndex:20 },
   backBtn:       { width:38, height:38, borderRadius:12, border:'1.5px solid #E8E8E4', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#555', flexShrink:0 },
   logoWrap:      { display:'flex', alignItems:'center', gap:6 },
-  logoMark:      { fontSize:18, color:'#1a1a1a', lineHeight:1 },
-  logoText:      { fontSize:14, fontWeight:700, color:'#1a1a1a', letterSpacing:0.5, fontFamily:"'DM Serif Display', Georgia, serif" },
   counterText:   { fontSize:14, fontWeight:700, color:'#1a1a1a', minWidth:38, textAlign:'right' },
   counterOf:     { fontWeight:400, color:'#ABABAB', fontSize:13 },
   progressTrack: { height:3, background:'#EBEBE7', position:'relative', overflow:'hidden' },
   progressFill:  { height:'100%', borderRadius:99, transition:'width 0.5s cubic-bezier(0.4,0,0.2,1)' },
   main:          { flex:1, display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'32px 20px 20px', overflowY:'auto' },
   questionWrap:  { width:'100%', maxWidth:520 },
-  instruccion:   { fontSize:12, color:'#ABABAB', fontWeight:600, textTransform:'uppercase', letterSpacing:1, margin:'0 0 10px' },
-  questionText:  { fontSize:22, fontWeight:400, color:'#1a1a1a', lineHeight:1.45, margin:'0 0 28px', fontFamily:"'DM Serif Display', Georgia, serif" },
+  instruccion:   { fontSize:13, color:'#444', fontWeight:600, textTransform:'uppercase', letterSpacing:1, margin:'0 0 10px' },
+  questionText:  { fontSize:22, fontWeight:700, color:'#1a1a1a', lineHeight:1.45, margin:'0 0 28px', fontFamily:"'Raleway', sans-serif" },
   optionsList:   { display:'flex', flexDirection:'column', gap:10 },
   optionBtn:     { display:'flex', alignItems:'center', gap:14, padding:'16px 18px', borderRadius:16, border:'1.5px solid', cursor:'pointer', textAlign:'left', transition:'all 0.2s cubic-bezier(0.22,1,0.36,1)', position:'relative', overflow:'hidden' },
   optionBullet:  { width:22, height:22, borderRadius:'50%', border:'2px solid', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s ease' },
   bulletCheck:   { fontSize:12, color:'#fff', fontWeight:700, lineHeight:1 },
   optionLabel:   { flex:1, fontSize:15, lineHeight:1.4, transition:'color 0.15s' },
   footer:        { padding:'16px 20px 28px', display:'flex', flexDirection:'column', alignItems:'center', gap:10, background:'rgba(250,250,248,0.92)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderTop:'1px solid #EBEBE7' },
-  footerHint:    { fontSize:12, color:'#ABABAB', margin:0 },
+  footerHint:    { fontSize:13, color:'#555', fontWeight:500, margin:0 },
 };
 
 const intro: Record<string, React.CSSProperties> = {
-  page:        { minHeight:'100dvh', background:'#FAFAF8', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 20px', fontFamily:"'DM Sans', system-ui" },
+  page:        { flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 20px', fontFamily:"'DM Sans', system-ui" },
   card:        { maxWidth:440, width:'100%', textAlign:'center' },
-  logo:        { fontSize:14, fontWeight:700, color:'#ABABAB', letterSpacing:1, display:'block', marginBottom:32, fontFamily:"'DM Serif Display', Georgia, serif" },
   colorBar:    { width:40, height:4, borderRadius:99, margin:'0 auto 20px' },
   icon:        { fontSize:52, display:'block', marginBottom:12 },
-  title:       { fontSize:26, fontWeight:400, color:'#1a1a1a', margin:'0 0 12px', lineHeight:1.25, fontFamily:"'DM Serif Display', Georgia, serif" },
+  title:       { fontSize:26, fontWeight:800, color:'#1a1a1a', margin:'0 0 12px', lineHeight:1.25, fontFamily:"'Raleway', sans-serif" },
   desc:        { fontSize:14, color:'#777', lineHeight:1.7, margin:'0 0 28px' },
-  badges:      { display:'flex', justifyContent:'center', alignItems:'center', background:'#fff', borderRadius:16, border:'1px solid #EBEBE7', padding:'16px 0', marginBottom:24 },
+  badges:      { display:'flex', justifyContent:'center', alignItems:'center', background:'#f8f8f8', borderRadius:16, border:'1px solid #EBEBE7', padding:'16px 0', marginBottom:24 },
   badge:       { flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 },
   badgeNum:    { fontSize:22, fontWeight:800, color:'#1a1a1a' },
   badgeLabel:  { fontSize:11, color:'#ABABAB', textTransform:'uppercase', letterSpacing:0.8 },
   sep:         { width:1, height:32, background:'#EBEBE7' },
-  btn:         { width:'100%', padding:'17px', borderRadius:16, border:'none', color:'#fff', fontSize:16, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:16 },
+  btn:         { width:'100%', padding:'17px', borderRadius:16, border:'none', color:'#fff', fontSize:16, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:16, fontFamily:"'Raleway', sans-serif" },
   disclaimer:  { fontSize:11, color:'#C4C4BC', lineHeight:1.6 },
 };

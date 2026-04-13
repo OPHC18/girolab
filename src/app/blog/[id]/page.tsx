@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/app/lib/supabase'
 import { useParams } from 'next/navigation'
+import { getRecaptchaToken, verifyRecaptcha } from '@/lib/recaptcha'
 
 export default function PostPage() {
   const { id } = useParams()
@@ -59,6 +60,10 @@ useEffect(() => {
       .select('*, menter:menter_public_profiles(nombre, avatar_url, plan)')
       .eq('id', id)
       .single()
+    if (data) {
+      const { sanitizeHtml } = await import('@/lib/sanitize')
+      data.content = await sanitizeHtml(data.content || '')
+    }
     setPost(data)
     setLoading(false)
   }
@@ -87,6 +92,11 @@ useEffect(() => {
 
   const handleComment = async () => {
     if (!comment.trim() || !user) return
+    const token = await getRecaptchaToken('comentario')
+    if (token) {
+      const ok = await verifyRecaptcha(token, 'comentario')
+      if (!ok) return // silencioso — bot rechazado sin alertar
+    }
     await supabase.from('blog_comments').insert({ post_id: id, user_id: user.id, content: comment })
     setComment('')
     fetchComments()

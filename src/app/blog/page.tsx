@@ -23,6 +23,10 @@ export default function PostPage() {
 
   const fetchPost = async () => {
     const { data } = await supabase.from('blog_posts').select('*').eq('id', id).single()
+    if (data) {
+      const { sanitizeHtml } = await import('@/lib/sanitize')
+      data.content = await sanitizeHtml(data.content || '')
+    }
     setPost(data)
     setLoading(false)
   }

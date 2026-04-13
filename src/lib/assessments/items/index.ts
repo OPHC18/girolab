@@ -5,6 +5,7 @@
 // DISC (24 grupos) · HEXACO-HH (24) = 254 ítems totales
 
 import type { InstrumentId } from '../instruments';
+import { BARON_ITEMS } from './baron';
 
 export interface Item {
   numero: number;
@@ -13,6 +14,7 @@ export interface Item {
 }
 
 export const ITEMS: Partial<Record<InstrumentId | 'MDQ' | 'ASRS_v1_1', Item[]>> = {
+  BARON_ICE: BARON_ITEMS as unknown as Item[],
 
   // ──────────────────────────────────────────────────────────
   // 1. BDI-II – Inventario de Depresión de Beck II
@@ -390,4 +392,5 @@ export const INSTRUMENT_INSTRUCTIONS: Partial<Record<string, string>> = {
   PID_5:      'A continuación encontrarás una serie de afirmaciones. Lee cada una y decide en qué medida te describe.',
   DISC:       'En cada grupo encontrarás 4 palabras. Selecciona la que MÁS te describe y la que MENOS te describe. Responde de forma espontánea — no hay respuestas correctas.',
   HEXACO_HH:  'Indica tu grado de acuerdo con cada afirmación. Responde con la mayor honestidad posible — tus respuestas son completamente confidenciales.',
+  BARON_ICE:  'Lee cada afirmación y elige con qué frecuencia es verdadera para ti. No hay respuestas correctas o incorrectas — responde con honestidad cómo eres generalmente, no cómo te gustaría ser.',
 };

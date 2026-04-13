@@ -13,7 +13,7 @@ export const EMPRESA_INSTRUMENTS = {
     id: 'DISC' as EmpresaInstrumentId,
     nombre: 'DISC – Perfil de Comportamiento Laboral',
     descripcion: 'Evalúa los 4 factores de comportamiento: Decisión, Influencia, Serenidad y Cumplimiento. Genera Perfil Natural y Perfil Adaptado.',
-    icono: '🎯',
+    icono: '',
     color: '#1565C0',
     totalItems: 24,        // 24 grupos × 4 adjetivos = 96 respuestas
     tiempoMinutos: 15,
@@ -27,7 +27,7 @@ export const EMPRESA_INSTRUMENTS = {
     id: 'HEXACO_HH' as EmpresaInstrumentId,
     nombre: 'Test de Integridad y Ética Laboral (HEXACO-HH)',
     descripcion: 'Mide Honestidad-Humildad en 4 dimensiones: Sinceridad, Justeza, Evitación de la Codicia y Modestia. Incluye algoritmo de Red Flags.',
-    icono: '🛡️',
+    icono: '',
     color: '#2E7D32',
     totalItems: 24,         // 6 ítems × 4 dimensiones
     tiempoMinutos: 10,
@@ -363,7 +363,7 @@ export function scoreHEXACO(responses: HEXACOResponses): HEXACOResult {
     alertas.push('⚠️ CRÍTICO: El evaluado muestra un patrón consistente de justificación de conductas deshonestas.');
   dimScores.forEach(d => {
     if (d.redFlagCount >= 2)
-      alertas.push(`🚩 Red flag en ${d.dimension}: ${d.redFlagCount} indicadores de riesgo detectados.`);
+      alertas.push(`Red flag en ${d.dimension}: ${d.redFlagCount} indicadores de riesgo detectados.`);
     if (d.score < 2.5)
       alertas.push(`⬇️ Puntuación baja en ${d.dimension} (${d.score.toFixed(1)}/5.0).`);
   });

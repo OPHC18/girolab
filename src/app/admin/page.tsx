@@ -2,6 +2,7 @@
 
 import { supabase } from '@/app/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { dispararEmail } from '@/lib/email/send'
 import Chart from 'chart.js/auto'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
@@ -419,12 +420,14 @@ const cargarMenters = async () => {
     { data: citasData },
     { data: eventosData },
     { data: perfilesData },
+    { data: emailsData },
   ] = await Promise.all([
     supabase.from('menter_memberships').select('menter_id, plan, is_active').in('menter_id', menterIds),
     supabase.from('menter_insignias').select('menter_id, insignia_id').in('menter_id', menterIds),
     supabase.from('appointments').select('menter_id, status').in('menter_id', menterIds),
     supabase.from('events').select('menter_id').in('menter_id', menterIds),
-    supabase.from('menter_profile').select('menter_id, pais, casos_que_atiende').in('menter_id', menterIds),
+    supabase.from('menter_profile').select('menter_id, pais, casos_que_atiende, telefono').in('menter_id', menterIds),
+    supabase.from('user_public_data').select('id, email').in('id', menterIds),
   ])
 
   const mentersCompletos = menterData.map((m: any) => {
@@ -433,7 +436,8 @@ const cargarMenters = async () => {
     ...m,
     menter_id: m.id,
     pais: perfil?.pais || null,
-    especialidad: null, // lo quitamos por ahora
+    telefono: perfil?.telefono || null,
+    email: emailsData?.find((e: any) => e.id === m.id)?.email || null,
     casos_que_atiende: perfil?.casos_que_atiende || [],
     menter_memberships: memberships?.filter((mb: any) => mb.menter_id === m.id) || [],
     insignias_ganadas: (insigniasData || [])
@@ -528,6 +532,27 @@ const especialidades = Object.entries(especialidadesMap)
   setModalConfirmPlan({ menterId, plan, nombre, planAnterior })
   setPasswordConfirm('')
   setPasswordError('')
+}
+
+const eliminarUsuarioAdmin = async (userId: string, userEmail: string, userName: string) => {
+  const ok = window.confirm(`¿Eliminar la cuenta de ${userName} (${userEmail})?\n\nSe borrarán TODOS sus datos y recibirán un correo de notificación.`)
+  if (!ok) return
+
+  const res = await fetch('/api/account/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  })
+
+  if (res.ok) {
+    setPersonas(prev => prev.filter(u => u.id !== userId))
+    setEmpresas(prev => prev.filter(u => u.id !== userId))
+    setMenters(prev => prev.filter(u => u.menter_id !== userId))
+    toast(`✓ Cuenta de ${userName} eliminada`)
+  } else {
+    const errData = await res.json().catch(() => ({ error: 'Error desconocido' }))
+    alert(`Error al eliminar: ${errData.error}`)
+  }
 }
 
 const confirmarCambioPlan = async () => {
@@ -631,11 +656,39 @@ const confirmarCambioPlan = async () => {
   }
 
   const eliminarEvento = async (id: string) => {
-    if (!confirm('¿Eliminar este evento permanentemente?')) return
+    if (!confirm('¿Eliminar este evento permanentemente? Se notificará a todos los inscritos.')) return
+    // Notificar a inscritos antes de eliminar
+    const eventoData = eventos.find((e: any) => e.id === id)
+    if (eventoData) {
+      const { data: regs } = await supabase
+        .from('event_registrations')
+        .select('user_id, payment_status')
+        .eq('event_id', id)
+      if (regs && regs.length > 0) {
+        const userIds = regs.map((r: any) => r.user_id)
+        const { data: usersData } = await supabase
+          .from('user_public_data')
+          .select('id, nombre, email')
+          .in('id', userIds)
+        const eventoFecha = new Date(eventoData.date + 'T00:00:00').toLocaleDateString('es-PE', {
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        })
+        for (const u of (usersData || [])) {
+          const reg = regs.find((r: any) => r.user_id === u.id)
+          dispararEmail('evento_cancelado', {
+            clientName:   u.nombre || u.email.split('@')[0],
+            clientEmail:  u.email,
+            eventoTitulo: eventoData.title,
+            eventoFecha,
+            tuvioPago:    reg?.payment_status === 'pagado',
+          })
+        }
+      }
+    }
     await supabase.from('events').delete().eq('id', id)
-    setEventos(prev => prev.filter(e => e.id !== id))
+    setEventos(prev => prev.filter((e: any) => e.id !== id))
     setModalEvento(null)
-    toast('🗑️ Evento eliminado')
+    toast('Evento eliminado')
   }
 
   const cambiarStatusBlog = async (id: string, status: string) => {
@@ -895,7 +948,7 @@ const confirmarCambioPlan = async () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f8f9fa' }}>
-                      {['Nombre', 'Email', 'País', 'Teléfono', 'UUID'].map(h => (
+                      {['Nombre', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
                         <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
                       ))}
                     </tr>
@@ -914,10 +967,19 @@ const confirmarCambioPlan = async () => {
                           <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
                           <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
                           <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
+                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                          </td>
                           <td style={{ padding: '10px 16px' }}>
                             <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
                               style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
                               {u.id?.slice(0, 8)}...
+                            </button>
+                          </td>
+                          <td style={{ padding: '10px 16px' }}>
+                            <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+                              style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                              Eliminar
                             </button>
                           </td>
                         </tr>
@@ -1008,7 +1070,7 @@ const confirmarCambioPlan = async () => {
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ background: '#f8f9fa' }}>
-          {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'UUID'].map(h => (
+          {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
             <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
           ))}
         </tr>
@@ -1030,10 +1092,19 @@ const confirmarCambioPlan = async () => {
       <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
       <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
       <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
+      <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
+        {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+      </td>
       <td style={{ padding: '10px 16px' }}>
         <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
           style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
           {u.id?.slice(0, 8)}...
+        </button>
+      </td>
+      <td style={{ padding: '10px 16px' }}>
+        <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+          style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+          Eliminar
         </button>
       </td>
     </tr>
@@ -1130,6 +1201,11 @@ const confirmarCambioPlan = async () => {
                               <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                                 {m.casos_que_atiende?.slice(0, 2).join(', ') || 'Sin especialidad'} · 📍 {m.pais || '—'}
                               </div>
+                              <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                                {m.email    && <a href={`mailto:${m.email}`}    style={{ fontSize: 11, color: '#421869', textDecoration: 'none' }}>✉ {m.email}</a>}
+                                {m.telefono && <span style={{ fontSize: 11, color: '#666' }}>📞 {m.telefono}</span>}
+                                {m.created_at && <span style={{ fontSize: 11, color: '#bbb' }}>Desde {new Date(m.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                              </div>
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1178,10 +1254,14 @@ const confirmarCambioPlan = async () => {
                           </div>
                         </div>
 
-                        <div style={{ marginTop: 10 }}>
+                        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <button onClick={() => navigator.clipboard.writeText(m.menter_id).then(() => toast('📋 UUID copiado'))}
                             style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
                             {m.menter_id?.slice(0, 8)}...
+                          </button>
+                          <button onClick={() => eliminarUsuarioAdmin(m.menter_id, m.email || '', `${m.nombre || ''} ${m.apellidos || ''}`.trim())}
+                            style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                            Eliminar cuenta
                           </button>
                         </div>
                       </div>
@@ -1368,7 +1448,10 @@ const confirmarCambioPlan = async () => {
                     <div style={{ display: 'flex' }}>
                       {b.cover_image && <img src={b.cover_image} style={{ width: 120, height: 90, objectFit: 'cover' as const, flexShrink: 0 }} />}
                       <div style={{ padding: '14px 18px', flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                        <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setModalBlog(b)}>
+                        <div style={{ flex: 1, cursor: 'pointer' }} onClick={async () => {
+                          const { sanitizeHtml } = await import('@/lib/sanitize')
+                          setModalBlog({ ...b, content: await sanitizeHtml(b.content || '') })
+                        }}>
                           <div style={{ fontWeight: 700, fontSize: 14, color: '#421869', textDecoration: 'underline' }}>{b.title}</div>
                           <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>
                             por {b.menter?.nombre || '—'} · {new Date(b.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}

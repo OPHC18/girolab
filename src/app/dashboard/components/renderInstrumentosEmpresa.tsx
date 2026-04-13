@@ -86,6 +86,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
   };
 
   const MATCH_COLOR = (m: number) => m >= 80 ? '#4CAF50' : m >= 65 ? '#FF9800' : '#F44336';
+  const DISC_COLORS: Record<string, string> = { D: '#E53935', I: '#FB8C00', S: '#43A047', C: '#1E88E5' };
 
   return (
     <div style={s.container}>
@@ -101,7 +102,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
         {(['biblioteca', 'resultados', 'perfiles'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ ...s.tabBtn, ...(activeTab === tab ? s.tabActive : {}) }}>
-            {tab === 'biblioteca' ? '📚 Instrumentos' : tab === 'resultados' ? '📊 Resultados' : '🎯 Perfiles de Puesto'}
+            {tab === 'biblioteca' ? 'Instrumentos' : tab === 'resultados' ? 'Resultados' : 'Perfiles de Puesto'}
           </button>
         ))}
       </div>
@@ -141,16 +142,15 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
               return (
                 <div key={id} style={s.card}>
                   <div style={s.cardHeader}>
-                    <span style={{ fontSize:28 }}>{inst.icono}</span>
                     <div>
                       <p style={s.cardTitle}>{inst.nombre}</p>
                       <p style={s.cardDesc}>{inst.descripcion}</p>
                     </div>
                   </div>
                   <div style={s.metaRow}>
-                    <span style={s.meta}>📝 {inst.totalItems} ítems</span>
-                    <span style={s.meta}>⏱ ~{inst.tiempoMinutos} min</span>
-                    <span style={s.meta}>📖 {inst.referencia}</span>
+                    <span style={s.meta}>{inst.totalItems} ítems</span>
+                    <span style={s.meta}>~{inst.tiempoMinutos} min</span>
+                    <span style={s.meta}>{inst.referencia}</span>
                   </div>
                   <div style={s.tagsRow}>
                     {inst.tagsMenters.map((tag: string) => (
@@ -160,12 +160,12 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
 
                   {link && (
                     <div style={s.linkBox}>
-                      {link.candidato && <span style={s.candidatoBadge}>👤 {link.candidato}</span>}
+                      {link.candidato && <span style={s.candidatoBadge}>{link.candidato}</span>}
                       <div style={s.linkRow}>
                         <span style={s.linkText}>{link.url}</span>
                         <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
                           onClick={() => handleCopiar(key)}>
-                          {link.copied ? '✓' : 'Copiar'}
+                          {link.copied ? 'Copiado' : 'Copiar'}
                         </button>
                       </div>
                     </div>
@@ -174,7 +174,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                   <button style={{ ...s.actionBtn, background: inst.color }}
                     disabled={isLoading}
                     onClick={() => link ? handleCopiar(key) : handleGenerarLink(id)}>
-                    {isLoading ? 'Generando...' : link ? '🔗 Copiar link' : '🔗 Generar link de evaluación'}
+                    {isLoading ? 'Generando...' : link ? 'Copiar link' : 'Generar link de evaluación'}
                   </button>
                 </div>
               );
@@ -188,7 +188,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
         <div>
           {loadingRes ? <div style={s.loading}>Cargando...</div> :
            resultados.length === 0 ? (
-            <div style={s.empty}><span style={{fontSize:40}}>📭</span><p>Aún no hay resultados. Envía evaluaciones a tus candidatos.</p></div>
+            <div style={s.empty}><p>Aún no hay resultados. Envía evaluaciones a tus candidatos.</p></div>
            ) : (
             <div style={s.resultsList}>
               {resultados.map((res, i) => {
@@ -196,7 +196,6 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                 return (
                   <div key={i} style={s.resultCard}>
                     <div style={s.resultHeader}>
-                      <span style={{fontSize:22}}>{(inst as any)?.icono || '📋'}</span>
                       <div style={{flex:1}}>
                         <p style={s.resName}>{res.candidato_nombre || 'Candidato'}</p>
                         <p style={s.resEmail}>{res.candidato_email}</p>
@@ -211,7 +210,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                       )}
                       {res.match_apto !== null && (
                         <span style={{ ...s.aptoBadge, background: res.match_apto ? '#E8F5E9' : '#FFEBEE', color: res.match_apto ? '#2E7D32' : '#B71C1C' }}>
-                          {res.match_apto ? '✓ Apto' : '✕ No recomendado'}
+                          {res.match_apto ? 'Apto' : 'No recomendado'}
                         </span>
                       )}
                     </div>
@@ -233,12 +232,11 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
           </div>
 
           {jobProfiles.length === 0 ? (
-            <div style={s.empty}><span style={{fontSize:40}}>🎯</span><p>No hay perfiles creados. Crea el primero para activar el Match automático.</p></div>
+            <div style={s.empty}><p>No hay perfiles creados. Crea el primero para activar el Match automático.</p></div>
           ) : (
             <div style={s.grid}>
               {jobProfiles.map(p => (
                 <div key={p.id} style={s.perfilCard}>
-                  <span style={{fontSize:24}}>🎯</span>
                   <p style={s.perfilNombre}>{p.nombre}</p>
                 </div>
               ))}
@@ -313,6 +311,7 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
   }, [subTab]);
 
   const MATCH_COLOR = (m: number) => m >= 80 ? '#4CAF50' : m >= 65 ? '#FF9800' : '#F44336';
+  const DISC_COLORS: Record<string, string> = { D: '#E53935', I: '#FB8C00', S: '#43A047', C: '#1E88E5' };
   const SEV_COLORS: Record<string, { bg: string; text: string }> = {
     Mínima:{bg:'#E8F5E9',text:'#2E7D32'},Leve:{bg:'#FFF8E1',text:'#F57F17'},
     Moderada:{bg:'#FFF3E0',text:'#E65100'},Severa:{bg:'#FFEBEE',text:'#B71C1C'},
@@ -324,9 +323,9 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
       {/* SUB-TABS Personas / Empresas */}
       <div style={s.subTabBar}>
         <button style={{ ...s.subTab, ...(subTab === 'personas' ? s.subTabActive : {}) }}
-          onClick={() => setSubTab('personas')}>👤 Personas</button>
+          onClick={() => setSubTab('personas')}>Personas</button>
         <button style={{ ...s.subTab, ...(subTab === 'empresas' ? s.subTabActive : {}) }}
-          onClick={() => setSubTab('empresas')}>🏢 Empresas</button>
+          onClick={() => setSubTab('empresas')}>Empresas</button>
       </div>
 
       {loading && <div style={s.loading}>Cargando...</div>}
@@ -334,7 +333,7 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
       {/* ── Personas ── */}
       {!loading && subTab === 'personas' && (
         resPersonas.length === 0
-          ? <div style={s.empty}><span style={{fontSize:40}}>📭</span><p>Sin resultados de personas aún.</p></div>
+          ? <div style={s.empty}><p>Sin resultados de personas aún.</p></div>
           : <div style={s.resultsList}>
               {resPersonas.map((res, i) => {
                 const inst = INSTRUMENTS[res.instrument_id as InstrumentId];
@@ -343,7 +342,6 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
                 return (
                   <div key={i} style={s.resultCard}>
                     <div style={s.resultHeader}>
-                      <span style={{fontSize:22}}>{inst?.icono || '📋'}</span>
                       <div style={{flex:1}}>
                         <p style={s.resName}>{res.persona_nombre || 'Persona'}</p>
                         <p style={s.resInst}>{inst?.nombre || res.instrument_id}</p>
@@ -368,12 +366,11 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
       {/* ── Empresas ── */}
       {!loading && subTab === 'empresas' && (
         resEmpresas.length === 0
-          ? <div style={s.empty}><span style={{fontSize:40}}>📭</span><p>Sin resultados de empresas aún.</p></div>
+          ? <div style={s.empty}><p>Sin resultados de empresas aún.</p></div>
           : <div style={s.resultsList}>
               {resEmpresas.map((res, i) => (
                 <div key={i} style={s.resultCard}>
                   <div style={s.resultHeader}>
-                    <span style={{fontSize:22}}>{EMPRESA_INSTRUMENTS[res.instrument_id as EmpresaInstrumentId]?.icono || '📋'}</span>
                     <div style={{flex:1}}>
                       <p style={s.resName}>{res.candidato_nombre || 'Candidato'}</p>
                       <p style={s.resEmail}>{res.candidato_email}</p>
@@ -399,9 +396,9 @@ export function ResultadosMenterTabs({ userId }: { userId: string }) {
                     <div style={s.discRow}>
                       {(['D','I','S','C'] as const).map(f => (
                         <div key={f} style={s.discFactor}>
-                          <span style={{fontSize:10,color:'#888'}}>Factor {f}</span>
+                          <span style={{fontSize:10,color:'#555'}}>Factor {f}</span>
                           <div style={s.discBar}>
-                            <div style={{width:`${res.resultado_json.percentiles.adaptado[f]}%`, height:'100%', background:'#1565C0', borderRadius:3}} />
+                            <div style={{width:`${res.resultado_json.percentiles.adaptado[f]}%`, height:'100%', background: DISC_COLORS[f] || '#1565C0', borderRadius:3}} />
                           </div>
                           <span style={{fontSize:11,fontWeight:700}}>{res.resultado_json.percentiles.adaptado[f]}%</span>
                         </div>
@@ -429,7 +426,7 @@ const s: Record<string, any> = {
   container:    { padding:'24px 0' },
   header:       { display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 },
   titulo:       { fontSize:22, fontWeight:700, color:'#1a1a2e', margin:'0 0 4px' },
-  sub:          { fontSize:14, color:'#888', margin:0 },
+  sub:          { fontSize:14, color:'#555', margin:0 },
   tabBar:       { display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid #f0f0f0' },
   tabBtn:       { padding:'10px 20px', borderRadius:'10px 10px 0 0', border:'none', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
   tabActive:    { background:'#fff', color:'#1a1a2e', borderBottom:'2px solid #1565C0' },
@@ -439,16 +436,16 @@ const s: Record<string, any> = {
   filterBox:    { background:'#f8f9fa', borderRadius:12, padding:16, marginBottom:20 },
   filterRow:    { display:'flex', gap:12, flexWrap:'wrap' },
   filterField:  { flex:1, minWidth:200 },
-  label:        { fontSize:12, color:'#888', display:'block', marginBottom:4, fontWeight:600 },
+  label:        { fontSize:12, color:'#555', display:'block', marginBottom:4, fontWeight:600 },
   select:       { width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13 },
   input:        { width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, boxSizing:'border-box' },
   grid:         { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 },
   card:         { background:'#fff', borderRadius:16, padding:20, border:'1px solid #f0f0f0', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' },
   cardHeader:   { display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 },
   cardTitle:    { fontSize:14, fontWeight:700, color:'#1a1a2e', margin:'0 0 4px' },
-  cardDesc:     { fontSize:12, color:'#888', margin:0, lineHeight:1.4 },
+  cardDesc:     { fontSize:12, color:'#555', margin:0, lineHeight:1.4 },
   metaRow:      { display:'flex', gap:12, flexWrap:'wrap', marginBottom:10 },
-  meta:         { fontSize:11, color:'#aaa' },
+  meta:         { fontSize:11, color:'#666' },
   tagsRow:      { display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 },
   tag:          { fontSize:11, padding:'2px 8px', borderRadius:999, fontWeight:600 },
   linkBox:      { background:'#f8f8f8', borderRadius:8, padding:'8px 10px', marginBottom:10 },
@@ -457,23 +454,23 @@ const s: Record<string, any> = {
   linkText:     { flex:1, fontSize:11, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
   copyBtn:      { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600 },
   actionBtn:    { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
-  loading:      { textAlign:'center', color:'#888', padding:40 },
-  empty:        { textAlign:'center', color:'#aaa', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
+  loading:      { textAlign:'center', color:'#555', padding:40 },
+  empty:        { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:  { display:'flex', flexDirection:'column', gap:12 },
   resultCard:   { background:'#fff', borderRadius:14, padding:18, border:'1px solid #f0f0f0', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' },
   resultHeader: { display:'flex', alignItems:'center', gap:12, marginBottom:8 },
   resName:      { fontSize:15, fontWeight:700, color:'#1a1a2e', margin:'0 0 2px' },
-  resEmail:     { fontSize:11, color:'#aaa', margin:'0 0 2px' },
-  resInst:      { fontSize:12, color:'#888', margin:'0 0 2px' },
+  resEmail:     { fontSize:11, color:'#666', margin:'0 0 2px' },
+  resInst:      { fontSize:12, color:'#555', margin:'0 0 2px' },
   resPerfil:    { fontSize:11, color:'#5C6BC0', margin:0, fontWeight:600 },
-  resDate:      { fontSize:11, color:'#bbb', margin:0 },
+  resDate:      { fontSize:11, color:'#666', margin:0 },
   badge:        { fontSize:11, padding:'3px 10px', borderRadius:999, fontWeight:700 },
   dimRow:       { display:'flex', alignItems:'center', gap:8, padding:'3px 0', borderBottom:'1px solid #fafafa' },
   dimName:      { flex:1, fontSize:12, color:'#666' },
   dimScore:     { fontSize:12, fontWeight:700, color:'#1a1a2e' },
   matchCircle:  (c: string) => ({ width:56, height:56, borderRadius:'50%', border:`3px solid ${c}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:`${c}11`, flexShrink:0 }),
   matchNum:     { fontSize:15, fontWeight:800, color:'#1a1a2e', lineHeight:1 },
-  matchLabel:   { fontSize:9, color:'#888' },
+  matchLabel:   { fontSize:9, color:'#555' },
   aptoBadge:    { fontSize:11, padding:'4px 10px', borderRadius:999, fontWeight:700 },
   discRow:      { display:'flex', gap:8, marginTop:10 },
   discFactor:   { flex:1, display:'flex', flexDirection:'column', gap:3 },

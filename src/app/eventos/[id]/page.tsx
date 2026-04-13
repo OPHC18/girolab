@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/app/lib/supabase'
 import { useParams } from 'next/navigation'
 import AgendaModalPublico from '@/components/AgendaModalPublico'
+import { dispararEmail } from '@/lib/email/send'
 
 export default function EventoPage() {
   const { id } = useParams()
@@ -39,18 +40,53 @@ export default function EventoPage() {
   const handleInscribirse = async () => {
     if (!user?.id || !ticketSeleccionado) return
     const precioFinal = ticketSeleccionado.price * cantidadTickets * (1 - (ticketSeleccionado.discount_pct || 0) / 100)
-    const { error } = await supabase.from('event_registrations').insert({
-      event_id: evento.id,
-      ticket_id: ticketSeleccionado.id,
-      user_id: user.id,
-      quantity: cantidadTickets,
-      total_price: precioFinal,
-      discount_code: codigoDescuento || null,
-      payment_status: precioFinal === 0 ? 'gratis' : 'pendiente'
-    })
-    if (!error) {
+
+    const { data: reg, error } = await supabase.from('event_registrations').insert({
+      event_id:       evento.id,
+      ticket_id:      ticketSeleccionado.id,
+      user_id:        user.id,
+      quantity:       cantidadTickets,
+      total_price:    precioFinal,
+      discount_code:  codigoDescuento || null,
+      payment_status: precioFinal === 0 ? 'gratis' : 'pendiente',
+    }).select().single()
+
+    if (error || !reg) return
+
+    if (precioFinal === 0) {
+      // Evento gratuito: confirmar directamente
       setInscrito(true)
-      setMensaje('🎉 ¡Inscripción confirmada!')
+      setMensaje('¡Inscripción confirmada!')
+      const clientName = user.user_metadata?.nombre
+        ? `${user.user_metadata.nombre} ${user.user_metadata.apellidos || ''}`.trim()
+        : user.email?.split('@')[0] || 'Usuario'
+      const eventoFecha = new Date(evento.date + 'T00:00:00').toLocaleDateString('es-PE', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+      await dispararEmail('confirmacion_evento', {
+        clientName, clientEmail: user.email,
+        eventoTitulo: evento.title, eventoFecha,
+        eventoHora: evento.start_time?.slice(0, 5) || '',
+        eventoLugar: evento.location_address || evento.meeting_link || '',
+        modalidad: evento.modality, tipoEntrada: ticketSeleccionado.name,
+        cantidad: cantidadTickets, precioTotal: precioFinal,
+        registrationId: reg.id, eventoId: evento.id,
+      })
+    } else {
+      // Evento pagado: crear preferencia MP y redirigir
+      setMensaje('Redirigiendo a MercadoPago…')
+      const res = await fetch('/api/mp/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'event_reg', id: reg.id }),
+      })
+      const data = await res.json()
+      if (data.init_point) {
+        window.location.href = data.init_point
+      } else {
+        setMensaje('Error al iniciar el pago. Tu lugar está reservado — intenta desde el dashboard.')
+        setInscrito(true)
+      }
     }
   }
 

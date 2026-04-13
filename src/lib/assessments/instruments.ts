@@ -3,7 +3,8 @@
 
 export type InstrumentId =
   | 'BDI_II' | 'BAI' | 'MDQ' | 'ASRS_v1_1'
-  | 'BIG_FIVE' | 'NPI_40' | 'MSI_BPD' | 'DARK_TRIAD' | 'PID_5';
+  | 'BIG_FIVE' | 'NPI_40' | 'MSI_BPD' | 'DARK_TRIAD' | 'PID_5'
+  | 'BARON_ICE';
 
 export type ResponseType = 'likert_0_3' | 'likert_1_5' | 'binary' | 'forced_choice' | 'frequency_0_4' | 'mdq_c';
 
@@ -27,7 +28,7 @@ export interface InstrumentConfig {
 export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   BDI_II: {
     id: 'BDI_II', nombre: 'Inventario de Depresión de Beck II', descripcion: 'Evalúa la presencia y severidad de síntomas depresivos en adultos.',
-    icono: '🌧', color: '#5C6BC0', totalItems: 21, tiempoMinutos: 10, responseType: 'likert_0_3',
+    icono: '', color: '#5C6BC0', totalItems: 21, tiempoMinutos: 10, responseType: 'likert_0_3',
     opciones: [
       { valor: 0, etiqueta: 'En absoluto' }, { valor: 1, etiqueta: 'Levemente' },
       { valor: 2, etiqueta: 'Moderadamente' }, { valor: 3, etiqueta: 'Severamente' },
@@ -37,7 +38,7 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   },
   BAI: {
     id: 'BAI', nombre: 'Inventario de Ansiedad de Beck', descripcion: 'Mide la intensidad de síntomas de ansiedad física y cognitiva.',
-    icono: '⚡', color: '#EF5350', totalItems: 21, tiempoMinutos: 10, responseType: 'likert_0_3',
+    icono: '', color: '#EF5350', totalItems: 21, tiempoMinutos: 10, responseType: 'likert_0_3',
     opciones: [
       { valor: 0, etiqueta: 'En absoluto' }, { valor: 1, etiqueta: 'Levemente' },
       { valor: 2, etiqueta: 'Moderadamente' }, { valor: 3, etiqueta: 'Severamente' },
@@ -47,14 +48,14 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   },
   MDQ: {
     id: 'MDQ', nombre: 'Cuestionario de Trastornos del Estado de Ánimo', descripcion: 'Screening de 3 pasos para detectar posible trastorno bipolar.',
-    icono: '🔄', color: '#AB47BC', totalItems: 15, tiempoMinutos: 5, responseType: 'binary',
+    icono: '', color: '#AB47BC', totalItems: 15, tiempoMinutos: 5, responseType: 'binary',
     opciones: [{ valor: 0, etiqueta: 'No' }, { valor: 1, etiqueta: 'Sí' }],
     tagsMenters: ['bipolaridad', 'trastorno_afectivo', 'psicologia_clinica'], planesMenter: ['master', 'premium'],
     referencia: 'Hirschfeld et al. (2000)',
   },
   ASRS_v1_1: {
     id: 'ASRS_v1_1', nombre: 'Escala ASRS v1.1 para TDAH', descripcion: 'Autoevaluación de síntomas de TDAH en adultos, validada por la OMS.',
-    icono: '🧠', color: '#26A69A', totalItems: 18, tiempoMinutos: 10, responseType: 'frequency_0_4',
+    icono: '', color: '#26A69A', totalItems: 18, tiempoMinutos: 10, responseType: 'frequency_0_4',
     opciones: [
       { valor: 0, etiqueta: 'Nunca' }, { valor: 1, etiqueta: 'Raramente' },
       { valor: 2, etiqueta: 'A veces' }, { valor: 3, etiqueta: 'A menudo' }, { valor: 4, etiqueta: 'Muy a menudo' },
@@ -64,7 +65,7 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   },
   BIG_FIVE: {
     id: 'BIG_FIVE', nombre: 'Inventario de los Cinco Grandes (OCEAN)', descripcion: 'Perfil de personalidad en las 5 dimensiones universales.',
-    icono: '🌟', color: '#FF7043', totalItems: 44, tiempoMinutos: 15, responseType: 'likert_1_5',
+    icono: '', color: '#FF7043', totalItems: 44, tiempoMinutos: 15, responseType: 'likert_1_5',
     opciones: [
       { valor: 1, etiqueta: 'Muy en desacuerdo' }, { valor: 2, etiqueta: 'En desacuerdo' },
       { valor: 3, etiqueta: 'Neutral' }, { valor: 4, etiqueta: 'De acuerdo' }, { valor: 5, etiqueta: 'Muy de acuerdo' },
@@ -74,36 +75,46 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   },
   NPI_40: {
     id: 'NPI_40', nombre: 'Inventario de Personalidad Narcisista (NPI-40)', descripcion: '40 pares de elección forzada para evaluar rasgos narcisistas.',
-    icono: '👑', color: '#FFA726', totalItems: 40, tiempoMinutos: 15, responseType: 'forced_choice',
-    tagsMenters: ['personalidad', 'narcisismo', 'psicologia_clinica'], planesMenter: ['master'],
+    icono: '', color: '#FFA726', totalItems: 40, tiempoMinutos: 15, responseType: 'forced_choice',
+    tagsMenters: ['personalidad', 'narcisismo', 'psicologia_clinica'], planesMenter: ['master', 'premium'],
     referencia: 'Raskin & Hall (1979)',
   },
   MSI_BPD: {
     id: 'MSI_BPD', nombre: 'Screening para Trastorno Límite (MSI-BPD)', descripcion: 'Instrumento de screening breve para Trastorno Límite de Personalidad.',
-    icono: '🌊', color: '#26C6DA', totalItems: 10, tiempoMinutos: 5, responseType: 'binary',
+    icono: '', color: '#26C6DA', totalItems: 10, tiempoMinutos: 5, responseType: 'binary',
     opciones: [{ valor: 0, etiqueta: 'No' }, { valor: 1, etiqueta: 'Sí' }],
-    tagsMenters: ['borderline', 'trastorno_personalidad', 'psicologia_clinica'], planesMenter: ['master'],
+    tagsMenters: ['borderline', 'trastorno_personalidad', 'psicologia_clinica'], planesMenter: ['master', 'premium'],
     referencia: 'Zanarini et al. (2003)',
   },
   DARK_TRIAD: {
     id: 'DARK_TRIAD', nombre: 'Dark Triad – Dirty Dozen', descripcion: 'Evalúa narcisismo, maquiavelismo y psicopatía en 12 ítems.',
-    icono: '🃏', color: '#78909C', totalItems: 12, tiempoMinutos: 5, responseType: 'likert_1_5',
+    icono: '', color: '#78909C', totalItems: 12, tiempoMinutos: 5, responseType: 'likert_1_5',
     opciones: [
       { valor: 1, etiqueta: 'Totalmente en desacuerdo' }, { valor: 2, etiqueta: 'En desacuerdo' },
       { valor: 3, etiqueta: 'Neutral' }, { valor: 4, etiqueta: 'De acuerdo' }, { valor: 5, etiqueta: 'Totalmente de acuerdo' },
     ],
-    tagsMenters: ['personalidad', 'psicologia_clinica', 'terapia'], planesMenter: ['master'],
+    tagsMenters: ['personalidad', 'psicologia_clinica', 'terapia'], planesMenter: ['master', 'premium'],
     referencia: 'Jonason & Webster (2010)',
   },
   PID_5: {
     id: 'PID_5', nombre: 'Inventario de Personalidad DSM-5 (PID-5-BF)', descripcion: '25 ítems para evaluar los 5 dominios de personalidad del DSM-5.',
-    icono: '📊', color: '#66BB6A', totalItems: 25, tiempoMinutos: 10, responseType: 'likert_0_3',
+    icono: '', color: '#66BB6A', totalItems: 25, tiempoMinutos: 10, responseType: 'likert_0_3',
     opciones: [
       { valor: 0, etiqueta: 'Falso o muy raramente verdadero' }, { valor: 1, etiqueta: 'A veces verdadero' },
       { valor: 2, etiqueta: 'A menudo verdadero' }, { valor: 3, etiqueta: 'Muy verdadero o siempre verdadero' },
     ],
     tagsMenters: ['personalidad', 'dsm5', 'psicologia_clinica'], planesMenter: ['master', 'premium'],
     referencia: 'Krueger et al. (2012)',
+  },
+  BARON_ICE: {
+    id: 'BARON_ICE', nombre: 'Inventario de Cociente Emocional de BarOn (ICE)', descripcion: '133 ítems que evalúan la inteligencia emocional y social en 5 componentes: Intrapersonal, Interpersonal, Adaptabilidad, Manejo del Estrés y Ánimo General.',
+    icono: '', color: '#7C3AED', totalItems: 133, tiempoMinutos: 30, responseType: 'likert_1_5',
+    opciones: [
+      { valor: 1, etiqueta: 'Muy rara vez' }, { valor: 2, etiqueta: 'Rara vez' },
+      { valor: 3, etiqueta: 'A veces' }, { valor: 4, etiqueta: 'A menudo' }, { valor: 5, etiqueta: 'Muy a menudo' },
+    ],
+    tagsMenters: ['inteligencia_emocional', 'bienestar', 'coaching', 'desarrollo_personal'], planesMenter: ['master', 'premium'],
+    referencia: 'Bar-On (1997) · Ugarriza (2001)',
   },
 };
 
@@ -250,6 +261,8 @@ export function scoreInstrument(id: InstrumentId, responses: Responses): Assessm
         tagsMenters: INSTRUMENTS.PID_5.tagsMenters,
         interpretacion: 'Perfil PID-5 (DSM-5) calculado — ver 5 dominios' };
     }
+    case 'BARON_ICE':
+      throw new Error('BARON_ICE: usa scoreBarOn() de baron-scoring.ts');
     default:
       throw new Error(`Instrumento desconocido: ${id}`);
   }

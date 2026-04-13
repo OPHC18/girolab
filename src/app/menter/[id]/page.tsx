@@ -13,6 +13,8 @@ export default function MenterPage() {
   const [loading, setLoading] = useState(true)
   const [copiadoMsg, setCopiadoMsg] = useState(false)
   const [showAgenda, setShowAgenda] = useState(false)
+  const [rating, setRating] = useState<{avg: number, count: number} | null>(null)
+  const [resenas, setResenas] = useState<any[]>([])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -45,6 +47,17 @@ export default function MenterPage() {
       .from('events').select('*, event_tickets(*)').eq('menter_id', id).eq('status', 'publicado')
       .gte('date', new Date().toISOString().split('T')[0]).order('date', { ascending: true }).limit(3)
     setEventos(eventosData || [])
+
+    const { data: resenasData } = await supabase
+      .from('reviews')
+      .select('estrellas, comentario, reviewer_role, created_at')
+      .eq('reviewed_id', id)
+      .order('created_at', { ascending: false })
+    if (resenasData && resenasData.length > 0) {
+      const avg = Math.round(resenasData.reduce((s, r) => s + r.estrellas, 0) / resenasData.length * 10) / 10
+      setRating({ avg, count: resenasData.length })
+      setResenas(resenasData)
+    }
 
     setLoading(false)
   }
@@ -105,8 +118,14 @@ export default function MenterPage() {
                     </div>
                   )}
                   <h2 style={{ margin: '0 0 8px', color: 'white', fontFamily: 'Raleway', fontSize: 18, fontWeight: 800 }}>{perfil.nombre || 'Menter'}</h2>
+                  {rating && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 8 }}>
+                      <span style={{ color: '#ffa719', fontSize: 17, letterSpacing: 1 }}>{'★'.repeat(Math.round(rating.avg))}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{rating.avg} · {rating.count} {rating.count === 1 ? 'reseña' : 'reseñas'}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {perfil.pais && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>📍 {perfil.pais}</span>}
+                    {perfil.pais && <span style={{ fontSize: 11, color: 'white', background: 'rgba(255,255,255,0.18)', padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>📍 {perfil.pais}</span>}
                     {perfil.plan && (
                       <span style={{ fontSize: 11, background: perfil.plan === 'master' ? '#ffa719' : 'rgba(255,255,255,0.2)', color: perfil.plan === 'master' ? '#2d2926' : 'white', padding: '3px 10px', borderRadius: 20, fontWeight: 700, textTransform: 'uppercase' as const }}>
                         {perfil.plan}
@@ -147,7 +166,7 @@ export default function MenterPage() {
     📅 Agendar sesión
   </button>
 ) : (
-  <a href={`/?returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'block', padding: '12px', borderRadius: 20, background: '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway', textAlign: 'center', marginTop: 4 }}>
+  <a href={`/?registro=1&returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'block', padding: '12px', borderRadius: 20, background: '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway', textAlign: 'center', marginTop: 4 }}>
     Regístrate para agendar →
   </a>
 )}
@@ -297,6 +316,34 @@ export default function MenterPage() {
                 </>
               )}
 
+              {resenas.length > 0 && (
+                <>
+                  <div style={{ height: 1, background: '#f0f0f0' }} />
+                  <div style={{ padding: '24px 28px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                      <h4 style={{ color: '#421869', fontFamily: 'Raleway', margin: 0 }}>Reseñas</h4>
+                      {rating && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: '#ffa719', fontSize: 16, letterSpacing: 1 }}>{'★'.repeat(Math.round(rating.avg))}</span>
+                          <span style={{ fontSize: 13, color: '#666' }}>{rating.avg} ({rating.count})</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {resenas.slice(0, 5).map((r, i) => (
+                        <div key={i} style={{ padding: '12px 16px', background: '#fdf8ff', border: '1px solid #e9d5ff', borderRadius: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: r.comentario ? 6 : 0 }}>
+                            <span style={{ color: '#ffa719', fontSize: 15, letterSpacing: 1 }}>{'★'.repeat(r.estrellas)}{'☆'.repeat(5 - r.estrellas)}</span>
+                            <span style={{ fontSize: 11, color: '#999' }}>{new Date(r.created_at).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</span>
+                          </div>
+                          {r.comentario && <p style={{ margin: 0, fontSize: 13, color: '#555', fontStyle: 'italic' }}>"{r.comentario}"</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
               {!user && (
                 <>
                   <div style={{ height: 1, background: '#f0f0f0' }} />
@@ -305,7 +352,7 @@ export default function MenterPage() {
                       ¿Listo para conectar con {perfil.nombre?.split(' ')[0] || 'este Menter'}?
                     </h3>
                     <p style={{ color: '#666', fontSize: 14, margin: '0 0 16px' }}>Regístrate en Giro Lab y agenda tu primera sesión.</p>
-                    <a href={`/?returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 20, background: '#421869', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway' }}>
+                    <a href={`/?registro=1&returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 20, background: '#421869', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway' }}>
                       Empezar ahora →
                     </a>
                   </div>

@@ -13,6 +13,10 @@ const PLANES: Record<string, { color: string; bg: string; emoji: string }> = {
 
 export default function ComunidadPage() {
   const router = useRouter()
+  const composerRef = useRef<HTMLDivElement>(null)
+  const [resenaDraft, setResenaDraft] = useState<{
+    menter_name: string; menter_avatar: string; estrellas: number; comentario: string
+  } | null>(null)
   const [user, setUser]       = useState<{ id: string; email: string } | null>(null)
   const [meta, setMeta]       = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -31,6 +35,18 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
   const [comentarioInput, setComentarioInput] = useState<Record<string, string>>({})
   const [postExpandido, setPostExpandido] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('comunidad_draft_resena')
+    if (raw) {
+      try {
+        const draft = JSON.parse(raw)
+        setResenaDraft(draft)
+        sessionStorage.removeItem('comunidad_draft_resena')
+        setTimeout(() => composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400)
+      } catch {}
+    }
+  }, [])
 
   useEffect(() => {
     const init = async () => {
@@ -66,29 +82,63 @@ supabase.from('events')
     const { data } = await supabase.rpc('get_community_feed', {
       p_limit: 20, p_offset: offsetVal
     })
-    if (data) {
-      if (offsetVal === 0) setFeed(data)
-      else setFeed(prev => [...prev, ...data])
+    if (data && data.length > 0) {
+      // Fusionar campos de reseña que el RPC no retorna
+      const ids = data.map((p: any) => p.id)
+      const { data: extra } = await supabase
+        .from('community_posts')
+        .select('id, menter_name, menter_avatar, estrellas, resena_comentario')
+        .in('id', ids)
+      const extraMap: Record<string, any> = {}
+      extra?.forEach((p: any) => { extraMap[p.id] = p })
+      const merged = data.map((p: any) => ({ ...p, ...(extraMap[p.id] || {}) }))
+      if (offsetVal === 0) setFeed(merged)
+      else setFeed(prev => [...prev, ...merged])
       setHasMore(data.length === 20)
+    } else if (data) {
+      if (offsetVal === 0) setFeed([])
     }
     setOffset(offsetVal + 20)
     setFeedLoading(false)
   }
 
   const publicar = async () => {
-    if (!postForm.contenido.trim() && !postForm.media_url) return
+    const esResena = !!resenaDraft
+    if (!esResena && !postForm.contenido.trim() && !postForm.media_url) return
     setPosting(true)
-    const { error } = await supabase.from('community_posts').insert({
+    const payload: any = {
       user_id:   user!.id,
-      tipo:      postForm.tipo,
+      tipo:      postForm.tipo,   // siempre 'texto'/'foto'/'video' — el campo menter_name indica reseña
       contenido: postForm.contenido || null,
       media_url: postForm.media_url || null,
-    })
+    }
+    if (esResena) {
+      payload.menter_name        = resenaDraft!.menter_name
+      payload.menter_avatar      = resenaDraft!.menter_avatar || null
+      payload.estrellas          = resenaDraft!.estrellas
+      payload.resena_comentario  = resenaDraft!.comentario || null
+    }
+    const { error } = await supabase.from('community_posts').insert(payload)
     if (!error) {
+      const newPost = {
+        id: crypto.randomUUID(),
+        ...payload,
+        nombre:         meta?.nombre,
+        apellidos:      meta?.apellidos,
+        avatar_url:     meta?.avatar_url || null,
+        role:           meta?.role,
+        likes_count:    0,
+        comments_count: 0,
+        user_liked:     false,
+        created_at:     new Date().toISOString(),
+      }
+      setFeed(prev => [newPost, ...prev])
       setPostForm({ contenido: '', media_url: '', tipo: 'texto' })
-      cargarFeed(0)
-      setToastMsg('✅ Publicado')
+      if (esResena) setResenaDraft(null)
+      setToastMsg('Publicado en la comunidad')
       setTimeout(() => setToastMsg(null), 3000)
+    } else {
+      setAlertMsg('Error al publicar. Verifica que las columnas existen en la tabla.')
     }
     setPosting(false)
   }
@@ -274,12 +324,41 @@ supabase.from('events')
         <div>
 
           {/* Composer */}
-          <div style={{ background: 'white', borderRadius: 16, padding: '20px', marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
-                {meta?.nombre?.[0]?.toUpperCase() || '?'}
+          <div ref={composerRef} style={{ background: 'white', borderRadius: 16, padding: '20px', marginBottom: 20, boxShadow: resenaDraft ? '0 0 0 2px #421869' : '0 2px 8px rgba(0,0,0,0.06)', transition: 'box-shadow 0.3s' }}>
+
+            {/* Preview reseña */}
+            {resenaDraft && (
+              <div style={{ marginBottom: 16, padding: '14px 16px', background: '#fdf8ff', border: '1px solid #e9d5ff', borderRadius: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#421869', fontFamily: 'Raleway, sans-serif' }}>Quiero compartir mi experiencia con el Menter:</span>
+                  <button onClick={() => setResenaDraft(null)} style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  {resenaDraft.menter_avatar
+                    ? <img src={resenaDraft.menter_avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #e9d5ff' }} />
+                    : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'white', flexShrink: 0 }}>{resenaDraft.menter_name?.[0] || 'M'}</div>
+                  }
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: '#421869', fontFamily: 'Raleway, sans-serif', marginBottom: 4 }}>{resenaDraft.menter_name}</div>
+                    <div style={{ color: '#ffa719', fontSize: 20, letterSpacing: 3, lineHeight: 1 }}>
+                      {'★'.repeat(resenaDraft.estrellas)}{'☆'.repeat(5 - resenaDraft.estrellas)}
+                    </div>
+                    {resenaDraft.comentario && (
+                      <p style={{ margin: '6px 0 0', fontSize: 14, color: '#555', fontStyle: 'italic' }}>"{resenaDraft.comentario}"</p>
+                    )}
+                  </div>
+                </div>
               </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              {!resenaDraft && (
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                  {meta?.nombre?.[0]?.toUpperCase() || '?'}
+                </div>
+              )}
               <div style={{ flex: 1 }}>
+                {!resenaDraft && (
                 <textarea
                   placeholder="¿Qué quieres compartir con la comunidad?"
                   value={postForm.contenido}
@@ -287,6 +366,7 @@ supabase.from('events')
                   rows={3}
                   style={{ width: '100%', padding: '10px 14px', border: '0.5px solid #e0e0e0', borderRadius: 12, fontSize: 14, fontFamily: 'DM Sans', resize: 'none', boxSizing: 'border-box' as const, outline: 'none' }}
                 />
+                )}
 
                 {/* Preview imagen */}
                 {postForm.media_url && postForm.tipo === 'foto' && (
@@ -351,28 +431,30 @@ supabase.from('events')
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <label style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'foto' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'foto' ? '#f3e8ff' : 'white', color: postForm.tipo === 'foto' ? '#421869' : '#666' }}>
-                      📷 Foto
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        if (file.size > 5 * 1024 * 1024) { setAlertMsg('La imagen no puede superar 5MB'); return }
-                        const reader = new FileReader()
-                        reader.onload = () => setPostForm(p => ({ ...p, media_url: reader.result as string, tipo: 'foto' }))
-                        reader.readAsDataURL(file)
-                      }} />
-                    </label>
-                    <button
-                      onClick={() => setPostForm(p => ({ ...p, tipo: p.tipo === 'video' ? 'texto' : 'video', media_url: p.tipo === 'video' ? '' : p.media_url }))}
-                      style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'video' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'video' ? '#f3e8ff' : 'white', color: postForm.tipo === 'video' ? '#421869' : '#666' }}>
-                      🎥 Video
-                    </button>
+                    {!resenaDraft && (<>
+                      <label style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'foto' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'foto' ? '#f3e8ff' : 'white', color: postForm.tipo === 'foto' ? '#421869' : '#666' }}>
+                        📷 Foto
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 5 * 1024 * 1024) { setAlertMsg('La imagen no puede superar 5MB'); return }
+                          const reader = new FileReader()
+                          reader.onload = () => setPostForm(p => ({ ...p, media_url: reader.result as string, tipo: 'foto' }))
+                          reader.readAsDataURL(file)
+                        }} />
+                      </label>
+                      <button
+                        onClick={() => setPostForm(p => ({ ...p, tipo: p.tipo === 'video' ? 'texto' : 'video', media_url: p.tipo === 'video' ? '' : p.media_url }))}
+                        style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'video' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'video' ? '#f3e8ff' : 'white', color: postForm.tipo === 'video' ? '#421869' : '#666' }}>
+                        🎥 Video
+                      </button>
+                    </>)}
                   </div>
                   <button
                     onClick={publicar}
-                    disabled={posting || (!postForm.contenido.trim() && !postForm.media_url)}
-                    style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: (posting || (!postForm.contenido.trim() && !postForm.media_url)) ? '#e0e0e0' : '#421869', color: (posting || (!postForm.contenido.trim() && !postForm.media_url)) ? '#999' : 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
-                    {posting ? 'Publicando...' : 'Publicar'}
+                    disabled={posting || (!resenaDraft && !postForm.contenido.trim() && !postForm.media_url)}
+                    style={{ padding: '8px 24px', borderRadius: 20, border: 'none', background: (posting || (!resenaDraft && !postForm.contenido.trim() && !postForm.media_url)) ? '#e0e0e0' : '#421869', color: (posting || (!resenaDraft && !postForm.contenido.trim() && !postForm.media_url)) ? '#999' : 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+                    {posting ? 'Publicando...' : resenaDraft ? 'Publicar reseña' : 'Publicar'}
                   </button>
                 </div>
               </div>
@@ -416,6 +498,28 @@ supabase.from('events')
                       <button onClick={() => eliminarPost(post.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 16, padding: '4px 8px' }}>🗑️</button>
                     )}
                   </div>
+
+                  {/* Card de reseña */}
+                  {post.menter_name && (
+                    <div style={{ margin: '0 20px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#421869', fontFamily: 'Raleway, sans-serif', marginBottom: 8 }}>Quiero compartir mi experiencia con el Menter:</div>
+                    <div style={{ padding: '14px 16px', background: '#fdf8ff', border: '1px solid #e9d5ff', borderRadius: 14, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      {post.menter_avatar
+                        ? <img src={post.menter_avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #e9d5ff' }} />
+                        : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'white', flexShrink: 0 }}>{post.menter_name?.[0] || 'M'}</div>
+                      }
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#421869', fontFamily: 'Raleway, sans-serif', marginBottom: 4 }}>{post.menter_name}</div>
+                        <div style={{ color: '#ffa719', fontSize: 20, letterSpacing: 3, lineHeight: 1 }}>
+                          {'★'.repeat(post.estrellas || 0)}{'☆'.repeat(5 - (post.estrellas || 0))}
+                        </div>
+                        {post.resena_comentario && (
+                          <p style={{ margin: '6px 0 0', fontSize: 14, color: '#555', fontStyle: 'italic' }}>"{post.resena_comentario}"</p>
+                        )}
+                      </div>
+                    </div>
+                    </div>
+                  )}
 
                   {/* Contenido */}
                   {post.contenido && (

@@ -12,9 +12,10 @@ import type { AssessmentResult } from '@/lib/assessments/instruments';
 interface ShareLink { token: string; url: string; copied: boolean; }
 interface PersonaResult {
   id: string;
-  persona_nombre: string;
-  persona_email: string;
-  persona_id: string;
+  persona_nombre: string | null;
+  persona_email: string | null;
+  persona_id: string | null;
+  es_registrado: boolean;
   instrument_id: InstrumentId;
   puntuacion_bruta: number | null;
   severidad_label: string | null;
@@ -54,12 +55,23 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
   // Cargar objetivos del Menter (para vincular al Roadmap)
   useEffect(() => {
-    if (!selectedResult) return;
-    supabase.from('objetivos')
-      .select('id, titulo')
+    if (!selectedResult?.persona_id) return;
+    setObjetivos([]);
+    supabase
+      .from('roadmaps')
+      .select('id')
       .eq('menter_id', userId)
-      .eq('persona_id', selectedResult.persona_id)
-      .then(({ data }) => setObjetivos(data || []));
+      .eq('client_id', selectedResult.persona_id)
+      .maybeSingle()
+      .then(({ data: roadmap }) => {
+        if (!roadmap) return;
+        supabase
+          .from('roadmap_objectives')
+          .select('id, titulo')
+          .eq('roadmap_id', roadmap.id)
+          .order('created_at', { ascending: true })
+          .then(({ data }) => setObjetivos(data || []));
+      });
   }, [selectedResult, userId]);
 
   // Generar link compartible
@@ -71,7 +83,10 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       p_menter_id: userId,
     });
     if (!error && data) {
-      setShareLinks(prev => ({ ...prev, [instrumentId]: { token: data.token, url: data.url, copied: false } }));
+      // Construir URL desde el origen actual (evita dominio hardcodeado en la DB)
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net'
+      const url = `${origin}/test/${instrumentId}?t=${data.token}`
+      setShareLinks(prev => ({ ...prev, [instrumentId]: { token: data.token, url, copied: false } }));
     }
     setLoadingLink(null);
   };
@@ -105,12 +120,16 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     Mínima: '#4CAF50', Leve: '#FFC107', Moderada: '#FF9800', Severa: '#F44336',
     Positivo: '#F44336', Negativo: '#4CAF50', Bajo: '#4CAF50', Promedio: '#FFC107',
     Elevado: '#FF9800', 'Muy elevado': '#F44336', Medio: '#FFC107', Alto: '#FF9800', Moderado: '#FF9800',
+    // BarOn ICE
+    'Capacidad Muy Desarrollada': '#4CAF50',
+    'Capacidad Adecuada':         '#2196F3',
+    'Área de Oportunidad':        '#FF9800',
   };
 
   if (!['premium', 'master'].includes(menterPlan)) {
     return (
       <div style={s.upgradeBox}>
-        <span style={{ fontSize: 40 }}>🔒</span>
+        <span style={{ fontSize: 40 }}></span>
         <h3 style={s.upgradeTitle}>Instrumentos Psicométricos</h3>
         <p style={s.upgradeText}>Disponible para Menters Premium y Master. Actualiza tu plan para acceder a los 9 instrumentos validados.</p>
         <button style={s.upgradeBtn}>Ver planes</button>
@@ -136,7 +155,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
         {(['biblioteca', 'resultados'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ ...s.tabBtn, ...(activeTab === tab ? s.tabBtnActive : {}) }}>
-            {tab === 'biblioteca' ? '📚 Biblioteca' : '📊 Resultados de personas'}
+            {tab === 'biblioteca' ? 'Biblioteca' : 'Resultados de personas'}
           </button>
         ))}
       </div>
@@ -167,9 +186,9 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
                 {/* Meta */}
                 <div style={s.metaRow}>
-                  <span style={s.meta}>📝 {inst.totalItems} ítems</span>
-                  <span style={s.meta}>⏱ ~{inst.tiempoMinutos} min</span>
-                  <span style={s.meta}>📖 {inst.referencia}</span>
+                  <span style={s.meta}>{inst.totalItems} ítems</span>
+                  <span style={s.meta}>~{inst.tiempoMinutos} min</span>
+                  <span style={s.meta}>{inst.referencia}</span>
                 </div>
 
                 {/* Tags */}
@@ -185,7 +204,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                     <span style={s.linkText}>{link.url}</span>
                     <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
                       onClick={() => handleCopiarLink(inst.id)}>
-                      {link.copied ? '✓ Copiado' : 'Copiar'}
+                      {link.copied ? 'Copiado' : 'Copiar'}
                     </button>
                   </div>
                 )}
@@ -195,11 +214,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                   <button style={{ ...s.actionBtn, background: inst.color }}
                     disabled={isLoading}
                     onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
-                    {isLoading ? 'Generando...' : link ? '🔗 Copiar link' : '🔗 Generar link'}
+                    {isLoading ? 'Generando...' : link ? 'Copiar link' : 'Generar link'}
                   </button>
                 ) : (
                   <button style={{ ...s.actionBtn, background: '#ccc', cursor: 'not-allowed' }} disabled>
-                    🔒 Solo para Master
+                    Solo para Master
                   </button>
                 )}
               </div>
@@ -215,7 +234,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
             <div style={s.loading}>Cargando resultados...</div>
           ) : resultados.length === 0 ? (
             <div style={s.empty}>
-              <span style={{ fontSize: 40 }}>📭</span>
+              <span style={{ fontSize: 40 }}></span>
               <p>Aún no hay resultados. Comparte un link de test con tus personas.</p>
             </div>
           ) : (
@@ -227,7 +246,8 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                     <div style={s.resultHeader}>
                       <span style={{ fontSize: 22 }}>{inst?.icono || '📋'}</span>
                       <div style={{ flex: 1 }}>
-                        <p style={s.resultName}>{res.persona_nombre || 'Persona'}</p>
+                        <p style={s.resultName}>{res.persona_nombre || 'Anónimo'}</p>
+                        {res.persona_email && <p style={s.resultEmail}>{res.persona_email}</p>}
                         <p style={s.resultInst}>{inst?.nombre || res.instrument_id}</p>
                         <p style={s.resultDate}>{new Date(res.created_at).toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' })}</p>
                       </div>
@@ -244,8 +264,8 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                       )}
                     </div>
 
-                    {/* Dimensiones rápidas */}
-                    {res.resultado_json?.dimensiones?.slice(0, 3).map((dim: { dimension: string; score: number; label?: string }, i: number) => (
+                    {/* Dimensiones */}
+                    {res.resultado_json?.dimensiones?.map((dim: { dimension: string; score: number; label?: string }, i: number) => (
                       <div key={i} style={s.dimRow}>
                         <span style={s.dimName}>{dim.dimension}</span>
                         <span style={s.dimScore}>{typeof dim.score === 'number' ? dim.score.toFixed(dim.score < 10 ? 2 : 0) : dim.score}</span>
@@ -256,10 +276,15 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                     {/* Acciones */}
                     <div style={s.resultActions}>
                       {res.roadmap_objetivo_id ? (
-                        <span style={s.vinculadoBadge}>✓ Vinculado al Roadmap</span>
+                        <>
+                          <span style={s.vinculadoBadge}>Vinculado al Roadmap</span>
+                          <button style={s.reubicarBtn} onClick={() => { setObjetivoSeleccionado(res.roadmap_objetivo_id!); setSelectedResult(res); }}>
+                            Cambiar objetivo
+                          </button>
+                        </>
                       ) : (
                         <button style={s.vincularBtn} onClick={() => setSelectedResult(res)}>
-                          📌 Vincular al Roadmap
+                          Vincular al Roadmap
                         </button>
                       )}
                     </div>
@@ -273,14 +298,14 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
       {/* ── MODAL: VINCULAR AL ROADMAP ── */}
       {selectedResult && (
-        <div style={s.modalOverlay} onClick={() => setSelectedResult(null)}>
+        <div style={s.modalOverlay} onClick={() => { setSelectedResult(null); setObjetivoSeleccionado(''); }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <h3 style={s.modalTitle}>Vincular resultado al Roadmap</h3>
+            <h3 style={s.modalTitle}>{selectedResult.roadmap_objetivo_id ? 'Cambiar objetivo vinculado' : 'Vincular resultado al Roadmap'}</h3>
             <p style={s.modalSub}>
-              Asocia el resultado de <strong>{selectedResult.persona_nombre}</strong> en <em>{INSTRUMENTS[selectedResult.instrument_id]?.nombre}</em> a un objetivo de su Ruta de Bienestar.
+              Resultado de <strong>{selectedResult.persona_nombre}</strong> en <em>{INSTRUMENTS[selectedResult.instrument_id]?.nombre}</em>.
             </p>
             {objetivos.length === 0 ? (
-              <p style={{ color: '#888', fontSize: 14 }}>No hay objetivos compartidos con esta persona aún.</p>
+              <p style={{ color: '#888', fontSize: 14 }}>No hay objetivos en el Roadmap de esta persona aún.</p>
             ) : (
               <select style={s.select} value={objetivoSeleccionado} onChange={e => setObjetivoSeleccionado(e.target.value)}>
                 <option value="">— Selecciona un objetivo —</option>
@@ -288,11 +313,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
               </select>
             )}
             <div style={s.modalBtns}>
-              <button style={s.cancelBtn} onClick={() => setSelectedResult(null)}>Cancelar</button>
+              <button style={s.cancelBtn} onClick={() => { setSelectedResult(null); setObjetivoSeleccionado(''); }}>Cancelar</button>
               <button style={{ ...s.confirmBtn, opacity: objetivoSeleccionado ? 1 : 0.5 }}
                 disabled={!objetivoSeleccionado || !!vinculandoId}
                 onClick={() => handleVincular(selectedResult.id)}>
-                {vinculandoId === selectedResult.id ? 'Vinculando...' : 'Vincular'}
+                {vinculandoId === selectedResult.id ? 'Guardando...' : selectedResult.roadmap_objetivo_id ? 'Actualizar' : 'Vincular'}
               </button>
             </div>
           </div>
@@ -307,7 +332,7 @@ const s: Record<string, React.CSSProperties> = {
   container:      { padding: '24px 0' },
   header:         { display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 },
   titulo:         { fontSize:22, fontWeight:700, color:'#1a1a2e', margin:'0 0 4px' },
-  subtitulo:      { fontSize:14, color:'#888', margin:0 },
+  subtitulo:      { fontSize:14, color:'#555', margin:0 },
   planBadge:      { fontSize:12, padding:'4px 12px', borderRadius:999, fontWeight:700, textTransform:'capitalize' },
   tabBar:         { display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid #f0f0f0', paddingBottom:0 },
   tabBtn:         { padding:'10px 20px', borderRadius:'10px 10px 0 0', border:'none', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
@@ -317,23 +342,24 @@ const s: Record<string, React.CSSProperties> = {
   masterOnlyBadge:{ position:'absolute', top:12, right:12, fontSize:10, padding:'2px 8px', borderRadius:999, background:'#FFF3E0', color:'#E65100', fontWeight:700 },
   cardHeader:     { display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 },
   cardTitle:      { fontSize:14, fontWeight:700, color:'#1a1a2e', margin:'0 0 4px' },
-  cardDesc:       { fontSize:12, color:'#888', margin:0, lineHeight:1.4 },
+  cardDesc:       { fontSize:12, color:'#555', margin:0, lineHeight:1.4 },
   metaRow:        { display:'flex', gap:12, flexWrap:'wrap', marginBottom:10 },
-  meta:           { fontSize:11, color:'#aaa' },
+  meta:           { fontSize:11, color:'#666' },
   tagsRow:        { display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 },
   tag:            { fontSize:11, padding:'2px 8px', borderRadius:999, fontWeight:600 },
   linkBox:        { display:'flex', alignItems:'center', gap:8, background:'#f8f8f8', borderRadius:8, padding:'8px 12px', marginBottom:10 },
   linkText:       { flex:1, fontSize:11, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
   copyBtn:        { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600, transition:'all 0.2s' },
   actionBtn:      { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
-  loading:        { textAlign:'center', color:'#888', padding:40, fontSize:14 },
-  empty:          { textAlign:'center', color:'#aaa', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
+  loading:        { textAlign:'center', color:'#555', padding:40, fontSize:14 },
+  empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },
   resultCard:     { background:'#fff', borderRadius:14, padding:18, border:'1px solid #f0f0f0', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' },
   resultHeader:   { display:'flex', alignItems:'center', gap:12, marginBottom:12 },
   resultName:     { fontSize:15, fontWeight:700, color:'#1a1a2e', margin:'0 0 2px' },
-  resultInst:     { fontSize:12, color:'#888', margin:'0 0 2px' },
-  resultDate:     { fontSize:11, color:'#bbb', margin:0 },
+  resultEmail:    { fontSize:11, color:'#666', margin:'0 0 2px' },
+  resultInst:     { fontSize:12, color:'#555', margin:'0 0 2px' },
+  resultDate:     { fontSize:11, color:'#666', margin:0 },
   severityBadge:  { fontSize:12, padding:'4px 12px', borderRadius:999, fontWeight:700 },
   dimRow:         { display:'flex', alignItems:'center', gap:8, padding:'4px 0', borderBottom:'1px solid #fafafa' },
   dimName:        { flex:1, fontSize:13, color:'#555' },
@@ -342,9 +368,10 @@ const s: Record<string, React.CSSProperties> = {
   resultActions:  { marginTop:12, display:'flex', justifyContent:'flex-end' },
   vinculadoBadge: { fontSize:12, color:'#4CAF50', fontWeight:600 },
   vincularBtn:    { fontSize:13, padding:'6px 14px', borderRadius:8, border:'1px solid #5C6BC0', background:'none', color:'#5C6BC0', cursor:'pointer', fontWeight:600 },
+  reubicarBtn:    { fontSize:12, padding:'4px 10px', borderRadius:8, border:'1px solid #ddd', background:'none', color:'#888', cursor:'pointer', marginLeft:8 },
   upgradeBox:     { textAlign:'center', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   upgradeTitle:   { fontSize:20, fontWeight:700, color:'#1a1a2e', margin:0 },
-  upgradeText:    { fontSize:14, color:'#888', maxWidth:360 },
+  upgradeText:    { fontSize:14, color:'#555', maxWidth:360 },
   upgradeBtn:     { padding:'12px 28px', borderRadius:10, background:'#5C6BC0', color:'#fff', border:'none', fontSize:14, fontWeight:700, cursor:'pointer' },
   modalOverlay:   { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
   modal:          { background:'#fff', borderRadius:20, padding:32, maxWidth:440, width:'90%', boxShadow:'0 20px 60px rgba(0,0,0,0.15)' },
