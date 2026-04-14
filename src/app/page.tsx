@@ -147,6 +147,7 @@ export default function Home() {
   const [navScrolled, setNavScrolled] = useState(false)
   const [activeProfile, setActiveProfile] = useState<'persona' | 'empresa'>('persona')
   const [menterModal, setMenterModal] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
@@ -424,6 +425,14 @@ const handleGoogleAuth = async () => {
           .land-btn-ghost:hover { background: rgba(255,255,255,0.1) !important; }
           .grecaptcha-badge { visibility: hidden !important; }
           .wa-btn:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(37,211,102,0.45) !important; }
+          .nav-desktop-btns { display: flex; gap: 12px; }
+          .nav-hamburger { display: none; }
+          @media (max-width: 600px) {
+            .nav-desktop-btns { display: none; }
+            .nav-hamburger { display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; width: 42px; height: 42px; cursor: pointer; flex-direction: column; gap: 5px; padding: 8px; }
+            .nav-hamburger span { display: block; width: 22px; height: 2px; background: white; border-radius: 2px; transition: all 0.2s; }
+            .nav-mobile-menu { position: fixed; top: 64px; left: 0; right: 0; background: rgba(13,6,24,0.96); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; z-index: 99; }
+          }
         `}</style>
 
         {/* BOTÓN WHATSAPP FIJO */}
@@ -442,7 +451,8 @@ const handleGoogleAuth = async () => {
               <DotLottieReact src="https://lottie.host/321372e0-85e2-4f73-b0f6-8d625c53da52/iW77hiuv8h.lottie" loop autoplay style={{ width: 100, height: 100, marginTop: 15, }} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
+          {/* Desktop buttons */}
+          <div className="nav-desktop-btns">
             <button onClick={irALogin} className="land-btn-ghost" style={{ padding: '9px 20px', borderRadius: 30, border: '1px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
               Iniciar sesión
             </button>
@@ -450,7 +460,26 @@ const handleGoogleAuth = async () => {
               Crear cuenta
             </button>
           </div>
+
+          {/* Mobile hamburger */}
+          <button className="nav-hamburger" onClick={() => setMobileMenuOpen(o => !o)} aria-label="Menú">
+            <span />
+            <span />
+            <span />
+          </button>
         </nav>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="nav-mobile-menu">
+            <button onClick={() => { setMobileMenuOpen(false); irALogin() }} className="land-btn-ghost" style={{ padding: '12px 20px', borderRadius: 30, border: '1px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center' }}>
+              Iniciar sesión
+            </button>
+            <button onClick={() => { setMobileMenuOpen(false); irARegistro() }} className="land-btn-primary" style={{ padding: '12px 22px', borderRadius: 30, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', textAlign: 'center' }}>
+              Crear cuenta
+            </button>
+          </div>
+        )}
 
         {/* HERO */}
         <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '100px 24px 80px', backgroundImage: "url('/Pantallas.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
@@ -660,8 +689,8 @@ const handleGoogleAuth = async () => {
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.72)', flex: 1, paddingRight: 16 }}>{label}</p>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{ display: 'block', fontSize: 12, color: 'rgba(255,100,100,0.75)', textDecoration: 'line-through', marginBottom: 2 }}>{price}</span>
-                    <span style={{ fontSize: 11, color: '#4CAF50', fontWeight: 700 }}>Incluido en tu plan</span>
+                    <span style={{ display: 'block', fontSize: 12, color: '#ff8a80', textDecoration: 'line-through', marginBottom: 2 }}>{price}</span>
+                    <span style={{ fontSize: 11, color: '#69f0ae', fontWeight: 700 }}>Incluido en tu plan</span>
                   </div>
                 </div>
               ))}
@@ -670,8 +699,8 @@ const handleGoogleAuth = async () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0 4px', marginTop: 4 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>Total estimado mensual</p>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ display: 'block', fontSize: 18, fontWeight: 800, color: 'rgba(255,100,100,0.85)', textDecoration: 'line-through', fontFamily: 'Raleway, sans-serif' }}>$1,400/mes</span>
-                  <span style={{ fontSize: 12, color: '#4CAF50', fontWeight: 700 }}>$0 con Giro Lab</span>
+                  <span style={{ display: 'block', fontSize: 18, fontWeight: 800, color: '#ff8a80', textDecoration: 'line-through', fontFamily: 'Raleway, sans-serif' }}>$1,400/mes</span>
+                  <span style={{ fontSize: 12, color: '#69f0ae', fontWeight: 700 }}>$0 con Giro Lab</span>
                 </div>
               </div>
 
@@ -736,7 +765,12 @@ const handleGoogleAuth = async () => {
       <div className="absolute inset-0" style={{ backgroundColor: '#421869', mixBlendMode: 'multiply', opacity: 0.9 }} />
 
       <style>{`
-        @media (max-width: 600px) { .grid-opciones { grid-template-columns: repeat(2,1fr) !important; } }
+        @media (max-width: 600px) {
+          .grid-opciones { grid-template-columns: repeat(2,1fr) !important; }
+          .form-inner { padding-left: 4px !important; padding-right: 4px !important; font-size: 14px !important; }
+          .opcion-btn { font-size: 12px !important; padding: 10px 8px !important; }
+          .step-heading { font-size: 20px !important; }
+        }
         select option { background-color: #2d1a4a; color: white; }
         select { color: white !important; }
         input::placeholder { color: rgba(255,255,255,0.5); }
@@ -745,7 +779,7 @@ const handleGoogleAuth = async () => {
 
       <div
         className="relative z-10 flex flex-col items-center w-full"
-        style={{ maxWidth: 780, transition: 'opacity 0.25s ease', opacity: visible ? 1 : 0 }}
+        style={{ maxWidth: 780, transition: 'opacity 0.25s ease', opacity: visible ? 1 : 0, padding: '0 8px' }}
       >
         {/* Lottie logo */}
         <div style={{ marginBottom: 12 }}>
