@@ -1695,7 +1695,7 @@ const fetchFeaturedMenters = async () => {
     { id: 'destacados', icon: 'directorio', label: 'Directorio'  },
     { id: 'mis-citas', icon: 'citas',       label: 'Mis Citas' },
     { id: 'roadmap',        icon: 'roadmap',  label: 'Roadmap'        },
-    ...((plan === 'premium' || plan === 'master') ? [{ id: 'instrumentos' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrumentos' }] : []),
+    { id: 'instrumentos' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrumentos' },
     { id: 'ingresos',       icon: 'ingresos', label: 'Ingresos'       },
     { id: 'escribir',   icon: 'escribir',   label: 'Blog'        },
     { id: 'eventos',    icon: 'eventos',    label: 'Eventos'     },
@@ -6791,7 +6791,20 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     destacados:   { title: isMenter ? 'Directorio de Menters' : 'Menters Destacados', content: renderDestacados() },
      ingresos:    { title: 'Mis Ingresos', content: isMenter ? renderIngresos() : renderProximamente('Ingresos', '') },
     objetivos:            { title: 'Objetivos Empresariales', content: meta?.role === 'empresa' ? renderObjetivosEmpresa() : renderProximamente('Objetivos Empresariales', '') },
-    instrumentos:         { title: 'Instrumentos Psicométricos', content: isMenter && user?.id ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} /> : renderProximamente('Instrumentos', '') },
+    instrumentos:         { title: 'Instrumentos Psicométricos', content: isMenter && canPremium && user?.id
+      ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
+      : isMenter
+        ? <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>🧪</div>
+            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>Instrumentos Psicométricos</h3>
+            <p style={{ color: '#666', fontSize: 15, lineHeight: 1.7, maxWidth: 420, margin: '0 auto 28px' }}>
+              Envía evaluaciones a tus clientes y analiza sus resultados con instrumentos validados. Disponible desde el plan <strong>Premium</strong>.
+            </p>
+            <button onClick={() => switchTab('membresia')} style={{ padding: '14px 36px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+              Ver planes →
+            </button>
+          </div>
+        : renderProximamente('Instrumentos', '') },
     resultados_tests:     { title: 'Mis Resultados', content: !isMenter && user?.id ? <RenderResultadosTests userId={user.id} /> : renderProximamente('Mis Resultados', '') },
     instrumentos_empresa: { title: 'Instrumentos', content: meta?.role === 'empresa' && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} /> : renderProximamente('Instrumentos', '') },
      compras:      { title: 'Historial de Compras',                                         content: user?.id ? <RenderCompras userId={user.id} isMenter={isMenter} /> : null },
@@ -6824,7 +6837,23 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
   )
 },
 
-escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona() : canPremium ? renderBlogMenter() : renderUpgradeRequired('Escribir en el Blog') },  
+escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() : (
+  <div>
+    {isMenter && !canPremium && (
+      <div style={{ background: 'linear-gradient(135deg,#421869,#6b21a8)', borderRadius: 16, padding: '20px 24px', marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ color: '#ffa719', fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Plan Premium</div>
+          <div style={{ color: 'white', fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 16, marginBottom: 2 }}>¿Quieres publicar en el blog?</div>
+          <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>Escribe artículos y posiciónate como referente con el plan Premium.</div>
+        </div>
+        <button onClick={() => switchTab('membresia')} style={{ padding: '10px 22px', borderRadius: 30, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', whiteSpace: 'nowrap' }}>
+          Ver planes →
+        </button>
+      </div>
+    )}
+    {renderBlogPersona()}
+  </div>
+) },
    eventos: {
   title: 'Eventos',
   content: !isMenter
@@ -6992,7 +7021,7 @@ escribir: { title: 'Escribir en el Blog', content: !isMenter ? renderBlogPersona
           <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width:50, height:50 }} />
         </div>
 
-        <div className={`giro-sidebar${sidebarOpen?' open':''}`} style={{ position:'fixed', left:20, top:100, bottom:30, zIndex:100, display:'flex', flexDirection:'column', gap:10, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none', width:70, transition:'transform 0.3s ease' }}>
+        <div className={`giro-sidebar${sidebarOpen?' open':''}`} style={{ position:'fixed', left:20, top:100, bottom:30, zIndex:100, display:'flex', flexDirection:'column', alignItems:'center', gap:10, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none', width:70, transition:'transform 0.3s ease' }}>
           {menuItems.map(item => {
   const badgeCount = 
     (item.id === 'citas' && isMenter && citasPendientesCount > 0) ||
