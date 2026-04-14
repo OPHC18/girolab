@@ -1532,12 +1532,9 @@ const handleCompleteProfile = async () => {
     }, { onConflict: 'menter_id' })
     setMenterProfileSaving(false)
     if (error) {
-  console.error('Supabase error:', JSON.stringify(error))
-  setMenterProfileMsg({ type: 'error', text: `Error: ${error.message} | ${error.code}` })
-  return
-}
-    if (error) setMenterProfileMsg({ type: 'error', text: `Error: ${error.message}` })
-    else {
+      console.error('Supabase error:', JSON.stringify(error))
+      setMenterProfileMsg({ type: 'error', text: `Error: ${error.message}` })
+    } else {
       setMenterProfileMsg({ type: 'success', text: '¡Perfil guardado!' })
       // Sync contacto Brevo con especialidades actualizadas
       fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
