@@ -12,6 +12,7 @@ import RenderResultadosTests from '@/app/dashboard/components/renderResultadosTe
 import RenderInstrumentosEmpresa from '@/app/dashboard/components/renderInstrumentosEmpresa'
 import RenderCompras from '@/app/dashboard/components/renderCompras'
 import { dispararEmail } from '@/lib/email/send'
+import PushNotificationSetup from '@/components/PushNotificationSetup'
 
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
@@ -4378,7 +4379,20 @@ const renderCitasMenter = () => {
           price:         cita.price || 0,
           appointmentId: id,
         }
-        if (nuevoEstado === 'confirmada') dispararEmail('confirmacion_cliente', citaData)
+        if (nuevoEstado === 'confirmada') {
+          dispararEmail('confirmacion_cliente', citaData)
+          // Push al cliente notificando confirmación
+          fetch('/api/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+            body: JSON.stringify({
+              user_id: cita.client_id,
+              title: '¡Cita confirmada!',
+              body: `Tu sesión con ${cita.menter_name} el ${citaData.date} a las ${citaData.startTime} está confirmada.`,
+              url: '/dashboard?tab=mis-citas',
+            }),
+          }).catch(() => {})
+        }
         if (nuevoEstado === 'rechazada')  dispararEmail('rechazo_cliente', citaData)
       }
     }
@@ -6927,6 +6941,9 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
   return (
     <div style={{ position: 'relative' }}>
 
+      {/* ── Push Notifications ──────────────────────────────────────────── */}
+      {user?.id && <PushNotificationSetup userId={user.id} />}
+
       {/* ── Tour overlay ─────────────────────────────────────────────────── */}
       {tourActive && tourSteps[tourStep] && (() => {
         const step = tourSteps[tourStep]
@@ -7613,6 +7630,21 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
     appointmentId: apt.id,
   }
   dispararEmail('nueva_solicitud_menter', citaData)
+
+  // Push al cliente confirmando la solicitud
+  if (clientId) {
+    fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+      body: JSON.stringify({
+        user_id: clientId,
+        title: '¡Solicitud enviada!',
+        body: `Tu cita con ${menter.nombre} el ${formatFecha(fecha)} está pendiente de confirmación.`,
+        url: '/dashboard?tab=mis-citas',
+      }),
+    }).catch(() => {})
+  }
+
   setTimeout(() => onBooked(), 2500)
 }
 
