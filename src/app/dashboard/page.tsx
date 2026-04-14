@@ -6461,7 +6461,7 @@ const renderDestacados = () => (
 
     {/* MODAL PERFIL */}
     {selectedMenter && (
-  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 16px 16px' }} onClick={() => setSelectedMenter(null)}>
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '90px 16px 16px', overflowY: 'auto' }} onClick={() => setSelectedMenter(null)}>
     <div style={{ background: 'white', borderRadius: 20, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
 
       {/* HEADER */}
@@ -6656,8 +6656,8 @@ const renderDestacados = () => (
 
     {/* MODAL AGENDA */}
     {showAgenda && selectedMenter && (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: 'white', borderRadius: 20, maxWidth: 520, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '90px 16px 16px', overflowY: 'auto' }}>
+        <div style={{ background: 'white', borderRadius: 20, maxWidth: 520, width: '100%' }}>
           <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', padding: '20px 28px', borderRadius: '20px 20px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <h3 style={{ margin: 0, color: 'white', fontFamily: 'Raleway, sans-serif' }}>Agendar sesión</h3>
