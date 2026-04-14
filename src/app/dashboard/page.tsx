@@ -6314,7 +6314,7 @@ const renderDestacados = () => (
     )}
 
     {/* FILTROS */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24, padding: 20, background: '#f8f9fa', borderRadius: 16 }}>
+    <div className="giro-filtros-box" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24, padding: 20, background: '#f8f9fa', borderRadius: 16 }}>
       <div>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#421869', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Especialidad</label>
         <select value={filtros.especialidad} onChange={e => setFiltros(p => ({ ...p, especialidad: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', background: 'white' }}>
@@ -6995,12 +6995,14 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
           .giro-icon-btn:hover{background:#ffa719!important;border-color:#ffa719!important;color:#2d2926!important;box-shadow:0 8px 20px rgba(255,167,25,.3)!important}
           .giro-icon-btn:hover svg{transform:scale(1.1)}
           @media(max-width:900px){
-            .giro-main-panel{margin-left:0!important;padding:90px 20px 40px 20px!important}
+            .giro-main-panel{margin-left:0!important;padding:90px 12px 40px 12px!important}
             .giro-desktop-header{display:none!important}
             .giro-lottie-desktop{display:none!important}
             .giro-sidebar{transform:translateX(-120%)!important;top:0!important;bottom:0!important;left:0!important;background:rgba(153,91,213,.98)!important;padding-top:90px!important;width:80px!important}
             .giro-sidebar.open{transform:translateX(0)!important}
             .giro-mobile-header{display:flex!important}
+            .giro-content-card{padding:20px!important}
+            .giro-filtros-box{padding:12px!important}
           }
           @media(min-width:901px){.giro-mobile-header{display:none!important}}
         `}</style>
@@ -7059,7 +7061,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
             Hola, <span style={{ color:'#ffa719' }}>{firstName}</span>
             <button onClick={handleLogout} style={{ fontSize:16, color:'#ccc', background:'none', border:'none', cursor:'pointer', marginLeft:12, fontFamily:'DM Sans, sans-serif', fontWeight:400 }}>Cerrar Sesión</button>
           </h1>
-          <div style={{ background:'white', borderRadius:20, padding:40, color:'#2d2926', boxShadow:'0 10px 40px rgba(0,0,0,.2)' }}>
+          <div className="giro-content-card" style={{ background:'white', borderRadius:20, padding:40, color:'#2d2926', boxShadow:'0 10px 40px rgba(0,0,0,.2)' }}>
             <h2 style={{ fontFamily:'Raleway, sans-serif', color:'#421869', marginTop:0, borderBottom:'2px solid #f0f0f0', paddingBottom:20, marginBottom:20 }}>{current.title}</h2>
             {current.content}
           </div>

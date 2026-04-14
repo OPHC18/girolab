@@ -110,7 +110,13 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (err: any) {
-    console.error('[paypal/create-subscription] error:', err)
-    return NextResponse.json({ error: 'Error al crear suscripción con PayPal' }, { status: 500 })
+    const msg = err?.message || 'Error desconocido'
+    const detail = err?.data ? JSON.stringify(err.data) : ''
+    console.error('[paypal/create-subscription] error:', msg, detail)
+    // Detectar problemas comunes de configuración
+    if (msg.includes('auth') || msg.includes('401') || msg.includes('credentials')) {
+      return NextResponse.json({ error: 'Credenciales PayPal inválidas o no configuradas en Vercel' }, { status: 500 })
+    }
+    return NextResponse.json({ error: `Error PayPal: ${msg}` }, { status: 500 })
   }
 }
