@@ -1790,7 +1790,6 @@ const fetchFeaturedMenters = async () => {
 
   const renderUpgradeRequired = (titulo: string) => (
     <div style={{ textAlign: 'center', padding: '60px 20px', fontFamily: 'DM Sans, sans-serif' }}>
-      <div style={{ fontSize: 64, marginBottom: 20 }}></div>
       <h3 style={{ color: '#421869', fontFamily: 'Raleway, sans-serif', fontSize: 24, marginBottom: 10 }}>{titulo}</h3>
       <p style={{ color: '#666', fontSize: 16, marginBottom: 24 }}>Esta función está disponible a partir del plan <strong>Premium</strong>.</p>
       <button onClick={() => switchTab('membresia')} style={{ background: '#6a1b9a', color: 'white', border: 'none', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>Ver planes →</button>
@@ -6798,7 +6797,6 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
       ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
       : isMenter
         ? <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: 52, marginBottom: 16 }}>🧪</div>
             <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>Instrumentos Psicométricos</h3>
             <p style={{ color: '#666', fontSize: 15, lineHeight: 1.7, maxWidth: 420, margin: '0 auto 28px' }}>
               Envía evaluaciones a tus clientes y analiza sus resultados con instrumentos validados. Disponible desde el plan <strong>Premium</strong>.
@@ -7598,7 +7596,6 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
     const whatsappUrl = menter.enlaces?.whatsapp || null
     return (
       <div style={{ padding: '40px 28px', textAlign: 'center' }}>
-        <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
         <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>¡Cita reservada!</h3>
         <p style={{ color: '#555', fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' }}>
           Tu sesión con <strong>{menter.nombre}</strong> está pendiente de confirmación.
@@ -7617,7 +7614,7 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '14px', borderRadius: 30, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12, boxSizing: 'border-box' as const }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.107.549 4.09 1.51 5.814L0 24l6.335-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm.001 21.818a9.818 9.818 0 01-5.017-1.373l-.36-.214-3.733.977.999-3.645-.234-.374A9.817 9.817 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.416 0 9.819 4.403 9.819 9.818 0 5.416-4.403 9.818-9.819 9.818z"/></svg>
-            Escribir a {menter.nombre} por WhatsApp
+            WhatsApp
           </a>
         ) : (
           <div style={{ background: '#f5f5f5', borderRadius: 12, padding: '12px 16px', marginBottom: 12, fontSize: 13, color: '#666' }}>

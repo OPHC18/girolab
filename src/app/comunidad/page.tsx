@@ -248,9 +248,9 @@ supabase.from('events')
           <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
             {[
               { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
-              { label: '✏️ Editar perfil',        action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
-              { label: '📊 Resultados de Tests',   action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
-              { label: '🚪 Cerrar sesión',         action: async () => { await supabase.auth.signOut(); router.push('/') } },
+              { label: 'Editar perfil',         action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
+              { label: 'Resultados de Tests',   action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
+              { label: 'Cerrar sesión',         action: async () => { await supabase.auth.signOut(); router.push('/') } },
             ].map(({ label, action }) => (
               <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer' }}>
                 {label}
