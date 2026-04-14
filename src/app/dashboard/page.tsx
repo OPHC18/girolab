@@ -3859,34 +3859,34 @@ const renderIngresos = () => {
     <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* ── FILTROS ── */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Desde</span>
           <input
             type="month"
             value={ingresosDesde}
             onChange={e => setIngresosDesde(e.target.value)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontFamily: 'DM Sans' }}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }}
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Hasta</span>
           <input
             type="month"
             value={ingresosHasta}
             onChange={e => setIngresosHasta(e.target.value)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontFamily: 'DM Sans' }}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }}
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Estado</span>
           <select
             value={ingresosEstado}
             onChange={e => setIngresosEstado(e.target.value)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: 'white', fontFamily: 'DM Sans' }}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }}
           >
             <option value="todos">Todos</option>
             <option value="pagado">Pagado</option>
@@ -3895,12 +3895,12 @@ const renderIngresos = () => {
           </select>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>Fuente</span>
           <select
             value={ingresosFuente}
             onChange={e => setIngresosFuente(e.target.value)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: 'white', fontFamily: 'DM Sans' }}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }}
           >
             <option value="todas">Todas</option>
             <option value="sesion">Sesiones</option>
@@ -3908,19 +3908,21 @@ const renderIngresos = () => {
           </select>
         </div>
 
-        <button
-          onClick={cargarIngresos}
-          disabled={ingresosLoading}
-          style={{
-            padding: '6px 16px', borderRadius: 8, border: 'none',
-            background: ingresosLoading ? '#ccc' : '#421869',
-            color: 'white', fontSize: 12, fontWeight: 600,
-            cursor: ingresosLoading ? 'not-allowed' : 'pointer',
-            fontFamily: 'Raleway',
-          }}
-        >
-          {ingresosLoading ? 'Cargando...' : 'Aplicar'}
-        </button>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <button
+            onClick={cargarIngresos}
+            disabled={ingresosLoading}
+            style={{
+              width: '100%', padding: '9px 16px', borderRadius: 8, border: 'none',
+              background: ingresosLoading ? '#ccc' : '#421869',
+              color: 'white', fontSize: 13, fontWeight: 600,
+              cursor: ingresosLoading ? 'not-allowed' : 'pointer',
+              fontFamily: 'Raleway',
+            }}
+          >
+            {ingresosLoading ? 'Cargando...' : 'Aplicar'}
+          </button>
+        </div>
       </div>
 
       {/* ── MÉTRICAS ── */}
