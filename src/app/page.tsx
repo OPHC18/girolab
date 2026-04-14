@@ -744,7 +744,7 @@ const handleGoogleAuth = async () => {
 
         {/* FOOTER */}
         <footer style={{ background: '#080410', padding: '40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18 }}>Giro <span style={{ color: '#ffa719' }}>Lab</span></span>
+          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" loop autoplay style={{ width: 52, height: 52 }} />
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             {[['Términos', '/terminos'], ['Privacidad', '/privacidad'], ['Devoluciones', '/devoluciones']].map(([label, href]) => (
               <a key={href} href={href} style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
