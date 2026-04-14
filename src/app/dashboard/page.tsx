@@ -4072,10 +4072,12 @@ const renderIngresos = () => {
     <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 30, paddingBottom: 20, borderBottom: '2px solid #f0f0f0', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
-          {avatarUrl
-            ? <img src={avatarUrl} alt="Avatar" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid #995bd5' }} />
-            : <div style={{ width: 90, height: 90, borderRadius: '50%', background: 'linear-gradient(135deg,#995bd5,#ffa719)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: 'white' }}>{initials}</div>
-          }
+          <div style={{ width: 90, height: 90, borderRadius: '50%', background: avatarUrl ? 'white' : 'linear-gradient(135deg,#995bd5,#ffa719)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '3px solid #995bd5', flexShrink: 0 }}>
+            {avatarUrl
+              ? <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 32, fontWeight: 700, color: 'white' }}>{initials}</span>
+            }
+          </div>
           <label style={{ position: 'absolute', bottom: 0, right: 0, background: '#ffa719', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white' }}>
             {avatarUploading ? <span style={{ fontSize: 12 }}>...</span> : <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, fill: '#2d2926' }}><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} style={{ display: 'none' }} />
