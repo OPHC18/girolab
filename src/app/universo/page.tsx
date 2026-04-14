@@ -2174,9 +2174,12 @@ interface InfoPanelState {
 }
 
 export default function UniversoEmociones() {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const svgRef       = useRef<SVGSVGElement | null>(null)
-  const panZoomRef   = useRef<any>(null)
+  const svgWrapRef = useRef<HTMLDivElement>(null)
+
+  // Pan / Zoom (CSS transform, no library)
+  const [zoom, setZoom]   = useState(1)
+  const [pan, setPan]     = useState({ x: 0, y: 0 })
+  const dragRef = useRef({ active: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 })
 
   const [tooltip, setTooltip]     = useState<TooltipState>({ visible: false, x: 0, y: 0, emotion: null, id: '' })
   const [infoPanel, setInfoPanel] = useState<InfoPanelState>({ visible: false, emotion: null, id: '' })
@@ -2193,126 +2196,111 @@ export default function UniversoEmociones() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  /* ── TAG EMOTION GROUPS ───────────────────────────────────────────────── */
+  /* ── WHEEL ZOOM (passive:false required) ──────────────────────────────── */
+  useEffect(() => {
+    const el = svgWrapRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setZoom(z => Math.max(0.25, Math.min(8, z * (e.deltaY < 0 ? 1.12 : 0.9))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [mounted])
+
+  /* ── TAG EMOTION GROUPS + LABELS OVERLAY ─────────────────────────────── */
   useEffect(() => {
     if (!mounted) return
-    const svg = document.getElementById('universo-svg') as SVGSVGElement | null
-    if (!svg) return
-    svgRef.current = svg
 
+    // Tag emotion groups for hover detection
     Object.keys(EMOTIONS).forEach(id => {
       const el = document.getElementById(id)
       if (el) {
         el.setAttribute('data-emotion', id)
         el.setAttribute('data-cat', EMOTIONS[id].cat)
-        el.setAttribute('role', 'button')
-        el.setAttribute('tabindex', '0')
-        el.setAttribute('aria-label', EMOTIONS[id].name)
         el.style.cursor = 'pointer'
-        el.style.transformBox = 'fill-box'
-        el.style.transformOrigin = 'center'
-        el.style.transition = 'transform 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.3s'
-
+        el.style.transition = 'opacity 0.25s'
       }
     })
 
-    // Build label overlay — appended LAST to SVG so it renders above all circles
-    const existingOverlay = document.getElementById('labels-overlay')
-    if (existingOverlay) existingOverlay.remove()
-    const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-    overlay.id = 'labels-overlay'
-    overlay.setAttribute('pointer-events', 'none')
-
-    Object.keys(EMOTIONS).forEach(id => {
-      const el = document.getElementById(id)
-      if (!el || el.tagName !== 'g') return
-      try {
-        const bbox = (el as unknown as SVGGraphicsElement).getBBox()
-        if (bbox.width < 8 || bbox.height < 8) return
-        const emotion = EMOTIONS[id]
-        const nivel = emotion.nivel
-        if (nivel > 4) return // skip very tiny elements
-        const cx = bbox.x + bbox.width / 2
-        const cy = bbox.y + bbox.height / 2
-        const fs = nivel <= 1 ? 11 : nivel === 2 ? 8 : nivel === 3 ? 7 : 6
-
-        // Dark halo for readability
-        const halo = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-        halo.setAttribute('x', String(cx))
-        halo.setAttribute('y', String(cy + fs * 0.38))
-        halo.setAttribute('text-anchor', 'middle')
-        halo.setAttribute('font-size', String(fs))
-        halo.setAttribute('fill', 'none')
-        halo.setAttribute('stroke', 'rgba(0,0,0,0.75)')
-        halo.setAttribute('stroke-width', '2.5')
-        halo.setAttribute('stroke-linejoin', 'round')
-        halo.setAttribute('font-family', 'Raleway, sans-serif')
-        halo.setAttribute('font-weight', nivel <= 2 ? '700' : '500')
-        halo.setAttribute('data-cat', emotion.cat)
-        halo.textContent = emotion.name
-        overlay.appendChild(halo)
-
-        // Actual text
-        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-        txt.setAttribute('x', String(cx))
-        txt.setAttribute('y', String(cy + fs * 0.38))
-        txt.setAttribute('text-anchor', 'middle')
-        txt.setAttribute('font-size', String(fs))
-        txt.setAttribute('fill', '#ffffff')
-        txt.setAttribute('font-family', 'Raleway, sans-serif')
-        txt.setAttribute('font-weight', nivel <= 2 ? '700' : '500')
-        txt.setAttribute('data-cat', emotion.cat)
-        txt.textContent = emotion.name
-        overlay.appendChild(txt)
-      } catch (_) { /* getBBox unavailable */ }
-    })
-
-    svg.appendChild(overlay)
-
-    // Entrance animation
+    // Entrance animation — opacity only, no transform (avoids SVG coord issues)
     CAT_GROUPS.forEach((cat, i) => {
       const el = document.getElementById(cat)
       if (!el) return
       el.style.opacity = '0'
-      el.style.transform = 'scale(0.85)'
-      el.style.transformBox = 'fill-box'
-      el.style.transformOrigin = 'center'
-      el.style.transition = `opacity 0.8s ease ${i * 0.08}s, transform 0.8s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.08}s`
-      setTimeout(() => {
-        el.style.opacity = '1'
-        el.style.transform = 'scale(1)'
-      }, 100)
+      el.style.transition = `opacity 0.8s ease ${i * 0.06}s`
     })
+    // Small delay so opacity:0 is painted before transition starts
+    const t = setTimeout(() => {
+      CAT_GROUPS.forEach(cat => {
+        const el = document.getElementById(cat)
+        if (el) el.style.opacity = '1'
+      })
+    }, 80)
 
-    // Init svg-pan-zoom
-    const initPZ = async () => {
-      try {
-        // Ensure SVG has explicit dimensions for svg-pan-zoom
-        if (!svg.getAttribute('width')) {
-          svg.setAttribute('width', '100%')
-          svg.setAttribute('height', 'auto')
-        }
-        const mod = await import('svg-pan-zoom' as any)
-        const svgPanZoom = mod.default ?? mod
-        const pz = svgPanZoom(svg, {
-          zoomEnabled: true,
-          controlIconsEnabled: false,
-          fit: true,
-          center: true,
-          minZoom: 0.2,
-          maxZoom: 10,
-          zoomScaleSensitivity: 0.25,
-          dblClickZoomEnabled: true,
-          mouseWheelZoomEnabled: true,
-          preventMouseEventsDefault: false,
-          onZoom: () => {},
+    // Build labels overlay AFTER browser has done layout (requestAnimationFrame × 2)
+    const buildLabels = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const svg = document.getElementById('universo-svg') as SVGSVGElement | null
+          if (!svg) return
+
+          const existing = document.getElementById('labels-overlay')
+          if (existing) existing.remove()
+          const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+          overlay.id = 'labels-overlay'
+          overlay.setAttribute('pointer-events', 'none')
+
+          Object.keys(EMOTIONS).forEach(id => {
+            const el = document.getElementById(id)
+            if (!el || el.tagName !== 'g') return
+            try {
+              const bbox = (el as unknown as SVGGraphicsElement).getBBox()
+              if (bbox.width < 5 || bbox.height < 5) return
+              const emotion = EMOTIONS[id]
+              if (emotion.nivel > 4) return
+              const cx = bbox.x + bbox.width / 2
+              const cy = bbox.y + bbox.height / 2
+              const fs = emotion.nivel <= 1 ? 11 : emotion.nivel === 2 ? 8 : emotion.nivel === 3 ? 7 : 6
+
+              // Halo for readability
+              const halo = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+              halo.setAttribute('x', String(cx))
+              halo.setAttribute('y', String(cy + fs * 0.38))
+              halo.setAttribute('text-anchor', 'middle')
+              halo.setAttribute('font-size', String(fs))
+              halo.setAttribute('fill', 'none')
+              halo.setAttribute('stroke', 'rgba(0,0,0,0.8)')
+              halo.setAttribute('stroke-width', '3')
+              halo.setAttribute('stroke-linejoin', 'round')
+              halo.setAttribute('font-family', 'Raleway, sans-serif')
+              halo.setAttribute('font-weight', emotion.nivel <= 2 ? '700' : '500')
+              halo.setAttribute('data-cat', emotion.cat)
+              halo.textContent = emotion.name
+              overlay.appendChild(halo)
+
+              // Label text
+              const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+              txt.setAttribute('x', String(cx))
+              txt.setAttribute('y', String(cy + fs * 0.38))
+              txt.setAttribute('text-anchor', 'middle')
+              txt.setAttribute('font-size', String(fs))
+              txt.setAttribute('fill', '#ffffff')
+              txt.setAttribute('font-family', 'Raleway, sans-serif')
+              txt.setAttribute('font-weight', emotion.nivel <= 2 ? '700' : '500')
+              txt.setAttribute('data-cat', emotion.cat)
+              txt.textContent = emotion.name
+              overlay.appendChild(txt)
+            } catch (_) { /* getBBox not available yet */ }
+          })
+
+          svg.appendChild(overlay)
         })
-        panZoomRef.current = pz
-      } catch (e) {
-        console.warn('svg-pan-zoom not available:', e)
-      }
+      })
     }
-    setTimeout(initPZ, 500)
+    buildLabels()
+
+    return () => clearTimeout(t)
   }, [mounted])
 
   /* ── HIGHLIGHT CATEGORY ───────────────────────────────────────────────── */
@@ -2360,25 +2348,52 @@ export default function UniversoEmociones() {
     })
   }, [])
 
+  /* ── PAN (drag) ───────────────────────────────────────────────────────── */
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    dragRef.current = { active: true, moved: false, sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y }
+  }, [pan])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const d = dragRef.current
+    // Update tooltip pos
+    if (tooltip.visible && !d.active) {
+      setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }))
+    }
+    if (!d.active) return
+    const dx = e.clientX - d.sx
+    const dy = e.clientY - d.sy
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      d.moved = true
+      setPan({ x: d.px + dx, y: d.py + dy })
+    }
+  }, [pan, tooltip.visible])
+
+  const handleMouseUp = useCallback(() => {
+    dragRef.current.active = false
+  }, [])
+
   /* ── SVG EVENT DELEGATION ─────────────────────────────────────────────── */
   const hoveredEmotionRef = useRef<HTMLElement | null>(null)
 
+  const resetLines = (cat: string) => {
+    const lines = document.getElementById(cat + '_lineas')
+    if (lines) lines.querySelectorAll('line').forEach((l: Element) => {
+      ;(l as SVGLineElement).style.stroke = ''
+      ;(l as SVGLineElement).style.strokeOpacity = ''
+      ;(l as SVGLineElement).style.filter = ''
+    })
+  }
+
   const handleSVGMouseOver = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (dragRef.current.moved) return
     const target = (e.target as Element).closest('[data-emotion]') as HTMLElement | null
 
-    // Reset previously hovered element if different
     if (hoveredEmotionRef.current && hoveredEmotionRef.current !== target) {
       const prev = hoveredEmotionRef.current
-      prev.style.transform = 'scale(1)'
-      const prevId = prev.getAttribute('data-emotion') || ''
-      const prevEmotion = EMOTIONS[prevId]
-      if (prevEmotion && !activeCategory) {
-        const lines = document.getElementById(prevEmotion.cat + '_lineas')
-        if (lines) lines.querySelectorAll('line').forEach((l: Element) => {
-          ;(l as SVGLineElement).style.strokeOpacity = ''
-          ;(l as SVGLineElement).style.filter = ''
-        })
-      }
+      prev.style.filter = ''
+      const prevEmotion = EMOTIONS[prev.getAttribute('data-emotion') || '']
+      if (prevEmotion && !activeCategory) resetLines(prevEmotion.cat)
     }
 
     hoveredEmotionRef.current = target
@@ -2388,14 +2403,17 @@ export default function UniversoEmociones() {
     const emotion = EMOTIONS[id]
     if (!emotion) return
 
-    target.style.transform = 'scale(1.18)'
+    // Glow on hover (filter instead of transform to avoid coord issues)
     const color = CAT_COLORS[emotion.cat] || '#fff'
+    target.style.filter = `drop-shadow(0 0 8px ${color})`
+
+    // Illuminate category lines
     const lines = document.getElementById(emotion.cat + '_lineas')
-    if (lines) {
+    if (lines && !activeCategory) {
       lines.querySelectorAll('line').forEach((l: Element) => {
         ;(l as SVGLineElement).style.stroke = color
         ;(l as SVGLineElement).style.strokeOpacity = '1'
-        ;(l as SVGLineElement).style.filter = `drop-shadow(0 0 3px ${color})`
+        ;(l as SVGLineElement).style.filter = `drop-shadow(0 0 4px ${color})`
       })
     }
 
@@ -2404,35 +2422,21 @@ export default function UniversoEmociones() {
     }
   }, [isMobile, activeCategory])
 
-  const handleSVGMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (tooltip.visible) {
-      setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }))
-    }
-  }, [tooltip.visible])
-
   const handleSVGMouseOut = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = (e.target as Element).closest('[data-emotion]') as HTMLElement | null
     if (!target) return
-    // Don't fire if mouse is still within the same data-emotion element
     const related = (e.relatedTarget as Element | null)?.closest('[data-emotion]')
     if (related === target) return
 
-    target.style.transform = 'scale(1)'
-    const id = target.getAttribute('data-emotion') || ''
-    const emotion = EMOTIONS[id]
-    if (emotion && !activeCategory) {
-      const lines = document.getElementById(emotion.cat + '_lineas')
-      if (lines) lines.querySelectorAll('line').forEach((l: Element) => {
-        ;(l as SVGLineElement).style.stroke = ''
-        ;(l as SVGLineElement).style.strokeOpacity = ''
-        ;(l as SVGLineElement).style.filter = ''
-      })
-    }
+    target.style.filter = ''
+    const emotion = EMOTIONS[target.getAttribute('data-emotion') || '']
+    if (emotion && !activeCategory) resetLines(emotion.cat)
     if (hoveredEmotionRef.current === target) hoveredEmotionRef.current = null
     setTooltip(prev => ({ ...prev, visible: false }))
   }, [activeCategory])
 
   const handleSVGClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (dragRef.current.moved) return
     const target = (e.target as Element).closest('[data-emotion]') as HTMLElement | null
     if (!target) return
     const id = target.getAttribute('data-emotion') || ''
@@ -2628,16 +2632,24 @@ export default function UniversoEmociones() {
       <div style={{ position: 'fixed', bottom: 28, right: 20, zIndex: 100, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {[
           { label: '⟳', action: () => {
-            if (panZoomRef.current) { panZoomRef.current.resetZoom(); panZoomRef.current.center() }
+            setZoom(1); setPan({ x: 0, y: 0 })
             setActiveCategory(null)
             CAT_GROUPS.forEach(c => {
               const el = document.getElementById(c); if (el) el.style.opacity = '1'
-              const lines = document.getElementById(c + '_lineas'); if (lines) lines.style.opacity = '1'
+              const lines = document.getElementById(c + '_lineas')
+              if (lines) {
+                lines.style.opacity = '1'
+                lines.querySelectorAll('line').forEach((l: Element) => {
+                  ;(l as SVGLineElement).style.stroke = ''
+                  ;(l as SVGLineElement).style.strokeOpacity = ''
+                  ;(l as SVGLineElement).style.filter = ''
+                })
+              }
             })
-            document.getElementById('labels-overlay')?.querySelectorAll('text').forEach(t => { t.style.opacity = '1' })
+            document.getElementById('labels-overlay')?.querySelectorAll('text').forEach(t => { (t as SVGTextElement).style.opacity = '1' })
           }},
-          { label: '+', action: () => { if (panZoomRef.current) panZoomRef.current.zoomIn() } },
-          { label: '−', action: () => { if (panZoomRef.current) panZoomRef.current.zoomOut() } },
+          { label: '+', action: () => setZoom(z => Math.min(8, z * 1.25)) },
+          { label: '−', action: () => setZoom(z => Math.max(0.25, z * 0.8)) },
         ].map(btn => (
           <button key={btn.label} onClick={btn.action}
             style={{ width: 42, height: 42, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.15)',
@@ -2649,11 +2661,28 @@ export default function UniversoEmociones() {
         ))}
       </div>
 
-      {/* SVG Container */}
-      <div ref={containerRef} style={{ position: 'relative', zIndex: 5, maxWidth: 920, margin: '0 auto', padding: '0 16px 80px' }}
-        onMouseOver={handleSVGMouseOver} onMouseMove={handleSVGMouseMove}
-        onMouseOut={handleSVGMouseOut} onClick={handleSVGClick}
-        dangerouslySetInnerHTML={{ __html: SVG_CONTENT }} />
+      {/* SVG Container — CSS transform for pan/zoom, no library */}
+      <div ref={svgWrapRef}
+        style={{ position: 'relative', zIndex: 5, overflow: 'hidden',
+          cursor: dragRef.current.active ? 'grabbing' : 'grab',
+          userSelect: 'none', touchAction: 'none' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onMouseOver={handleSVGMouseOver}
+        onMouseOut={handleSVGMouseOut}
+        onClick={handleSVGClick}
+      >
+        <div style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: 'top center',
+          transition: dragRef.current.active ? 'none' : 'transform 0.15s ease',
+          maxWidth: 920, margin: '0 auto', padding: '0 16px 80px',
+        }}
+          dangerouslySetInnerHTML={{ __html: SVG_CONTENT }}
+        />
+      </div>
 
       {/* Tooltip */}
       {tooltip.emotion && (
