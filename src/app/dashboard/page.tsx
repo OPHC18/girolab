@@ -1688,7 +1688,7 @@ const fetchFeaturedMenters = async () => {
   // ─── Loading ─────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#421869' }}>
-      <DotLottieReact src="https://lottie.host/fc37eb39-3bb0-41db-b866-99ac7449ef1d/rpkq6ZVATl.lottie" autoplay loop style={{ width: 200, height: 200 }} />
+      <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 200, height: 200 }} />
     </div>
   )
 
