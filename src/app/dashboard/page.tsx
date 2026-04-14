@@ -6393,10 +6393,11 @@ const renderDestacados = () => (
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: isMenter && (m as any).descuento_menters ? 20 : 0 }}>
-          {m.avatar_url
-            ? <img src={m.avatar_url} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.4)' }} />
-            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'white', border: '3px solid rgba(255,255,255,0.3)' }}>{ini}</div>
-          }
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: m.avatar_url ? 'white' : 'rgba(255,255,255,0.2)', border: '3px solid rgba(255,255,255,0.4)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {m.avatar_url
+              ? <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 20, fontWeight: 700, color: 'white' }}>{ini}</span>}
+          </div>
           <div>
             <div style={{ color: 'white', fontWeight: 700, fontSize: 16, fontFamily: 'Raleway, sans-serif' }}>{m.nombre} {m.apellidos}</div>
             {m.especialidad && (
@@ -6461,15 +6462,17 @@ const renderDestacados = () => (
 
     {/* MODAL PERFIL */}
     {selectedMenter && (
-  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setSelectedMenter(null)}>
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 16px 16px' }} onClick={() => setSelectedMenter(null)}>
     <div style={{ background: 'white', borderRadius: 20, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
 
       {/* HEADER */}
       <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', padding: '28px 28px 20px', borderRadius: '20px 20px 0 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {selectedMenter.avatar_url
-            ? <img src={selectedMenter.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.5)' }} />
-            : <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: 'white' }}>{`${selectedMenter.nombre?.[0]||''}${selectedMenter.apellidos?.[0]||''}`.toUpperCase()}</div>}
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: selectedMenter.avatar_url ? 'white' : 'rgba(255,255,255,0.2)', border: '3px solid rgba(255,255,255,0.5)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {selectedMenter.avatar_url
+              ? <img src={selectedMenter.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 26, fontWeight: 700, color: 'white' }}>{`${selectedMenter.nombre?.[0]||''}${selectedMenter.apellidos?.[0]||''}`.toUpperCase()}</span>}
+          </div>
           <div>
             <h2 style={{ margin: 0, color: 'white', fontFamily: 'Raleway, sans-serif', fontSize: 22 }}>{selectedMenter.nombre} {selectedMenter.apellidos}</h2>
             <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
