@@ -1430,10 +1430,12 @@ const cargarRutaEmpresas = async () => {
 
   setEditSaving(false)
   if (error) setEditMsg({ type: 'error', text: 'Error al guardar.' })
-  else { 
+  else {
     setMeta(prev => prev ? { ...prev, ...editForm } : prev)
     setEditMsg({ type: 'success', text: 'Datos actualizados' })
-    setTimeout(() => setEditMsg(null), 4000) 
+    setTimeout(() => setEditMsg(null), 4000)
+    // Sync contacto Brevo en background
+    fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
   }
 }
 
@@ -1466,6 +1468,8 @@ const handleCompleteProfile = async () => {
     setMeta(prev => prev ? { ...prev, ...completeForm } : prev)
     setMissingProfileFields({ nombre: false, apellidos: false, telefono: false, pais: false, cumpleanos: false })
     setShowCompleteProfile(false)
+    // Sync contacto Brevo en background
+    fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
 
     // Lanzar tour si es la primera vez
     if (typeof window !== 'undefined' && !localStorage.getItem('giro_tour_done')) {
@@ -1519,7 +1523,12 @@ const handleCompleteProfile = async () => {
   return
 }
     if (error) setMenterProfileMsg({ type: 'error', text: 'Error al guardar.' })
-    else { setMenterProfileMsg({ type: 'success', text: '¡Perfil profesional guardado!' }); setTimeout(() => setMenterProfileMsg(null), 4000) }
+    else {
+      setMenterProfileMsg({ type: 'success', text: '¡Perfil profesional guardado!' })
+      setTimeout(() => setMenterProfileMsg(null), 4000)
+      // Sync contacto Brevo con especialidades actualizadas
+      fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
+    }
   }
 
   const handleSaveAvailability = async () => {
