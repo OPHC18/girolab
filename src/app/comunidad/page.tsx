@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/app/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
 const PLANES: Record<string, { color: string; bg: string; emoji: string }> = {
   free:    { color: '#666',    bg: '#f0f0f0', emoji: '🌱' },
@@ -31,6 +32,7 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
   const [postForm, setPostForm] = useState({ contenido: '', media_url: '', tipo: 'texto' })
   const [posting, setPosting] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [comentarios, setComentarios] = useState<Record<string, any[]>>({})
   const [comentarioInput, setComentarioInput] = useState<Record<string, string>>({})
   const [postExpandido, setPostExpandido] = useState<string | null>(null)
@@ -207,23 +209,55 @@ supabase.from('events')
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* Header */}
-      <div style={{ background: '#421869', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => router.push('/dashboard')} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            ← Dashboard
-          </button>
-          <h1 style={{ margin: 0, color: 'white', fontFamily: 'Raleway, sans-serif', fontSize: 20, fontWeight: 900 }}>
-            🌍 Comunidad Giro Lab
-          </h1>
+      <div style={{ background: '#421869', padding: '12px 20px', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+          {/* Izquierda: isotipo + título */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ background: 'white', borderRadius: 10, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" loop autoplay style={{ width: 36, height: 36 }} />
+            </div>
+            <div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1 }}>Giro Lab</div>
+              <div style={{ color: 'white', fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, lineHeight: 1.2 }}>Comunidad</div>
+            </div>
+          </div>
+
+          {/* Derecha: nombre + rol + hamburguesa */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ color: 'white', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>{meta?.nombre}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#ffa719', textTransform: 'capitalize', lineHeight: 1.2 }}>{meta?.role || 'Persona'}</div>
+            </div>
+
+            {/* Hamburguesa */}
+            <button
+              onClick={() => setHeaderMenuOpen(o => !o)}
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, width: 40, height: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', flexShrink: 0, padding: 8 }}
+              aria-label="Menú"
+            >
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2 }} />
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2 }} />
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2 }} />
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isMenter && (
-            <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20, background: '#ffa719', color: '#2d2926' }}>
-              MENTER
-            </span>
-          )}
-          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{meta?.nombre}</span>
-        </div>
+
+        {/* Dropdown menú */}
+        {headerMenuOpen && (
+          <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
+            {[
+              { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
+              { label: '✏️ Editar perfil',        action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
+              { label: '📊 Resultados de Tests',   action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
+              { label: '🚪 Cerrar sesión',         action: async () => { await supabase.auth.signOut(); router.push('/') } },
+            ].map(({ label, action }) => (
+              <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <style>{`
