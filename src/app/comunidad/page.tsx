@@ -287,7 +287,7 @@ supabase.from('events')
                     onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fa')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: m.avatar_url ? 'white' : 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>
                       {m.avatar_url
                         ? <img src={m.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : `${m.nombre?.[0] || ''}${m.apellidos?.[0] || ''}`
@@ -512,7 +512,7 @@ supabase.from('events')
                   {/* Header del post */}
                   <div style={{ padding: '16px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16, flexShrink: 0, overflow: 'hidden' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: post.avatar_url ? 'white' : 'linear-gradient(135deg,#421869,#995bd5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16, flexShrink: 0, overflow: 'hidden' }}>
                         {post.avatar_url
                           ? <img src={post.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           : post.nombre?.[0]?.toUpperCase()
