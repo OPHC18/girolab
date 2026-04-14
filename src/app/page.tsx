@@ -297,6 +297,7 @@ const toggleOpcion = (opcion: string) => {
     email: form.email,
     password: form.password,
     options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/dashboard`,
       data: {
         nombre: form.nombre,
         apellidos: form.apellidos,

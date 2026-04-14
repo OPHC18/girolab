@@ -20,9 +20,10 @@ export function emailLayout(content: string, preheader = ''): string {
         <!-- HEADER -->
         <tr>
           <td style="background:#421869;border-radius:16px 16px 0 0;padding:28px 40px;text-align:center;">
-            <span style="font-family:Raleway,Arial,sans-serif;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
-              Giro <span style="color:#ffa719;">Lab</span>
-            </span>
+            <div style="display:inline-block;text-align:center;line-height:1;">
+              <div style="font-family:Raleway,Arial,sans-serif;font-size:30px;font-weight:900;color:#ffffff;letter-spacing:3px;line-height:1;text-transform:uppercase;">GIRO</div>
+              <div style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:300;color:#ffa719;letter-spacing:6px;line-height:1.4;text-transform:uppercase;">LAB</div>
+            </div>
           </td>
         </tr>
 

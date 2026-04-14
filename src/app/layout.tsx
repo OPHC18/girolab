@@ -6,7 +6,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "Transformación Organizacional y Personal | Giro Lab",
+    default: "Giro Lab | Bienestar y Desarrollo",
     template: "%s | Giro Lab",
   },
   description: "Acompañamos a personas y empresas a alcanzar objetivos reales mediante procesos estratégicos, humanos y medibles. Descubre una nueva forma de evolucionar.",
