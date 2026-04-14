@@ -3,12 +3,8 @@
 
 import { MercadoPagoConfig, Preference, PreApproval, Payment } from 'mercadopago'
 
-if (!process.env.MP_ACCESS_TOKEN) {
-  throw new Error('MP_ACCESS_TOKEN no está definido en las variables de entorno')
-}
-
 export const mpClient = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN,
+  accessToken: process.env.MP_ACCESS_TOKEN || '',
 })
 
 export const mpPreference = new Preference(mpClient)
