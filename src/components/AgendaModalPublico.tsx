@@ -179,9 +179,24 @@ export default function AgendaModalPublico({ menter, user, onClose, onBooked }: 
           <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
             Selecciona el día que quieres tu sesión con <strong>{menter.nombre}</strong>.
           </p>
-          <input type="date" min={today} value={fecha}
-            onChange={e => handleFechaChange(e.target.value)}
-            style={{ width: '100%', padding: '14px', border: '2px solid #995bd5', borderRadius: 12, fontSize: 16, boxSizing: 'border-box' as const, cursor: 'pointer' }} />
+          <label style={{ display: 'block', position: 'relative' }}>
+            <div style={{ pointerEvents: 'none', position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 16, gap: 10, zIndex: 1 }}>
+              <svg viewBox="0 0 24 24" style={{ width: 20, height: 20, fill: '#995bd5', flexShrink: 0 }}>
+                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+              </svg>
+              <span style={{ color: fecha ? '#2d2926' : '#999', fontSize: 15, fontWeight: fecha ? 600 : 400 }}>
+                {fecha ? (() => {
+                  const [y, mo, d] = fecha.split('-')
+                  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+                  return `${parseInt(d)} de ${meses[parseInt(mo)-1]} de ${y}`
+                })() : 'Toca para elegir una fecha'}
+              </span>
+            </div>
+            <input type="date" min={today} value={fecha}
+              onChange={e => handleFechaChange(e.target.value)}
+              style={{ width: '100%', padding: '16px 14px', border: '2px solid #995bd5', borderRadius: 12, fontSize: 16, boxSizing: 'border-box' as const, cursor: 'pointer', color: 'transparent', background: 'white', WebkitAppearance: 'none' as any }} />
+          </label>
+          <p style={{ color: '#aaa', fontSize: 12, marginTop: 8, textAlign: 'center' }}>Toca el campo para abrir el calendario</p>
         </div>
       )}
 

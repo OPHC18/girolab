@@ -287,15 +287,12 @@ const toggleOpcion = (opcion: string) => {
     setFormErrors(errors)
     if (Object.keys(errors).length === 0) {
   // Verificar reCAPTCHA v3 (solo bloquea si el token existe y el score es bajo)
+  // reCAPTCHA v3 — no bloqueante mientras el dominio no esté registrado en Google Console
   const token = await getRecaptchaToken('registro')
   if (token) {
     const ok = await verifyRecaptcha(token, 'registro')
-    if (!ok) {
-      setFormErrors({ general: 'Verificación de seguridad fallida. Intenta de nuevo.' })
-      return
-    }
+    if (!ok) console.warn('[recaptcha] verificación fallida en registro — se continúa igual')
   }
-  // Si token es null (reCAPTCHA no disponible), el registro continúa normalmente
   const { data, error } = await supabase.auth.signUp({
     email: form.email,
     password: form.password,

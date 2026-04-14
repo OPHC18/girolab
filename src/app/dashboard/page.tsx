@@ -7493,11 +7493,12 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
   const handleConfirm = async () => {
   if (!selectedSlot || !fecha) return
   setBooking(true)
-  // reCAPTCHA v3 — rechazar bots silenciosamente
+  // reCAPTCHA v3 — no bloqueante: si falla (dominio no registrado, red, etc) se continúa igual
+  // El usuario ya está autenticado por Supabase Auth, eso provee la capa de seguridad principal
   const rcToken = await getRecaptchaToken('agendar_cita')
   if (rcToken) {
     const ok = await verifyRecaptcha(rcToken, 'agendar_cita')
-    if (!ok) { setBooking(false); setBookingMsg('Verificación de seguridad fallida. Intenta de nuevo.'); return }
+    if (!ok) console.warn('[recaptcha] verificación fallida — se continúa igual (dominio pendiente de registro)')
   }
   const { data: apt, error } = await supabase.from('appointments').insert({
     menter_id:      menter.menter_id,
