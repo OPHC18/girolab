@@ -1500,6 +1500,20 @@ const handleCompleteProfile = async () => {
     if (!user) return
     if (!menterProfile.declaracion_jurada) { setMenterProfileMsg({ type: 'error', text: 'Debes aceptar la declaración jurada para guardar.' }); return }
     setMenterProfileSaving(true); setMenterProfileMsg(null)
+
+    // Guardar disponibilidad junto con el perfil
+    await supabase.from('menter_availability').delete().eq('menter_id', user.id)
+    const activeDays = availability.filter(a => a.is_active)
+    if (activeDays.length > 0) await supabase.from('menter_availability').insert(
+      activeDays.map(a => ({
+        menter_id: user.id, day_of_week: a.day_of_week, start_time: a.start_time, end_time: a.end_time,
+        session_duration: parseInt(menterProfile.duracion_sesion) || 60,
+        min_advance_hours: parseInt(menterProfile.anticipacion_minima) || 24,
+        price: menterProfile.precio_sesion ? parseFloat(menterProfile.precio_sesion) : null,
+        modality: menterProfile.modalidad, is_active: true,
+      }))
+    )
+
     const { error } = await supabase.from('menter_profile').upsert({
       descuento_porcentaje: menterProfile.descuento_porcentaje || null,
       descuento_codigo: menterProfile.descuento_codigo || null,
@@ -1522,10 +1536,9 @@ const handleCompleteProfile = async () => {
   setMenterProfileMsg({ type: 'error', text: `Error: ${error.message} | ${error.code}` })
   return
 }
-    if (error) setMenterProfileMsg({ type: 'error', text: 'Error al guardar.' })
+    if (error) setMenterProfileMsg({ type: 'error', text: `Error: ${error.message}` })
     else {
-      setMenterProfileMsg({ type: 'success', text: '¡Perfil profesional guardado!' })
-      setTimeout(() => setMenterProfileMsg(null), 4000)
+      setMenterProfileMsg({ type: 'success', text: '¡Perfil guardado!' })
       // Sync contacto Brevo con especialidades actualizadas
       fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
     }
@@ -6048,7 +6061,33 @@ const renderBlogPersona = () => {
 
   const renderPerfilPro = () => (
     <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
-      {menterProfileMsg && <div style={{ padding: 15, borderRadius: 10, marginBottom: 20, fontWeight: 500, background: menterProfileMsg.type === 'success' ? '#d4edda' : '#f8d7da', color: menterProfileMsg.type === 'success' ? '#155724' : '#721c24', border: `1px solid ${menterProfileMsg.type === 'success' ? '#c3e6cb' : '#f5c6cb'}` }}>{menterProfileMsg.text}</div>}
+      {/* Modal de éxito / error */}
+      {menterProfileMsg && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setMenterProfileMsg(null)}>
+          <div style={{ background: 'white', borderRadius: 20, padding: '36px 32px', maxWidth: 360, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            {menterProfileMsg.type === 'success' ? (
+              <>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 32, height: 32, fill: '#421869' }}><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>¡Guardado!</h3>
+                <p style={{ color: '#666', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>Tu perfil profesional y disponibilidad han sido actualizados.</p>
+              </>
+            ) : (
+              <>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fff0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 32, height: 32, fill: '#c62828' }}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                </div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#c62828', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>Error al guardar</h3>
+                <p style={{ color: '#666', fontSize: 13, margin: '0 0 24px', lineHeight: 1.6 }}>{menterProfileMsg.text}</p>
+              </>
+            )}
+            <button onClick={() => setMenterProfileMsg(null)} style={{ width: '100%', padding: '12px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
       <SectionHeader emoji="" title="Casos que atiendes" subtitle="Selecciona los temas con los que trabajas — esto determina tu matching." />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
         {CASOS_DISPONIBLES.map(caso => { const sel = menterProfile.casos_que_atiende.includes(caso); return <button key={caso} onClick={() => toggleCaso(caso)} style={{ padding: '10px 12px', borderRadius: 10, border: `2px solid ${sel ? '#995bd5' : '#e0e0e0'}`, background: sel ? '#995bd5' : 'white', color: sel ? 'white' : '#4d4d4d', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' }}>{caso}</button> })}
@@ -6235,25 +6274,26 @@ const renderBlogPersona = () => {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {DIAS_SEMANA.map((dia, i) => { const av = availability[i]; return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderRadius: 12, background: av.is_active ? '#f3e8ff' : '#f8f9fa', border: `2px solid ${av.is_active ? '#995bd5' : '#e0e0e0'}`, flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 110, cursor: 'pointer' }}>
+            <div key={i} style={{ padding: '14px 16px', borderRadius: 12, background: av.is_active ? '#f3e8ff' : '#f8f9fa', border: `2px solid ${av.is_active ? '#995bd5' : '#e0e0e0'}` }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: av.is_active ? 12 : 0 }}>
                 <input type="checkbox" checked={av.is_active} onChange={e => setAvailability(prev => prev.map((a, idx) => idx === i ? { ...a, is_active: e.target.checked } : a))} style={{ width: 18, height: 18, accentColor: '#995bd5', cursor: 'pointer' }} />
-                <span style={{ fontWeight: 600, color: av.is_active ? '#421869' : '#999', fontSize: 15 }}>{dia}</span>
+                <span style={{ fontWeight: 700, color: av.is_active ? '#421869' : '#999', fontSize: 15 }}>{dia}</span>
               </label>
               {av.is_active && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13, color: '#666' }}>De</span>
-                  <input type="time" value={av.start_time} onChange={e => setAvailability(prev => prev.map((a, idx) => idx === i ? { ...a, start_time: e.target.value } : a))} style={{ padding: '8px 12px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 14, fontFamily: 'DM Sans' }} />
-                  <span style={{ fontSize: 13, color: '#666' }}>a</span>
-                  <input type="time" value={av.end_time} onChange={e => setAvailability(prev => prev.map((a, idx) => idx === i ? { ...a, end_time: e.target.value } : a))} style={{ padding: '8px 12px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 14, fontFamily: 'DM Sans' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const }}>De</span>
+                    <input type="time" value={av.start_time} onChange={e => setAvailability(prev => prev.map((a, idx) => idx === i ? { ...a, start_time: e.target.value } : a))} style={{ padding: '8px 10px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 14, fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase' as const }}>Hasta</span>
+                    <input type="time" value={av.end_time} onChange={e => setAvailability(prev => prev.map((a, idx) => idx === i ? { ...a, end_time: e.target.value } : a))} style={{ padding: '8px 10px', border: '2px solid #995bd5', borderRadius: 8, fontSize: 14, fontFamily: 'DM Sans', width: '100%', boxSizing: 'border-box' as const }} />
+                  </div>
                 </div>
               )}
             </div>
           )})}
         </div>
-        <button onClick={handleSaveAvailability} disabled={availabilitySaving} style={{ marginTop: 20, background: availabilitySaving ? 'rgba(153,91,213,0.5)' : '#995bd5', color: 'white', border: 'none', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 14, cursor: availabilitySaving ? 'not-allowed' : 'pointer', fontFamily: 'Raleway, sans-serif', textTransform: 'uppercase' }}>
-          {availabilitySaving ? 'Guardando...' : 'Guardar Disponibilidad'}
-        </button>
       </div>
 
       <div style={{ padding: '20px 24px', background: '#f3e8ff', borderRadius: 12, border: '2px solid #995bd5', marginBottom: 24 }}>
