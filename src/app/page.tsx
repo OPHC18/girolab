@@ -389,17 +389,17 @@ const handleGoogleAuth = async () => {
   if (loading) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center gap-4"
-        style={{ background: 'white', transition: 'opacity 0.5s ease', opacity: fadeOut ? 0 : 1 }}
+        className="min-h-screen flex flex-col items-center justify-center gap-6"
+        style={{ background: '#421869', transition: 'opacity 0.5s ease', opacity: fadeOut ? 0 : 1 }}
       >
         <DotLottieReact
-          src="https://lottie.host/fc37eb39-3bb0-41db-b866-99ac7449ef1d/rpkq6ZVATl.lottie"
+          src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie"
           loop
           autoplay
-          style={{ width: 120, height: 120 }}
+          style={{ width: 140, height: 140 }}
         />
         <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}.blink{animation:blink 1.5s ease-in-out infinite}`}</style>
-        <p className="blink" style={{ color: '#421869', fontWeight: 600, letterSpacing: '0.15em', fontSize: 12, textTransform: 'uppercase' }}>
+        <p className="blink" style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, letterSpacing: '0.15em', fontSize: 12, textTransform: 'uppercase' }}>
           Cargando tu Giro...
         </p>
       </div>
