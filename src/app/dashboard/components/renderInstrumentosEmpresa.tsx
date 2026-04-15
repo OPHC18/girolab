@@ -146,10 +146,10 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       empresa_id: empresaId,
       menter_id: menterId || null,
       nombre: nuevoPerfil.nombre,
-      disc_D_target: nuevoPerfil.disc_D,
-      disc_I_target: nuevoPerfil.disc_I,
-      disc_S_target: nuevoPerfil.disc_S,
-      disc_C_target: nuevoPerfil.disc_C,
+      disc_d_target: nuevoPerfil.disc_D,
+      disc_i_target: nuevoPerfil.disc_I,
+      disc_s_target: nuevoPerfil.disc_S,
+      disc_c_target: nuevoPerfil.disc_C,
       hexaco_minimo: nuevoPerfil.hexaco_minimo,
     }).select().single()
     setCrearPerfilLoading(false)
