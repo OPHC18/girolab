@@ -4103,6 +4103,32 @@ const renderIngresos = () => {
           <button onClick={() => switchTab('editar')} style={{ padding: '9px 20px', borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway', whiteSpace: 'nowrap' }}>Editar perfil</button>
         </div>
       </div>
+      {/* ── Link de perfil público (solo menters) ── */}
+      {isMenter && user?.id && (
+        <div style={{ background: 'linear-gradient(135deg,#f3e8ff,#fff3e0)', borderRadius: 14, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tu link de perfil</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#421869', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {`${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/menter/${user.id}`}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/menter/${user.id}`)
+              const btn = document.getElementById('copy-link-btn')
+              if (btn) { btn.textContent = '¡Copiado!'; setTimeout(() => { btn.textContent = 'Copiar' }, 2000) }
+            }}
+            id="copy-link-btn"
+            style={{ padding: '8px 18px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0, fontFamily: 'Raleway, sans-serif' }}>
+            Copiar
+          </button>
+          <a href={`/menter/${user.id}`} target="_blank" rel="noopener noreferrer"
+            style={{ padding: '8px 18px', borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0, fontFamily: 'Raleway, sans-serif', textDecoration: 'none' }}>
+            Ver
+          </a>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
         <FieldBlock label="Email" value={user?.email} />
         {meta?.telefono   && <FieldBlock label="Teléfono"  value={meta.telefono} />}
