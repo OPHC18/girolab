@@ -4754,6 +4754,35 @@ const renderBlogMenter = () => {
           ))}
         </div>
       )}
+
+      {/* Sección: posts de la comunidad */}
+      <div style={{ marginTop: 40, paddingTop: 32, borderTop: '2px solid #f0f0f0' }}>
+        <h3 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 8 }}>Posts de la comunidad</h3>
+        <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>Lo que están compartiendo otros Menters</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {(['reciente', 'popular', 'destacado'] as const).map(orden => (
+            <button key={orden} onClick={() => setBlogFiltroOrden(orden)} style={{
+              padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: blogFiltroOrden === orden ? '#421869' : '#f0f0f0',
+              color: blogFiltroOrden === orden ? 'white' : '#333', fontWeight: 600, fontSize: 13
+            }}>
+              {orden === 'reciente' ? 'Reciente' : orden === 'popular' ? 'Popular' : 'Destacados'}
+            </button>
+          ))}
+        </div>
+        {renderGrillaPostsPublicos(
+          blogPostsPublicos
+            .filter(p => p.menter_id !== user?.id)
+            .sort((a, b) => {
+              if (blogFiltroOrden === 'popular') return (b.blog_likes?.[0]?.count || 0) - (a.blog_likes?.[0]?.count || 0)
+              if (blogFiltroOrden === 'destacado') {
+                const planOrder: Record<string, number> = { master: 0, premium: 1, starter: 2, free: 3 }
+                return (planOrder[a.menter?.raw_user_meta_data?.plan] ?? 3) - (planOrder[b.menter?.raw_user_meta_data?.plan] ?? 3)
+              }
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            })
+        )}
+      </div>
     </div>
   )
 }
@@ -4942,7 +4971,11 @@ const renderBlogModal = () => {
 const renderGrillaPostsPublicos = (posts: any[]) => {
   if (blogPostsPublicosLoading) return <p style={{ color: '#999' }}>Cargando posts...</p>
   
-  return (
+  return posts.length === 0 ? (
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
+      <p>Aún no hay posts publicados.</p>
+    </div>
+  ) : (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
       {posts.map(post => (
         <div key={post.id} onClick={() => abrirBlogPost(post)}
@@ -4991,41 +5024,6 @@ const renderGrillaPostsPublicos = (posts: any[]) => {
       ))}
     </div>
   )
-  {/* Sección comunidad */}
-<div style={{ marginTop: 40, paddingTop: 32, borderTop: '2px solid #f0f0f0' }}>
-  <h3 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 8 }}>
-    Posts de la comunidad
-  </h3>
-  <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
-    Lo que están compartiendo otros Menters
-  </p>
-
-  {/* Filtros */}
-  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-    {(['reciente', 'popular', 'destacado'] as const).map(orden => (
-      <button key={orden} onClick={() => setBlogFiltroOrden(orden)} style={{
-        padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-        background: blogFiltroOrden === orden ? '#421869' : '#f0f0f0',
-        color: blogFiltroOrden === orden ? 'white' : '#333', fontWeight: 600, fontSize: 13
-      }}>
-        {orden === 'reciente' ? 'Reciente' : orden === 'popular' ? 'Popular' : 'Destacados'}
-      </button>
-    ))}
-  </div>
-
-  {renderGrillaPostsPublicos(
-    blogPostsPublicos
-      .filter(p => p.menter_id !== user?.id) // no mostrar los suyos propios
-      .sort((a, b) => {
-        if (blogFiltroOrden === 'popular') return (b.blog_likes?.[0]?.count || 0) - (a.blog_likes?.[0]?.count || 0)
-        if (blogFiltroOrden === 'destacado') {
-          const planOrder: Record<string, number> = { master: 0, premium: 1, starter: 2, free: 3 }
-          return (planOrder[a.menter?.raw_user_meta_data?.plan] ?? 3) - (planOrder[b.menter?.raw_user_meta_data?.plan] ?? 3)
-        }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      })
-  )}
-</div>
 }
 
 const renderGrillaEventosPublicos = (eventosLista: any[]) => {
@@ -6741,6 +6739,15 @@ const renderDestacados = () => (
       Contactar Soporte
     </a>
 
+    {/* Tour */}
+    <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid #f0f0f0' }}>
+      <p style={{ fontSize: 14, color: '#666', marginBottom: 12 }}>¿Quieres repasar cómo funciona la plataforma?</p>
+      <button onClick={() => { setTourStep(0); setTourActive(true) }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 30, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+        Volver a hacer el tour
+      </button>
+    </div>
+
     {/* Botón Panel Admin — solo visible para admins */}
     {ADMIN_EMAILS.includes(user?.email || '') && (
       <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #f0f0f0' }}>
@@ -7107,9 +7114,6 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
             </div>
           </div>
         </div>
-          {/* Tour floating button — always visible, fixed at bottom-left */}
-          <button onClick={() => { setTourStep(0); setTourActive(true) }} title="Iniciar tour" style={{ position:'fixed', left:20, bottom:24, zIndex:200, width:44, height:44, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', background:'rgba(66,24,105,0.85)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', color:'white', fontWeight:900, fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(0,0,0,0.3)', transition:'all 0.2s' }} onMouseEnter={e=>(e.currentTarget.style.background='#ffa719')} onMouseLeave={e=>(e.currentTarget.style.background='rgba(66,24,105,0.85)')}>?</button>
-
         <main className="giro-main-panel" style={{ marginLeft:110, padding:'40px 40px 100px 40px', position:'relative', zIndex:10, maxWidth:1200 }}>
           <h1 className="giro-desktop-header" style={{ fontFamily:'Raleway, sans-serif', fontWeight:900, fontSize:'2.5rem', marginBottom:30, color:'white', lineHeight:1.2 }}>
             Hola, <span style={{ color:'#ffa719' }}>{firstName}</span>

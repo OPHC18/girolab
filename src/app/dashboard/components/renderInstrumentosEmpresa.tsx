@@ -35,6 +35,8 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
   const [loadingRes, setLoadingRes]         = useState(false);
   const [showCrearPerfil, setShowCrearPerfil] = useState(false);
   const [nuevoPerfil, setNuevoPerfil]       = useState({ nombre:'', disc_D:70, disc_I:60, disc_S:40, disc_C:50, hexaco_minimo:3.5 });
+  const [crearPerfilError, setCrearPerfilError] = useState<string | null>(null);
+  const [crearPerfilLoading, setCrearPerfilLoading] = useState(false);
 
   // Créditos
   const [creditos, setCreditos]             = useState<number | null>(null);
@@ -138,7 +140,9 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
   }
 
   const handleCrearPerfil = async () => {
-    const { data } = await supabase.from('job_profiles').insert({
+    setCrearPerfilError(null)
+    setCrearPerfilLoading(true)
+    const { data, error } = await supabase.from('job_profiles').insert({
       empresa_id: empresaId,
       menter_id: menterId || null,
       nombre: nuevoPerfil.nombre,
@@ -148,7 +152,13 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       disc_C_target: nuevoPerfil.disc_C,
       hexaco_minimo: nuevoPerfil.hexaco_minimo,
     }).select().single()
-    if (data) { setJobProfiles(prev => [...prev, { id: data.id, nombre: data.nombre }]); setShowCrearPerfil(false) }
+    setCrearPerfilLoading(false)
+    if (error) { setCrearPerfilError(error.message); return }
+    if (data) {
+      setJobProfiles(prev => [...prev, { id: data.id, nombre: data.nombre }])
+      setShowCrearPerfil(false)
+      setNuevoPerfil({ nombre:'', disc_D:70, disc_I:60, disc_S:40, disc_C:50, hexaco_minimo:3.5 })
+    }
   }
 
   const MATCH_COLOR = (m: number) => m >= 80 ? '#4CAF50' : m >= 65 ? '#FF9800' : '#F44336'
@@ -342,7 +352,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
             </div>
           )}
           {showCrearPerfil && (
-            <div style={s.overlay} onClick={() => setShowCrearPerfil(false)}>
+            <div style={s.overlay} onClick={() => { setShowCrearPerfil(false); setCrearPerfilError(null) }}>
               <div style={s.modal} onClick={e => e.stopPropagation()}>
                 <h3 style={s.modalTitle}>Nuevo Perfil de Puesto</h3>
                 <label style={s.label}>Nombre del puesto</label>
@@ -363,10 +373,17 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                     onChange={e => setNuevoPerfil(p => ({ ...p, hexaco_minimo: Number(e.target.value) }))} style={{ flex:1 }} />
                   <span style={s.sliderVal}>{nuevoPerfil.hexaco_minimo.toFixed(1)}</span>
                 </div>
+                {crearPerfilError && (
+                  <p style={{ color: '#c62828', fontSize: 12, marginTop: 12, background: '#ffebee', borderRadius: 8, padding: '8px 12px' }}>
+                    Error: {crearPerfilError}
+                  </p>
+                )}
                 <div style={s.modalBtns}>
-                  <button style={s.cancelBtn} onClick={() => setShowCrearPerfil(false)}>Cancelar</button>
-                  <button style={{ ...s.confirmBtn, opacity: nuevoPerfil.nombre ? 1 : 0.5 }}
-                    disabled={!nuevoPerfil.nombre} onClick={handleCrearPerfil}>Crear perfil</button>
+                  <button style={s.cancelBtn} onClick={() => { setShowCrearPerfil(false); setCrearPerfilError(null) }}>Cancelar</button>
+                  <button style={{ ...s.confirmBtn, opacity: nuevoPerfil.nombre && !crearPerfilLoading ? 1 : 0.5 }}
+                    disabled={!nuevoPerfil.nombre || crearPerfilLoading} onClick={handleCrearPerfil}>
+                    {crearPerfilLoading ? 'Guardando...' : 'Crear perfil'}
+                  </button>
                 </div>
               </div>
             </div>
