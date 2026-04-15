@@ -1,21 +1,45 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { EMPRESA_INSTRUMENTS, EmpresaInstrumentId } from '@/lib/assessments/instruments_empresa';
 import { INSTRUMENTS, InstrumentId } from '@/lib/assessments/instruments';
 
-const EMPRESA_INSTRUMENT_IDS: EmpresaInstrumentId[] = ['DISC', 'HEXACO_HH'];
+// ── Catálogo combinado de todos los instrumentos disponibles para empresa ──────
+type AnyInstrumentId = EmpresaInstrumentId | InstrumentId;
 
-// Packs de créditos (deben coincidir con create-order/route.ts)
+const ALL_INSTRUMENTS: { id: AnyInstrumentId; nombre: string; descripcion: string; color: string; totalItems: number; tiempoMinutos: number; tags: string[]; referencia: string }[] = [
+  ...Object.values(EMPRESA_INSTRUMENTS).map(i => ({
+    id: i.id as AnyInstrumentId,
+    nombre: i.nombre,
+    descripcion: i.descripcion,
+    color: i.color,
+    totalItems: i.totalItems,
+    tiempoMinutos: i.tiempoMinutos,
+    tags: i.tagsMenters,
+    referencia: i.referencia,
+  })),
+  ...Object.values(INSTRUMENTS).map(i => ({
+    id: i.id as AnyInstrumentId,
+    nombre: i.nombre,
+    descripcion: i.descripcion,
+    color: i.color,
+    totalItems: i.totalItems,
+    tiempoMinutos: i.tiempoMinutos,
+    tags: i.tagsMenters,
+    referencia: i.referencia,
+  })),
+];
+
 const CREDIT_PACKS = [
   { id: 'pack_1',  creditos: 1,  precio: 5,  label: '1 evaluación',   ahorro: null },
   { id: 'pack_5',  creditos: 5,  precio: 20, label: '5 evaluaciones',  ahorro: 'Ahorra $5' },
   { id: 'pack_10', creditos: 10, precio: 35, label: '10 evaluaciones', ahorro: 'Ahorra $15' },
   { id: 'pack_20', creditos: 20, precio: 60, label: '20 evaluaciones', ahorro: 'Ahorra $40' },
-]
+];
 
-interface ShareLink { token: string; url: string; copied: boolean; candidato?: string; }
+interface Candidato { nombre: string; email: string; }
+interface ShareLink { url: string; copied: boolean; candidato: string; }
 interface JobProfile { id: string; nombre: string; }
 
 interface Props {
@@ -25,12 +49,10 @@ interface Props {
 
 export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props) {
   const [activeTab, setActiveTab]           = useState<'biblioteca' | 'resultados' | 'perfiles'>('biblioteca');
-  const [shareLinks, setShareLinks]         = useState<Record<string, ShareLink>>({});
+  const [shareLinks, setShareLinks]         = useState<Record<string, ShareLink[]>>({});
   const [loadingLink, setLoadingLink]       = useState<string | null>(null);
   const [jobProfiles, setJobProfiles]       = useState<JobProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState('');
-  const [candidatoEmail, setCandidatoEmail] = useState('');
-  const [candidatoNombre, setCandidatoNombre] = useState('');
   const [resultados, setResultados]         = useState<any[]>([]);
   const [loadingRes, setLoadingRes]         = useState(false);
   const [showCrearPerfil, setShowCrearPerfil] = useState(false);
@@ -38,13 +60,16 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
   const [crearPerfilError, setCrearPerfilError] = useState<string | null>(null);
   const [crearPerfilLoading, setCrearPerfilLoading] = useState(false);
 
+  // Candidatos
+  const [candidatos, setCandidatos]         = useState<Candidato[]>([{ nombre: '', email: '' }]);
+  const csvInputRef                         = useRef<HTMLInputElement>(null);
+
   // Créditos
   const [creditos, setCreditos]             = useState<number | null>(null);
   const [showBuyModal, setShowBuyModal]     = useState(false);
   const [buyingPack, setBuyingPack]         = useState<string | null>(null);
   const [buyMsg, setBuyMsg]                 = useState<string | null>(null);
 
-  // Cargar créditos
   const loadCreditos = useCallback(async () => {
     const { data } = await supabase
       .from('instrumento_creditos')
@@ -56,7 +81,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
 
   useEffect(() => { loadCreditos() }, [loadCreditos])
 
-  // Verificar si viene de pago exitoso
+  // Captura PayPal return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('pp') === 'ok') {
@@ -86,39 +111,81 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       .then(({ data }) => { setResultados(data || []); setLoadingRes(false) })
   }, [activeTab])
 
-  const handleGenerarLink = async (instrumentId: string) => {
-    if (!creditos || creditos <= 0) { setShowBuyModal(true); return }
+  // ── Candidatos ────────────────────────────────────────────────────────────────
+  const addCandidato = () => setCandidatos(prev => [...prev, { nombre: '', email: '' }])
+  const removeCandidato = (i: number) => setCandidatos(prev => prev.filter((_, idx) => idx !== i))
+  const updateCandidato = (i: number, field: keyof Candidato, value: string) =>
+    setCandidatos(prev => prev.map((c, idx) => idx === i ? { ...c, [field]: value } : c))
 
-    const key = `${instrumentId}_${selectedProfile || 'libre'}`
-    setLoadingLink(key)
-
-    const { data } = await supabase.rpc('create_empresa_assessment_link', {
-      p_instrument_id: instrumentId,
-      p_empresa_id: empresaId,
-      p_menter_id: menterId || null,
-      p_job_profile_id: selectedProfile || null,
-      p_candidato_email: candidatoEmail || null,
-      p_candidato_nombre: candidatoNombre || null,
-    })
-
-    if (data) {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net'
-      const url = `${origin}/test/${instrumentId}?t=${data.token}`
-      setShareLinks(prev => ({ ...prev, [key]: { token: data.token, url, copied: false, candidato: candidatoNombre } }))
-      // Descontar 1 crédito
-      const nuevos = (creditos || 1) - 1
-      await supabase.from('instrumento_creditos').upsert({ empresa_id: empresaId, creditos: nuevos, updated_at: new Date().toISOString() }, { onConflict: 'empresa_id' })
-      setCreditos(nuevos)
+  const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const lines = (ev.target?.result as string).split('\n').filter(Boolean)
+      const parsed: Candidato[] = []
+      lines.forEach(line => {
+        const [nombre, email] = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''))
+        if (email && email.includes('@')) parsed.push({ nombre: nombre || '', email })
+      })
+      if (parsed.length > 0) setCandidatos(parsed)
     }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const candidatosValidos = candidatos.filter(c => c.email.includes('@'))
+
+  // ── Generar links ─────────────────────────────────────────────────────────────
+  const handleGenerarLinks = async (instrumentId: string) => {
+    if (!creditos || creditos <= 0) { setShowBuyModal(true); return }
+    if (candidatosValidos.length === 0) return
+    if (creditos < candidatosValidos.length) {
+      alert(`Necesitas ${candidatosValidos.length} créditos. Solo tienes ${creditos}.`)
+      return
+    }
+
+    setLoadingLink(instrumentId)
+    const links: ShareLink[] = []
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net'
+
+    for (const c of candidatosValidos) {
+      const { data } = await supabase.rpc('create_empresa_assessment_link', {
+        p_instrument_id: instrumentId,
+        p_empresa_id: empresaId,
+        p_menter_id: menterId || null,
+        p_job_profile_id: selectedProfile || null,
+        p_candidato_email: c.email || null,
+        p_candidato_nombre: c.nombre || null,
+      })
+      if (data) {
+        links.push({ url: `${origin}/test/${instrumentId}?t=${data.token}`, copied: false, candidato: c.nombre || c.email })
+      }
+    }
+
+    // Descontar créditos
+    const nuevos = (creditos || 0) - links.length
+    await supabase.from('instrumento_creditos').upsert(
+      { empresa_id: empresaId, creditos: nuevos, updated_at: new Date().toISOString() },
+      { onConflict: 'empresa_id' }
+    )
+    setCreditos(nuevos)
+    setShareLinks(prev => ({ ...prev, [instrumentId]: links }))
     setLoadingLink(null)
   }
 
-  const handleCopiar = (key: string) => {
-    const link = shareLinks[key]
-    if (!link) return
-    navigator.clipboard.writeText(link.url)
-    setShareLinks(prev => ({ ...prev, [key]: { ...link, copied: true } }))
-    setTimeout(() => setShareLinks(prev => ({ ...prev, [key]: { ...link, copied: false } })), 2000)
+  const handleCopiar = (instrumentId: string, idx: number) => {
+    const links = shareLinks[instrumentId]
+    if (!links?.[idx]) return
+    navigator.clipboard.writeText(links[idx].url)
+    setShareLinks(prev => ({
+      ...prev,
+      [instrumentId]: prev[instrumentId].map((l, i) => i === idx ? { ...l, copied: true } : l)
+    }))
+    setTimeout(() => setShareLinks(prev => ({
+      ...prev,
+      [instrumentId]: prev[instrumentId].map((l, i) => i === idx ? { ...l, copied: false } : l)
+    })), 2000)
   }
 
   const handleComprar = async (packId: string) => {
@@ -187,7 +254,6 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
         </div>
       )}
 
-      {/* ── AVISO sin créditos ── */}
       {creditos === 0 && (
         <div style={s.noCreditsBanner}>
           <span style={{ fontWeight: 700 }}>Sin créditos disponibles.</span> Cada evaluación que envíes consume 1 crédito.
@@ -208,82 +274,126 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       {/* ── BIBLIOTECA ── */}
       {activeTab === 'biblioteca' && (
         <div>
+          {/* Panel de configuración */}
           <div style={s.filterBox}>
-            <div style={s.filterRow}>
-              <div style={s.filterField}>
-                <label style={s.label}>Perfil de Puesto (opcional)</label>
-                <select style={s.select} value={selectedProfile} onChange={e => setSelectedProfile(e.target.value)}>
-                  <option value="">— Sin perfil (evaluación libre) —</option>
-                  {jobProfiles.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
+            {/* Candidatos */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={s.label}>Candidatos ({candidatosValidos.length} válidos)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={s.addCandBtn} onClick={addCandidato}>+ Agregar</button>
+                  <button style={s.addCandBtn} onClick={() => csvInputRef.current?.click()}>Cargar CSV</button>
+                  <input ref={csvInputRef} type="file" accept=".csv,.txt" onChange={handleCSV} style={{ display: 'none' }} />
+                </div>
               </div>
-              <div style={s.filterField}>
-                <label style={s.label}>Nombre del candidato</label>
-                <input style={s.input} placeholder="Ej: María García" value={candidatoNombre} onChange={e => setCandidatoNombre(e.target.value)} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {candidatos.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input style={{ ...s.input, flex: 1 }} placeholder="Nombre" value={c.nombre}
+                      onChange={e => updateCandidato(i, 'nombre', e.target.value)} />
+                    <input style={{ ...s.input, flex: 2 }} placeholder="correo@empresa.com" value={c.email}
+                      onChange={e => updateCandidato(i, 'email', e.target.value)} />
+                    {candidatos.length > 1 && (
+                      <button onClick={() => removeCandidato(i)}
+                        style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div style={s.filterField}>
-                <label style={s.label}>Email del candidato</label>
-                <input style={s.input} placeholder="candidato@email.com" value={candidatoEmail} onChange={e => setCandidatoEmail(e.target.value)} />
-              </div>
+              <p style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+                CSV: una fila por candidato, formato <code>Nombre,correo@email.com</code>
+              </p>
+            </div>
+
+            {/* Perfil de puesto */}
+            <div style={s.filterField}>
+              <label style={s.label}>Perfil de Puesto (opcional — solo para DISC/HEXACO)</label>
+              <select style={s.select} value={selectedProfile} onChange={e => setSelectedProfile(e.target.value)}>
+                <option value="">— Sin perfil (evaluación libre) —</option>
+                {jobProfiles.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
             </div>
           </div>
 
+          {/* Aviso de créditos necesarios */}
+          {candidatosValidos.length > 1 && (creditos ?? 0) > 0 && (
+            <div style={{ background: '#f3e8ff', borderRadius: 10, padding: '8px 14px', marginBottom: 16, fontSize: 13, color: '#6d28d9' }}>
+              Con {candidatosValidos.length} candidatos, cada instrumento consumirá <strong>{candidatosValidos.length} créditos</strong>. Tienes {creditos} disponibles.
+            </div>
+          )}
+
           <div style={s.grid}>
-            {EMPRESA_INSTRUMENT_IDS.map(id => {
-              const inst = EMPRESA_INSTRUMENTS[id]
-              const key = `${id}_${selectedProfile || 'libre'}`
-              const link = shareLinks[key]
-              const isLoading = loadingLink === key
+            {ALL_INSTRUMENTS.map(inst => {
+              const id = inst.id
+              const links = shareLinks[id] || []
+              const isLoading = loadingLink === id
               const sinCreditos = !creditos || creditos <= 0
+              const necesita = candidatosValidos.length
+              const sinSuficientes = (creditos ?? 0) < necesita
 
               return (
                 <div key={id} style={s.card}>
-                  <div style={s.cardHeader}>
-                    <div>
-                      <p style={s.cardTitle}>{inst.nombre}</p>
-                      <p style={s.cardDesc}>{inst.descripcion}</p>
-                    </div>
+                  <div style={{ borderLeft: `4px solid ${inst.color}`, paddingLeft: 12, marginBottom: 10 }}>
+                    <p style={s.cardTitle}>{inst.nombre}</p>
+                    <p style={s.cardDesc}>{inst.descripcion}</p>
                   </div>
                   <div style={s.metaRow}>
                     <span style={s.meta}>{inst.totalItems} ítems</span>
                     <span style={s.meta}>~{inst.tiempoMinutos} min</span>
-                    <span style={s.meta}>{inst.referencia}</span>
                   </div>
                   <div style={s.tagsRow}>
-                    {inst.tagsMenters.map((tag: string) => (
+                    {inst.tags.slice(0, 3).map((tag: string) => (
                       <span key={tag} style={{ ...s.tag, background:`${inst.color}22`, color:inst.color }}>{tag}</span>
                     ))}
                   </div>
 
-                  {/* Costo por evaluación */}
                   <div style={s.costBadge}>
-                    <span style={s.costIcon}>🎫</span>
-                    <span style={s.costText}>1 crédito por evaluación</span>
+                    <span style={s.costText}>🎫 {necesita} crédito{necesita !== 1 ? 's' : ''} para {necesita} candidato{necesita !== 1 ? 's' : ''}</span>
                   </div>
 
-                  {link && (
-                    <div style={s.linkBox}>
-                      {link.candidato && <span style={s.candidatoBadge}>{link.candidato}</span>}
-                      <div style={s.linkRow}>
-                        <span style={s.linkText}>{link.url}</span>
-                        <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
-                          onClick={() => handleCopiar(key)}>
-                          {link.copied ? 'Copiado' : 'Copiar'}
-                        </button>
-                      </div>
+                  {/* Links generados */}
+                  {links.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                      {links.map((link, idx) => (
+                        <div key={idx} style={s.linkBox}>
+                          {link.candidato && <span style={s.candidatoBadge}>{link.candidato}</span>}
+                          <div style={s.linkRow}>
+                            <span style={s.linkText}>{link.url}</span>
+                            <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
+                              onClick={() => handleCopiar(id, idx)}>
+                              {link.copied ? 'Copiado' : 'Copiar'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {sinCreditos && !link ? (
+                  {sinCreditos ? (
                     <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
                       onClick={() => setShowBuyModal(true)}>
                       Comprar créditos para evaluar
                     </button>
+                  ) : sinSuficientes && candidatosValidos.length > 0 ? (
+                    <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
+                      onClick={() => setShowBuyModal(true)}>
+                      Comprar más créditos ({necesita} necesarios)
+                    </button>
                   ) : (
                     <button style={{ ...s.actionBtn, background: inst.color }}
-                      disabled={isLoading}
-                      onClick={() => link ? handleCopiar(key) : handleGenerarLink(id)}>
-                      {isLoading ? 'Generando...' : link ? 'Copiar link' : 'Generar link de evaluación'}
+                      disabled={isLoading || candidatosValidos.length === 0}
+                      onClick={() => links.length > 0
+                        ? links.forEach((_, i) => handleCopiar(id, i))
+                        : handleGenerarLinks(id)
+                      }>
+                      {isLoading
+                        ? 'Generando...'
+                        : links.length > 0
+                          ? `Copiar todos (${links.length})`
+                          : candidatosValidos.length === 0
+                            ? 'Agrega un candidato'
+                            : `Generar ${necesita > 1 ? `${necesita} links` : 'link'}`
+                      }
                     </button>
                   )}
                 </div>
@@ -302,14 +412,14 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
            ) : (
             <div style={s.resultsList}>
               {resultados.map((res, i) => {
-                const inst = EMPRESA_INSTRUMENTS[res.instrument_id as EmpresaInstrumentId] || INSTRUMENTS[res.instrument_id as InstrumentId]
+                const inst = (EMPRESA_INSTRUMENTS as any)[res.instrument_id] || (INSTRUMENTS as any)[res.instrument_id]
                 return (
                   <div key={i} style={s.resultCard}>
                     <div style={s.resultHeader}>
                       <div style={{flex:1}}>
                         <p style={s.resName}>{res.candidato_nombre || 'Candidato'}</p>
                         <p style={s.resEmail}>{res.candidato_email}</p>
-                        <p style={s.resInst}>{(inst as any)?.nombre || res.instrument_id}</p>
+                        <p style={s.resInst}>{inst?.nombre || res.instrument_id}</p>
                         {res.job_profile_nombre && <p style={s.resPerfil}>Puesto: {res.job_profile_nombre}</p>}
                       </div>
                       {res.match_total !== null && (
@@ -397,16 +507,13 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
           <div style={s.buyModal} onClick={e => e.stopPropagation()}>
             <button style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null) }}>✕</button>
             <h3 style={s.modalTitle}>Comprar créditos de evaluación</h3>
-            <p style={s.buyModalSub}>Cada crédito te permite enviar 1 evaluación (DISC o HEXACO) a un candidato o colaborador.</p>
-
+            <p style={s.buyModalSub}>Cada crédito = 1 evaluación enviada. Si tienes 3 candidatos y eliges un instrumento, se usan 3 créditos.</p>
             <div style={s.packsGrid}>
               {CREDIT_PACKS.map(pack => (
-                <button
-                  key={pack.id}
+                <button key={pack.id}
                   style={{ ...s.packCard, ...(buyingPack === pack.id ? s.packCardActive : {}) }}
                   onClick={() => handleComprar(pack.id)}
-                  disabled={!!buyingPack}
-                >
+                  disabled={!!buyingPack}>
                   <div style={s.packCreditos}>{pack.creditos}</div>
                   <div style={s.packLabel}>{pack.label}</div>
                   <div style={s.packPrecio}>${pack.precio} USD</div>
@@ -415,11 +522,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                 </button>
               ))}
             </div>
-
-            {buyMsg && (
-              <p style={{ textAlign: 'center', color: '#c62828', fontSize: 13, marginTop: 12 }}>{buyMsg}</p>
-            )}
-
+            {buyMsg && <p style={{ textAlign: 'center', color: '#c62828', fontSize: 13, marginTop: 12 }}>{buyMsg}</p>}
             <p style={s.paypalNote}>Pago seguro via PayPal. No se requiere cuenta PayPal.</p>
           </div>
         </div>
@@ -451,12 +554,12 @@ const s: Record<string, any> = {
   filterBox:      { background:'#f8f9fa', borderRadius:12, padding:16, marginBottom:20 },
   filterRow:      { display:'flex', gap:12, flexWrap:'wrap' },
   filterField:    { flex:1, minWidth:200 },
+  addCandBtn:     { padding:'6px 12px', borderRadius:8, border:'1px solid #421869', background:'white', color:'#421869', fontWeight:600, fontSize:12, cursor:'pointer' },
   label:          { fontSize:12, color:'#555', display:'block', marginBottom:4, fontWeight:600 },
   select:         { width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13 },
   input:          { width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, boxSizing:'border-box' },
   grid:           { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 },
   card:           { background:'#fff', borderRadius:16, padding:20, border:'1px solid #f0f0f0', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' },
-  cardHeader:     { display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 },
   cardTitle:      { fontSize:14, fontWeight:700, color:'#1a1a2e', margin:'0 0 4px' },
   cardDesc:       { fontSize:12, color:'#555', margin:0, lineHeight:1.4 },
   metaRow:        { display:'flex', gap:12, flexWrap:'wrap', marginBottom:10 },
@@ -464,13 +567,12 @@ const s: Record<string, any> = {
   tagsRow:        { display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 },
   tag:            { fontSize:11, padding:'2px 8px', borderRadius:999, fontWeight:600 },
   costBadge:      { display:'flex', alignItems:'center', gap:6, background:'#f3e8ff', borderRadius:8, padding:'6px 10px', marginBottom:14 },
-  costIcon:       { fontSize:14 },
   costText:       { fontSize:12, color:'#421869', fontWeight:600 },
-  linkBox:        { background:'#f8f8f8', borderRadius:8, padding:'8px 10px', marginBottom:10 },
-  candidatoBadge: { fontSize:11, color:'#421869', fontWeight:600, marginBottom:6, display:'block' },
+  linkBox:        { background:'#f8f8f8', borderRadius:8, padding:'8px 10px' },
+  candidatoBadge: { fontSize:11, color:'#421869', fontWeight:600, marginBottom:4, display:'block' },
   linkRow:        { display:'flex', alignItems:'center', gap:8 },
   linkText:       { flex:1, fontSize:11, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
-  copyBtn:        { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600 },
+  copyBtn:        { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600, flexShrink:0 },
   actionBtn:      { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
   loading:        { textAlign:'center', color:'#555', padding:40 },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
@@ -499,7 +601,6 @@ const s: Record<string, any> = {
   modalBtns:      { display:'flex', gap:10, justifyContent:'flex-end', marginTop:20 },
   cancelBtn:      { padding:'10px 20px', borderRadius:8, border:'1px solid #ddd', background:'none', cursor:'pointer' },
   confirmBtn:     { padding:'10px 20px', borderRadius:8, background:'#421869', color:'#fff', border:'none', cursor:'pointer', fontWeight:700 },
-  // Buy modal
   buyModal:       { background:'#fff', borderRadius:24, padding:32, maxWidth:480, width:'90%', position:'relative' },
   closeBtn:       { position:'absolute', top:16, right:16, background:'none', border:'none', fontSize:18, cursor:'pointer', color:'#888', lineHeight:1 },
   buyModalSub:    { fontSize:13, color:'#666', marginBottom:24, lineHeight:1.6 },
