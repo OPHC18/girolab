@@ -29,10 +29,11 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-6 {
+        fill: rgba(255,255,255,0.82);
         font-size: 8px;
       }
 
-      .cls-6, .cls-7, .cls-8, .cls-9, .cls-10, .cls-11, .cls-12, .cls-13, .cls-14, .cls-15, .cls-16, .cls-17, .cls-18, .cls-19, .cls-20, .cls-21, .cls-22, .cls-23, .cls-24, .cls-25, .cls-26, .cls-27, .cls-28 {
+      .cls-7, .cls-8, .cls-12, .cls-13, .cls-14, .cls-15, .cls-16, .cls-17, .cls-18, .cls-20, .cls-22, .cls-23, .cls-25, .cls-26, .cls-28 {
         fill: none;
       }
 
@@ -63,6 +64,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-9 {
+        fill: rgba(255,255,255,0.92);
         font-family: RalewayRoman-Bold, Raleway;
         font-size: 11.91px;
         font-variation-settings: 'wght' 700;
@@ -74,6 +76,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-10 {
+        fill: rgba(255,255,255,0.88);
         font-size: 9.39px;
       }
 
@@ -82,6 +85,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-11 {
+        fill: rgba(255,255,255,0.85);
         font-family: RalewayRoman-Regular, Raleway;
         font-size: 10.3px;
         font-variation-settings: 'wght' 400;
@@ -212,6 +216,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-19 {
+        fill: rgba(255,255,255,0.88);
         font-size: 12px;
       }
 
@@ -245,6 +250,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-21 {
+        fill: rgba(255,255,255,0.82);
         font-size: 8.08px;
       }
 
@@ -281,6 +287,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-24 {
+        fill: rgba(255,255,255,0.78);
         font-size: 7.11px;
       }
 
@@ -305,6 +312,7 @@ const SVG_CONTENT = `<svg id="universo-svg" xmlns="http://www.w3.org/2000/svg" v
       }
 
       .cls-27 {
+        fill: rgba(255,255,255,0.82);
         font-size: 8.59px;
       }
 
@@ -2238,65 +2246,72 @@ export default function UniversoEmociones() {
       })
     }, 80)
 
-    // Build labels overlay AFTER browser has done layout (requestAnimationFrame × 2)
+    // Build labels overlay using cx/cy attributes from _cb circles (no getBBox needed)
     const buildLabels = () => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const svg = document.getElementById('universo-svg') as SVGSVGElement | null
-          if (!svg) return
+      const svg = document.getElementById('universo-svg') as SVGSVGElement | null
+      if (!svg) return
 
-          const existing = document.getElementById('labels-overlay')
-          if (existing) existing.remove()
-          const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-          overlay.id = 'labels-overlay'
-          overlay.setAttribute('pointer-events', 'none')
+      const existing = document.getElementById('labels-overlay')
+      if (existing) existing.remove()
+      const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+      overlay.id = 'labels-overlay'
+      overlay.setAttribute('pointer-events', 'none')
 
-          Object.keys(EMOTIONS).forEach(id => {
-            const el = document.getElementById(id)
-            if (!el || el.tagName !== 'g') return
-            try {
-              const bbox = (el as unknown as SVGGraphicsElement).getBBox()
-              if (bbox.width < 5 || bbox.height < 5) return
-              const emotion = EMOTIONS[id]
-              if (emotion.nivel > 4) return
-              const cx = bbox.x + bbox.width / 2
-              const cy = bbox.y + bbox.height / 2
-              const fs = emotion.nivel <= 1 ? 11 : emotion.nivel === 2 ? 8 : emotion.nivel === 3 ? 7 : 6
+      // Nivel 1 already has _tx text elements in the SVG (fixed via CSS fill).
+      // For nivel 2-4, read cx/cy from the _cb center circle element.
+      const NIVEL_ES = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco']
 
-              // Halo for readability
-              const halo = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-              halo.setAttribute('x', String(cx))
-              halo.setAttribute('y', String(cy + fs * 0.38))
-              halo.setAttribute('text-anchor', 'middle')
-              halo.setAttribute('font-size', String(fs))
-              halo.setAttribute('fill', 'none')
-              halo.setAttribute('stroke', 'rgba(0,0,0,0.8)')
-              halo.setAttribute('stroke-width', '3')
-              halo.setAttribute('stroke-linejoin', 'round')
-              halo.setAttribute('font-family', 'Raleway, sans-serif')
-              halo.setAttribute('font-weight', emotion.nivel <= 2 ? '700' : '500')
-              halo.setAttribute('data-cat', emotion.cat)
-              halo.textContent = emotion.name
-              overlay.appendChild(halo)
+      Object.keys(EMOTIONS).forEach(id => {
+        const emotion = EMOTIONS[id]
+        if (emotion.nivel < 2 || emotion.nivel > 4) return
 
-              // Label text
-              const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-              txt.setAttribute('x', String(cx))
-              txt.setAttribute('y', String(cy + fs * 0.38))
-              txt.setAttribute('text-anchor', 'middle')
-              txt.setAttribute('font-size', String(fs))
-              txt.setAttribute('fill', '#ffffff')
-              txt.setAttribute('font-family', 'Raleway, sans-serif')
-              txt.setAttribute('font-weight', emotion.nivel <= 2 ? '700' : '500')
-              txt.setAttribute('data-cat', emotion.cat)
-              txt.textContent = emotion.name
-              overlay.appendChild(txt)
-            } catch (_) { /* getBBox not available yet */ }
-          })
+        const nivelStr = NIVEL_ES[emotion.nivel]
 
-          svg.appendChild(overlay)
-        })
+        // Direct id lookup, then querySelector within the group as fallback
+        const cbDirect = document.getElementById(`${id}_nivel_${nivelStr}_cb`) as SVGCircleElement | null
+        const groupEl = document.getElementById(id)
+        const cbFallback = groupEl?.querySelector('circle[cx]') as SVGCircleElement | null
+        const cb = cbDirect || cbFallback
+        if (!cb) return
+
+        const cx = parseFloat(cb.getAttribute('cx') || '0')
+        const cy = parseFloat(cb.getAttribute('cy') || '0')
+        if (!cx && !cy) return
+
+        const fs = emotion.nivel === 2 ? 8 : emotion.nivel === 3 ? 7 : 6
+        const fw = emotion.nivel === 2 ? '700' : '500'
+
+        // Halo for readability
+        const halo = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+        halo.setAttribute('x', String(cx))
+        halo.setAttribute('y', String(cy + fs * 0.42))
+        halo.setAttribute('text-anchor', 'middle')
+        halo.setAttribute('font-size', String(fs))
+        halo.setAttribute('fill', 'none')
+        halo.setAttribute('stroke', 'rgba(0,0,0,0.85)')
+        halo.setAttribute('stroke-width', '3')
+        halo.setAttribute('stroke-linejoin', 'round')
+        halo.setAttribute('font-family', 'Raleway, sans-serif')
+        halo.setAttribute('font-weight', fw)
+        halo.setAttribute('data-cat', emotion.cat)
+        halo.textContent = emotion.name
+        overlay.appendChild(halo)
+
+        // Label text
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+        txt.setAttribute('x', String(cx))
+        txt.setAttribute('y', String(cy + fs * 0.42))
+        txt.setAttribute('text-anchor', 'middle')
+        txt.setAttribute('font-size', String(fs))
+        txt.setAttribute('fill', '#ffffff')
+        txt.setAttribute('font-family', 'Raleway, sans-serif')
+        txt.setAttribute('font-weight', fw)
+        txt.setAttribute('data-cat', emotion.cat)
+        txt.textContent = emotion.name
+        overlay.appendChild(txt)
       })
+
+      svg.appendChild(overlay)
     }
     buildLabels()
 
