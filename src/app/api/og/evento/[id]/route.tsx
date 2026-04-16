@@ -12,8 +12,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -22,13 +23,13 @@ export async function GET(
   const { data: ev } = await supabase
     .from('events')
     .select('title, description, cover_image, date, location, menter:menter_public_profiles(nombre, avatar_url)')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   const { data: ticket } = await supabase
     .from('event_tickets')
     .select('price')
-    .eq('event_id', params.id)
+    .eq('event_id', id)
     .order('price', { ascending: true })
     .limit(1)
     .single()
@@ -224,7 +225,7 @@ export async function GET(
               display: 'flex',
             }}
           >
-            girolab.net/eventos/{params.id}
+            girolab.net/eventos/{id}
           </div>
         </div>
       </div>

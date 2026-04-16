@@ -12,8 +12,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -22,13 +23,13 @@ export async function GET(
   const { data: pub } = await supabase
     .from('menter_public_profiles')
     .select('nombre, avatar_url, plan')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   const { data: prof } = await supabase
     .from('menter_profile')
     .select('bio, especialidades, modalidad, precio_sesion')
-    .eq('menter_id', params.id)
+    .eq('menter_id', id)
     .single()
 
   const nombre     = pub?.nombre || 'Menter Giro Lab'
@@ -246,7 +247,7 @@ export async function GET(
               display: 'flex',
             }}
           >
-            girolab.net/menter/{params.id}
+            girolab.net/menter/{id}
           </div>
         </div>
       </div>
