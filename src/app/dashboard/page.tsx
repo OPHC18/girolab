@@ -7496,6 +7496,18 @@ function CitaCardPersona({ c, onReprogramar, onCancelar, onAceptar, onRechazar }
         </div>
       )}
 
+      {c.status === 'pendiente' && (
+        <div style={{ marginTop: 4 }}>
+          <button onClick={() => onCancelar(c)}
+            style={{ padding: '8px 18px', borderRadius: 20, border: '2px solid #ffebee', background: 'white', color: '#c62828', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+            Cancelar solicitud
+          </button>
+          <p style={{ fontSize: 11, color: '#999', margin: '6px 0 0' }}>
+            Si el Menter no responde en 24 h, la solicitud se cancela automáticamente.
+          </p>
+        </div>
+      )}
+
       {c.status === 'confirmada' && (
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           {puede ? (
@@ -7535,7 +7547,17 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   return (
     <div>
       <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 8, fontSize: 14, fontFamily: 'DM Sans, sans-serif' }}>{label}</label>
-      <input type="date" value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.3s' }} onFocus={e => (e.target.style.borderColor = '#995bd5')} onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
+      <div style={{ position: 'relative' }}>
+        <input type="date" value={value} onChange={e => onChange(e.target.value)}
+          style={{ width: '100%', padding: '12px 15px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 15, fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.3s', colorScheme: 'light' }}
+          onFocus={e => (e.target.style.borderColor = '#995bd5')}
+          onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
+        {!value && (
+          <span style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#aaa', pointerEvents: 'none', fontFamily: 'DM Sans, sans-serif' }}>
+            Toca para seleccionar fecha
+          </span>
+        )}
+      </div>
     </div>
   )
 }

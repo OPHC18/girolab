@@ -46,6 +46,7 @@ export default function AdminPage() {
   const [statsEmpresas, setStatsEmpresas] = useState<any>(null)
   const [statsMenters, setStatsMenters] = useState<any>(null)
   const [metricasCitas, setMetricasCitas] = useState<any>(null)
+  const [sinRespuesta, setSinRespuesta] = useState<any[]>([])
 
 
   // Filtros Personas
@@ -274,6 +275,16 @@ useEffect(() => {
 
     setMetricas({ totalPersonas, totalEmpresas, totalMenters, totalCitas, totalEventos, totalBlogs })
     setMetricasCitas({ porEstado, total: citasData?.length || 0 })
+
+    // Solicitudes sin respuesta (pendiente > 24h)
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: sinResp } = await supabase
+      .from('appointments')
+      .select('id, menter_id, menter_name, client_name, date, start_time, created_at')
+      .eq('status', 'pendiente')
+      .lt('created_at', cutoff)
+      .order('created_at', { ascending: true })
+    setSinRespuesta(sinResp || [])
   }
 
   const contarCampo = (arr: any[], campo: string) => {
@@ -877,6 +888,64 @@ const confirmarCambioPlan = async () => {
                 </div>
               </div>
             )}
+
+            {/* ── Solicitudes sin respuesta (pendiente > 24h) ── */}
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <h3 style={{ fontFamily: 'Raleway', color: '#c62828', margin: 0, fontSize: 16 }}>
+                  🚨 Solicitudes sin respuesta del Menter (&gt;24 h)
+                </h3>
+                <span style={{ fontSize: 13, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: sinRespuesta.length > 0 ? '#ffebee' : '#e8f5e9', color: sinRespuesta.length > 0 ? '#c62828' : '#2e7d32' }}>
+                  {sinRespuesta.length}
+                </span>
+              </div>
+              {sinRespuesta.length === 0 ? (
+                <div style={{ background: '#e8f5e9', borderRadius: 12, padding: '16px 20px', color: '#2e7d32', fontWeight: 600, fontSize: 14 }}>
+                  Todos los Menters están respondiendo a tiempo.
+                </div>
+              ) : (
+                <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#fff3e0' }}>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#e65100' }}>Menter</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#e65100' }}>Cliente</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#e65100' }}>Fecha solicitada</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#e65100' }}>Solicitud enviada</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: '#e65100' }}>Horas sin respuesta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sinRespuesta.map((c, i) => {
+                        const horas = Math.floor((Date.now() - new Date(c.created_at).getTime()) / (1000 * 60 * 60))
+                        return (
+                          <tr key={c.id} style={{ borderTop: '1px solid #f5f5f5', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                            <td style={{ padding: '10px 16px', fontWeight: 600, color: '#421869' }}>{c.menter_name || c.menter_id?.slice(0, 8)}</td>
+                            <td style={{ padding: '10px 16px', color: '#333' }}>{c.client_name || '—'}</td>
+                            <td style={{ padding: '10px 16px', color: '#555' }}>
+                              {new Date(c.date + 'T00:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                              {c.start_time && ` · ${c.start_time.slice(0,5)}`}
+                            </td>
+                            <td style={{ padding: '10px 16px', color: '#555' }}>
+                              {new Date(c.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                              {' '}{new Date(c.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={{ padding: '10px 16px' }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: horas >= 48 ? '#ffebee' : '#fff3e0', color: horas >= 48 ? '#c62828' : '#e65100' }}>
+                                {horas} h
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ padding: '12px 16px', background: '#fff8e1', fontSize: 12, color: '#795548' }}>
+                    Las solicitudes pendientes &gt;24 h se cancelan automáticamente por el cron job. Este reporte es en tiempo real.
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
