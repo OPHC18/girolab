@@ -173,12 +173,20 @@ export default function MenterPage() {
                 </div>
               </div>
 
-              {/* Botón compartir */}
-              <button
-                onClick={() => navigator.clipboard.writeText(window.location.href).then(() => { setCopiadoMsg(true); setTimeout(() => setCopiadoMsg(false), 3000) })}
-                style={{ padding: '10px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.3)', background: copiadoMsg ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}>
-                {copiadoMsg ? '✅ Link copiado' : '🔗 Compartir perfil'}
-              </button>
+              {/* Botones compartir */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  onClick={() => navigator.clipboard.writeText(window.location.href).then(() => { setCopiadoMsg(true); setTimeout(() => setCopiadoMsg(false), 3000) })}
+                  style={{ padding: '10px 18px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.3)', background: copiadoMsg ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  {copiadoMsg ? '✅ Link copiado' : '🔗 Compartir perfil'}
+                </button>
+                <a
+                  href={`/api/og/menter/${id}`}
+                  download={`menter-${id}.png`}
+                  style={{ padding: '10px 18px', borderRadius: 20, border: '1px solid rgba(228,64,95,0.7)', background: 'rgba(228,64,95,0.15)', color: '#ffb3c1', fontWeight: 600, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  📸 Instagram
+                </a>
+              </div>
 
             </div>
           </div>

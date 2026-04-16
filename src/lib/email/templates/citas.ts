@@ -209,3 +209,33 @@ export async function emailReprogramacionRechazada(data: {
     htmlContent: html,
   })
 }
+
+// ── 8. Cancelación automática (24 h sin respuesta) → Cliente ─────────────────
+export async function emailCitaCanceladaAuto(data: {
+  clientName:   string
+  clientEmail:  string
+  menterName:   string
+  citaFecha:    string
+  citaHora:     string
+  dashboardUrl: string
+}) {
+  const html = emailLayout(`
+    ${h1('Tu solicitud fue cancelada automáticamente')}
+    ${p(`Tu solicitud de sesión con <strong>${data.menterName}</strong> fue cancelada porque el Menter no respondió dentro de las 24 horas.`)}
+    ${infoTable(
+      infoRow('Menter', data.menterName) +
+      infoRow('Fecha solicitada', data.citaFecha) +
+      infoRow('Hora', data.citaHora)
+    )}
+    ${p('Puedes explorar otros Menters disponibles y agendar una nueva sesión cuando quieras.')}
+    ${btn('Explorar Menters', data.dashboardUrl)}
+    ${divider()}
+    ${p('Si crees que esto es un error, contáctanos en <a href="mailto:contacto@girolab.net" style="color:#421869;">contacto@girolab.net</a>')}
+  `, `Tu solicitud con ${data.menterName} fue cancelada automáticamente`)
+
+  return sendEmail({
+    to:      [{ email: data.clientEmail, name: data.clientName }],
+    subject: `Tu solicitud de sesión fue cancelada — ${data.menterName}`,
+    htmlContent: html,
+  })
+}

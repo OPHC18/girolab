@@ -332,6 +332,12 @@ export default function EventoPage() {
                     style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     🔗 Compartir
                   </button>
+                  <a
+                    href={`/api/og/evento/${id}`}
+                    download={`evento-${id}.png`}
+                    style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #E4405F', background: 'white', color: '#E4405F', fontWeight: 600, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    📸 Instagram
+                  </a>
                 </div>
 {/* Modal de confirmación de registro */}
 {showConfirmModal && (

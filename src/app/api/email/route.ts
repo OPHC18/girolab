@@ -17,6 +17,7 @@ import {
   emailNudgeDia7,
   emailDespedida,
   emailEliminadoPorAdmin,
+  emailCitaCanceladaAuto,
 } from '@/lib/email'
 
 // ── Rate limiting en memoria (10 emails por usuario por minuto) ──────────────
@@ -112,6 +113,8 @@ export async function POST(req: NextRequest) {
       result = await emailDespedida(data); break
     case 'eliminado_por_admin':
       result = await emailEliminadoPorAdmin(data); break
+    case 'cita_cancelada_auto':
+      result = await emailCitaCanceladaAuto(data); break
     default:
       return NextResponse.json({ error: 'Tipo de email no permitido' }, { status: 400 })
   }
