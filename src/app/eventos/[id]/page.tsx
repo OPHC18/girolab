@@ -16,6 +16,7 @@ export default function EventoPage() {
   const [inscrito, setInscrito] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [showAgenda, setShowAgenda] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -53,41 +54,26 @@ export default function EventoPage() {
 
     if (error || !reg) return
 
-    if (precioFinal === 0) {
-      // Evento gratuito: confirmar directamente
-      setInscrito(true)
-      setMensaje('¡Inscripción confirmada!')
-      const clientName = user.user_metadata?.nombre
-        ? `${user.user_metadata.nombre} ${user.user_metadata.apellidos || ''}`.trim()
-        : user.email?.split('@')[0] || 'Usuario'
-      const eventoFecha = new Date(evento.date + 'T00:00:00').toLocaleDateString('es-PE', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-      })
-      await dispararEmail('confirmacion_evento', {
-        clientName, clientEmail: user.email,
-        eventoTitulo: evento.title, eventoFecha,
-        eventoHora: evento.start_time?.slice(0, 5) || '',
-        eventoLugar: evento.location_address || evento.meeting_link || '',
-        modalidad: evento.modality, tipoEntrada: ticketSeleccionado.name,
-        cantidad: cantidadTickets, precioTotal: precioFinal,
-        registrationId: reg.id, eventoId: evento.id,
-      })
-    } else {
-      // Evento pagado: crear preferencia MP y redirigir
-      setMensaje('Redirigiendo a MercadoPago…')
-      const res = await fetch('/api/mp/create-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'event_reg', id: reg.id }),
-      })
-      const data = await res.json()
-      if (data.init_point) {
-        window.location.href = data.init_point
-      } else {
-        setMensaje('Error al iniciar el pago. Tu lugar está reservado — intenta desde el dashboard.')
-        setInscrito(true)
-      }
-    }
+    const clientName = user.user_metadata?.nombre
+      ? `${user.user_metadata.nombre} ${user.user_metadata.apellidos || ''}`.trim()
+      : user.email?.split('@')[0] || 'Usuario'
+    const eventoFecha = new Date(evento.date + 'T00:00:00').toLocaleDateString('es-PE', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    })
+
+    await dispararEmail('confirmacion_evento', {
+      clientName, clientEmail: user.email,
+      eventoTitulo: evento.title, eventoFecha,
+      eventoHora: evento.start_time?.slice(0, 5) || '',
+      eventoLugar: evento.location_address || evento.meeting_link || '',
+      modalidad: evento.modality, tipoEntrada: ticketSeleccionado.name,
+      cantidad: cantidadTickets, precioTotal: precioFinal,
+      registrationId: reg.id, eventoId: evento.id,
+    })
+
+    setInscrito(true)
+    setShowConfirmModal(true)
+    setMensaje(precioFinal === 0 ? '¡Inscripción confirmada!' : '¡Registro confirmado!')
   }
 
   const addToGoogleCalendar = () => {
@@ -200,14 +186,18 @@ export default function EventoPage() {
 
             {ticketSeleccionado && (
               <>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <input type="number" min={1} value={cantidadTickets}
-                    onChange={e => setCantidadTickets(parseInt(e.target.value) || 1)}
-                    placeholder="Cant."
-                    style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 12 }} />
+                {/* +/- stepper — mejor experiencia móvil */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, overflow: 'hidden' }}>
+                    <button onClick={() => setCantidadTickets(q => Math.max(1, q - 1))}
+                      style={{ width: 36, height: 36, border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>−</button>
+                    <span style={{ minWidth: 32, textAlign: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>{cantidadTickets}</span>
+                    <button onClick={() => setCantidadTickets(q => q + 1)}
+                      style={{ width: 36, height: 36, border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+                  </div>
                   <input value={codigoDescuento} onChange={e => setCodigoDescuento(e.target.value)}
                     placeholder="Código descuento"
-                    style={{ flex: 2, padding: '8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 12 }} />
+                    style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 12 }} />
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, color: 'white' }}>
@@ -216,9 +206,14 @@ export default function EventoPage() {
                   </div>
                 </div>
                 <button onClick={handleInscribirse}
-                  style={{ width: '100%', padding: '11px', borderRadius: 20, border: 'none', background: precioFinal === 0 ? '#4ade80' : '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
-                  {precioFinal === 0 ? '✅ Confirmar gratis' : `💳 Pagar $${precioFinal.toFixed(2)} USD`}
+                  style={{ width: '100%', padding: '11px', borderRadius: 20, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+                  {precioFinal === 0 ? '✅ Confirmar registro gratis' : `✅ Registrarme · $${precioFinal.toFixed(2)} USD`}
                 </button>
+                {precioFinal > 0 && (
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', textAlign: 'center', margin: '6px 0 0' }}>
+                    Coordinarás el pago directamente con el organizador.
+                  </p>
+                )}
               </>
             )}
           </>
@@ -338,6 +333,37 @@ export default function EventoPage() {
                     🔗 Compartir
                   </button>
                 </div>
+{/* Modal de confirmación de registro */}
+{showConfirmModal && (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+    onClick={() => setShowConfirmModal(false)}>
+    <div style={{ background: 'white', borderRadius: 20, maxWidth: 420, width: '100%', padding: '32px 28px', textAlign: 'center' }}
+      onClick={e => e.stopPropagation()}>
+      <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+      <h3 style={{ fontFamily: 'Raleway', color: '#421869', fontSize: 20, fontWeight: 800, margin: '0 0 10px' }}>
+        ¡Registro confirmado!
+      </h3>
+      <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>
+        Tu lugar en <strong>{evento?.title}</strong> está reservado.
+        {precioFinal > 0 && ' Contáctate con el organizador para coordinar el medio de pago.'}
+      </p>
+      <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>
+        Te enviamos un correo de confirmación.
+      </p>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={addToGoogleCalendar}
+          style={{ flex: 1, padding: '10px', borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+          📅 Agregar al calendario
+        </button>
+        <button onClick={() => setShowConfirmModal(false)}
+          style={{ flex: 1, padding: '10px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 {showAgenda && user && (
   <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     onClick={() => setShowAgenda(false)}>

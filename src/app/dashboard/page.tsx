@@ -3331,10 +3331,10 @@ const renderRoadmap = () => {
                     <div style={{ padding: '0 18px' }}>
                       {hitos.map((hito: any, idx: number) => (
                         <div key={hito.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: idx < hitos.length - 1 ? '0.5px solid #f5f5f5' : 'none' }}>
-                          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: hito.status === 'completado' ? '#1D9E75' : hito.status === 'en_progreso' ? '#EF9F27' : '#e0e0e0' }} />
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: hito.status === 'completado' ? '#1D9E75' : hito.status === 'en_progreso' ? '#EF9F27' : hito.status === 'incompleto' ? '#E24B4A' : '#e0e0e0' }} />
                           <span style={{ fontSize: 13, color: '#333', flex: 1 }}>{hito.nombre}</span>
-                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: hito.status === 'completado' ? '#E1F5EE' : '#f0f0f0', color: hito.status === 'completado' ? '#085041' : '#999', fontWeight: 600 }}>
-                            {hito.status === 'completado' ? 'Completado' : hito.status === 'en_progreso' ? 'En progreso' : 'Pendiente'}
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: hito.status === 'completado' ? '#E1F5EE' : hito.status === 'incompleto' ? '#FCEBEB' : '#f0f0f0', color: hito.status === 'completado' ? '#085041' : hito.status === 'incompleto' ? '#A32D2D' : '#999', fontWeight: 600 }}>
+                            {hito.status === 'completado' ? 'Completado' : hito.status === 'en_progreso' ? 'En progreso' : hito.status === 'incompleto' ? 'Incompleto' : 'Pendiente'}
                           </span>
                         </div>
                       ))}

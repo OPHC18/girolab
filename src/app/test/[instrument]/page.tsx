@@ -114,6 +114,7 @@ export default function TestPage() {
   const [anonNombre, setAnonNombre]     = useState('');
   const [anonEmail, setAnonEmail]       = useState('');
   const [isAnon, setIsAnon]             = useState(false);
+  const [authChecked, setAuthChecked]   = useState(false);
   // DISC acumula respuestas grupo a grupo
   const [discResponses, setDiscResponses] = useState<DISCGroupResponse[]>([]);
 
@@ -140,6 +141,7 @@ export default function TestPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) setIsAnon(true);
+      setAuthChecked(true);
     });
   }, []);
 
@@ -242,6 +244,7 @@ export default function TestPage() {
         <IntroScreen
           inst={inst}
           instruccion={INSTRUMENT_INSTRUCTIONS[instrumentId] || ''}
+          authChecked={authChecked}
           onStart={() => isAnon ? setPhase('datos') : setPhase('test')}
         />
       </PageShell>
@@ -483,7 +486,7 @@ function DISCStepperPage({
 // ─────────────────────────────────────────────────────────────
 // INTRO SCREEN
 // ─────────────────────────────────────────────────────────────
-function IntroScreen({ inst, instruccion, onStart }: { inst: any; instruccion: string; onStart: () => void }) {
+function IntroScreen({ inst, instruccion, authChecked, onStart }: { inst: any; instruccion: string; authChecked: boolean; onStart: () => void }) {
   return (
     <div style={intro.page}>
       <div style={intro.card}>
@@ -511,9 +514,9 @@ function IntroScreen({ inst, instruccion, onStart }: { inst: any; instruccion: s
           </div>
         </div>
 
-        <button style={{ ...intro.btn, background: '#421869' }} onClick={onStart}>
-          Comenzar
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <button style={{ ...intro.btn, background: authChecked ? '#421869' : '#9e9e9e', cursor: authChecked ? 'pointer' : 'wait' }} onClick={authChecked ? onStart : undefined}>
+          {authChecked ? 'Comenzar' : 'Cargando…'}
+          {authChecked && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
         </button>
         <p style={intro.disclaimer}>
           Validado científicamente · {inst.referencia}
