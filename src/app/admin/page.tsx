@@ -23,6 +23,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AdminTab>('metricas')
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // ── Datos ──────────────────────────────────────────────────────────────────
   const [metricas, setMetricas] = useState<any>(null)
@@ -851,7 +859,7 @@ const confirmarCambioPlan = async () => {
         ))}
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px 12px' : '32px' }}>
 
         {/* ═══ MÉTRICAS ═══ */}
         {activeTab === 'metricas' && (
@@ -1013,48 +1021,83 @@ const confirmarCambioPlan = async () => {
     </button>
   )}
 </div>
-              {loadings.personas ? <p style={{ padding: 20, color: '#999' }}>Cargando...</p> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8f9fa' }}>
-                      {['Nombre', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
-                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {personas
-  .filter(u =>
-    (!buscarPersona || `${u.nombre} ${u.apellidos}`.toLowerCase().includes(buscarPersona.toLowerCase()) || u.email?.toLowerCase().includes(buscarPersona.toLowerCase())) &&
-    (!filtroPersonaPais || u.pais === filtroPersonaPais) &&
-    (!filtroPersonaMotivo || (u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
-    (!filtroPersonaGenero || u.respuestas?.genero === filtroPersonaGenero)
-  )
-  .map((u, i) => ( 
-                        <tr key={u.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                          <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#421869' }}>{u.nombre || '—'} {u.apellidos || ''}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
-                            {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                          </td>
-                          <td style={{ padding: '10px 16px' }}>
-                            <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
-                              style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
-                              {u.id?.slice(0, 8)}...
-                            </button>
-                          </td>
-                          <td style={{ padding: '10px 16px' }}>
-                            <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
-                              style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
-                              Eliminar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+              {loadings.personas ? <p style={{ padding: 20, color: '#999' }}>Cargando...</p> : isMobile ? (
+                /* ── Vista cards en móvil ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {personas
+                    .filter(u =>
+                      (!buscarPersona || `${u.nombre} ${u.apellidos}`.toLowerCase().includes(buscarPersona.toLowerCase()) || u.email?.toLowerCase().includes(buscarPersona.toLowerCase())) &&
+                      (!filtroPersonaPais || u.pais === filtroPersonaPais) &&
+                      (!filtroPersonaMotivo || (u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
+                      (!filtroPersonaGenero || u.respuestas?.genero === filtroPersonaGenero)
+                    )
+                    .map(u => (
+                      <div key={u.id} style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: 12, padding: '14px 16px' }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#421869', marginBottom: 2 }}>{u.nombre || '—'} {u.apellidos || ''}</div>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{u.email}</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 10 }}>
+                          {u.pais && <span>{u.pais}</span>}
+                          {u.telefono && <span>{u.telefono}</span>}
+                          {u.created_at && <span>{new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
+                            style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
+                            {u.id?.slice(0, 8)}...
+                          </button>
+                          <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+                            style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 12, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                /* ── Vista tabla en desktop ── */
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                    <thead>
+                      <tr style={{ background: '#f8f9fa' }}>
+                        {['Nombre', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
+                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {personas
+                        .filter(u =>
+                          (!buscarPersona || `${u.nombre} ${u.apellidos}`.toLowerCase().includes(buscarPersona.toLowerCase()) || u.email?.toLowerCase().includes(buscarPersona.toLowerCase())) &&
+                          (!filtroPersonaPais || u.pais === filtroPersonaPais) &&
+                          (!filtroPersonaMotivo || (u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
+                          (!filtroPersonaGenero || u.respuestas?.genero === filtroPersonaGenero)
+                        )
+                        .map((u, i) => (
+                          <tr key={u.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                            <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#421869' }}>{u.nombre || '—'} {u.apellidos || ''}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
+                              {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                            </td>
+                            <td style={{ padding: '10px 16px' }}>
+                              <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
+                                style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
+                                {u.id?.slice(0, 8)}...
+                              </button>
+                            </td>
+                            <td style={{ padding: '10px 16px' }}>
+                              <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+                                style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
@@ -1135,52 +1178,87 @@ const confirmarCambioPlan = async () => {
       <div style={{ fontSize: 40, marginBottom: 8 }}>🏢</div>
       <p>Aún no hay usuarios con perfil de empresa registrados.</p>
     </div>
+  ) : isMobile ? (
+    /* ── Vista cards en móvil ── */
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
+      {empresas
+        .filter(u =>
+          (!buscarEmpresa || `${u.nombre} ${u.apellidos} ${u.empresa}`.toLowerCase().includes(buscarEmpresa.toLowerCase())) &&
+          (!filtroEmpresaPais || u.pais === filtroEmpresaPais) &&
+          (!filtroEmpresaArea || (u.areas || []).includes(filtroEmpresaArea)) &&
+          (!filtroEmpresaTamano || (u.tamano || []).includes(filtroEmpresaTamano))
+        )
+        .map(u => (
+          <div key={u.id} style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: 12, padding: '14px 16px' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#421869', marginBottom: 2 }}>{u.nombre || '—'} {u.apellidos || ''}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#1565c0', marginBottom: 2 }}>{u.empresa || '—'} {u.cargo ? `· ${u.cargo}` : ''}</div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{u.email}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 10 }}>
+              {u.pais && <span>{u.pais}</span>}
+              {u.telefono && <span>{u.telefono}</span>}
+              {u.created_at && <span>{new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
+                style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
+                {u.id?.slice(0, 8)}...
+              </button>
+              <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+                style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 12, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
   ) : (
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-      <thead>
-        <tr style={{ background: '#f8f9fa' }}>
-          {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
-            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-                  <tbody>
-                    {empresas
-  
-  .filter(u =>
-    (!buscarEmpresa || `${u.nombre} ${u.apellidos} ${u.empresa}`.toLowerCase().includes(buscarEmpresa.toLowerCase())) &&
-    (!filtroEmpresaPais || u.pais === filtroEmpresaPais) &&
-    (!filtroEmpresaArea || (u.areas || []).includes(filtroEmpresaArea)) &&
-    (!filtroEmpresaTamano || (u.tamano || []).includes(filtroEmpresaTamano))
-  )
-  .map((u, i) => (
-    <tr key={u.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-      <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#421869' }}>{u.nombre || '—'} {u.apellidos || ''}</td>
-      <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#1565c0' }}>{u.empresa || '—'}</td>
-      <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.cargo || '—'}</td>
-      <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
-      <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
-      <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
-      <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
-        {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-      </td>
-      <td style={{ padding: '10px 16px' }}>
-        <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
-          style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
-          {u.id?.slice(0, 8)}...
-        </button>
-      </td>
-      <td style={{ padding: '10px 16px' }}>
-        <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
-          style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
-          Eliminar
-        </button>
-      </td>
-    </tr>
-  ))}
-                  </tbody>
-                </table>
-              )}
+    /* ── Vista tabla en desktop ── */
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+        <thead>
+          <tr style={{ background: '#f8f9fa' }}>
+            {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
+              <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {empresas
+            .filter(u =>
+              (!buscarEmpresa || `${u.nombre} ${u.apellidos} ${u.empresa}`.toLowerCase().includes(buscarEmpresa.toLowerCase())) &&
+              (!filtroEmpresaPais || u.pais === filtroEmpresaPais) &&
+              (!filtroEmpresaArea || (u.areas || []).includes(filtroEmpresaArea)) &&
+              (!filtroEmpresaTamano || (u.tamano || []).includes(filtroEmpresaTamano))
+            )
+            .map((u, i) => (
+              <tr key={u.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#421869' }}>{u.nombre || '—'} {u.apellidos || ''}</td>
+                <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#1565c0' }}>{u.empresa || '—'}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.cargo || '—'}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.email}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.pais || '—'}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: '#666' }}>{u.telefono || '—'}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: '#999', whiteSpace: 'nowrap' as const }}>
+                  {u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                </td>
+                <td style={{ padding: '10px 16px' }}>
+                  <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
+                    style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
+                    {u.id?.slice(0, 8)}...
+                  </button>
+                </td>
+                <td style={{ padding: '10px 16px' }}>
+                  <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
+                    style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  )}
             </div>
           </div>
         )}

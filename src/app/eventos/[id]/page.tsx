@@ -186,14 +186,18 @@ export default function EventoPage() {
 
             {ticketSeleccionado && (
               <>
-                {/* +/- stepper — mejor experiencia móvil */}
+                {/* Selector de cantidad */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, overflow: 'hidden' }}>
-                    <button onClick={() => setCantidadTickets(q => Math.max(1, q - 1))}
-                      style={{ width: 36, height: 36, border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>−</button>
-                    <span style={{ minWidth: 32, textAlign: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>{cantidadTickets}</span>
-                    <button onClick={() => setCantidadTickets(q => q + 1)}
-                      style={{ width: 36, height: 36, border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, whiteSpace: 'nowrap' }}>Cantidad:</label>
+                    <select
+                      value={cantidadTickets}
+                      onChange={e => setCantidadTickets(Number(e.target.value))}
+                      style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', minWidth: 72 }}>
+                      {Array.from({ length: 100 }, (_, i) => i + 1).map(n => (
+                        <option key={n} value={n} style={{ background: '#421869', color: 'white' }}>{n}</option>
+                      ))}
+                    </select>
                   </div>
                   <input value={codigoDescuento} onChange={e => setCodigoDescuento(e.target.value)}
                     placeholder="Código descuento"

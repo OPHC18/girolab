@@ -6542,7 +6542,7 @@ const renderDestacados = () => (
     <div style={{ background: 'white', borderRadius: 20, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
 
       {/* HEADER */}
-      <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', padding: '28px 28px 20px', borderRadius: '20px 20px 0 0' }}>
+      <div style={{ background: 'linear-gradient(135deg,#421869,#995bd5)', padding: '20px 20px 16px', borderRadius: '20px 20px 0 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', background: selectedMenter.avatar_url ? 'white' : 'rgba(255,255,255,0.2)', border: '3px solid rgba(255,255,255,0.5)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {selectedMenter.avatar_url
@@ -6564,6 +6564,7 @@ const renderDestacados = () => (
             )}
           </div>
         </div>
+        <button onClick={() => setSelectedMenter(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
       </div>
 
       <div style={{ padding: 28 }}>
