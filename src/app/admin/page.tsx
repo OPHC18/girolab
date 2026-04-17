@@ -875,27 +875,25 @@ const confirmarCambioPlan = async () => {
               <KpiCard emoji="📝" label="Posts blog"      value={metricas?.totalBlogs}     color="#633806" onClick={() => setActiveTab('blog')} />
             </div>
 
-            {/* Gráfica citas por estado */}
-            {metricasCitas && (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
-                <ChartBox title="📅 Citas por estado" height={260}>
-                  <canvas ref={chartCitasRef} />
-                </ChartBox>
-                <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>📋 Desglose de citas</h4>
-                  {Object.entries(metricasCitas.porEstado).map(([estado, count]) => (
-                    <div key={estado} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <StatusBadge status={estado.toLowerCase().replace(/ /g, '_')} />
-                      <span style={{ fontSize: 16, fontWeight: 700, color: '#421869' }}>{count as number}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '2px solid #421869' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#421869' }}>Total</span>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: '#421869' }}>{metricasCitas.total}</span>
+            {/* Gráfica citas por estado — canvas always in DOM for stable Chart.js ref */}
+            <div style={{ display: metricasCitas ? 'grid' : 'none', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+              <ChartBox title="📅 Citas por estado" height={260}>
+                <canvas ref={chartCitasRef} />
+              </ChartBox>
+              <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>📋 Desglose de citas</h4>
+                {Object.entries(metricasCitas?.porEstado ?? {}).map(([estado, count]) => (
+                  <div key={estado} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <StatusBadge status={estado.toLowerCase().replace(/ /g, '_')} />
+                    <span style={{ fontSize: 16, fontWeight: 700, color: '#421869' }}>{count as number}</span>
                   </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '2px solid #421869' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#421869' }}>Total</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#421869' }}>{metricasCitas?.total ?? 0}</span>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* ── Solicitudes sin respuesta (pendiente > 24h) ── */}
             <div style={{ marginTop: 32 }}>
@@ -971,17 +969,15 @@ const confirmarCambioPlan = async () => {
               </div>
             )}
 
-            {/* Gráficas */}
-            {statsPersonas && (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
-                <ChartBox title="🌍 Distribución por país" height={200}>
-                  <canvas ref={chartPaisesPersonasRef} />
-                </ChartBox>
-                <ChartBox title="🎯 Motivos de consulta (por casos atendidos)" height={200}>
-                  <canvas ref={chartMotivosPersonasRef} />
-                </ChartBox>
-              </div>
-            )}
+            {/* Gráficas — canvas always in DOM */}
+            <div style={{ display: statsPersonas ? 'grid' : 'none', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
+              <ChartBox title="🌍 Distribución por país" height={200}>
+                <canvas ref={chartPaisesPersonasRef} />
+              </ChartBox>
+              <ChartBox title="🎯 Motivos de consulta (por casos atendidos)" height={200}>
+                <canvas ref={chartMotivosPersonasRef} />
+              </ChartBox>
+            </div>
 
             {/* Tabla */}
             <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -1136,7 +1132,18 @@ const confirmarCambioPlan = async () => {
                       <div style={{ fontWeight: 700, color: '#421869' }}>{u.nombre} {u.apellidos}</div>
                       <div style={{ color: '#555' }}>{u.email} · {u.role} · {u.confirmed ? 'Confirmado' : 'Sin confirmar email'}</div>
                       <div style={{ color: '#999', fontSize: 11 }}>Registro: {new Date(u.created_at).toLocaleDateString('es-PE')} · Último login: {u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString('es-PE') : 'Nunca'}</div>
-                      <div style={{ color: '#bbb', fontSize: 10, fontFamily: 'monospace' }}>{u.id}</div>
+                      <div style={{ color: '#bbb', fontSize: 10, fontFamily: 'monospace', marginBottom: 8 }}>{u.id}</div>
+                      <button
+                        onClick={async () => {
+                          const { error } = await supabase.auth.resetPasswordForEmail(u.email, {
+                            redirectTo: `${window.location.origin}/dashboard?reset=1`,
+                          })
+                          toast(error ? `Error: ${error.message}` : `Email de reset enviado a ${u.email}`)
+                        }}
+                        style={{ padding: '4px 14px', borderRadius: 20, background: '#421869', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
+                      >
+                        Enviar reset de contraseña
+                      </button>
                     </div>
                   ))}
                 </div>

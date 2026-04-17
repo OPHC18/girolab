@@ -19,13 +19,25 @@ export async function GET(req: NextRequest) {
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-  // Fetch up to 1000 users — returns full user_metadata including respuestas
-  const { data: { users }, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const [
+    { data: { users }, error },
+    { data: profiles },
+  ] = await Promise.all([
+    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    admin.from('user_profiles').select('user_id, respuestas'),
+  ])
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Build lookup from user_profiles.respuestas as fallback
+  const profilesMap: Record<string, any> = {}
+  ;(profiles || []).forEach((p: any) => {
+    if (p.respuestas) profilesMap[p.user_id] = p.respuestas
+  })
 
   const result = users.map(u => ({
     id: u.id,
-    respuestas: u.user_metadata?.respuestas || null,
+    respuestas: u.user_metadata?.respuestas || profilesMap[u.id] || null,
   }))
 
   return NextResponse.json({ users: result }, {
