@@ -589,8 +589,12 @@ export default function ResultadoPage() {
   const searchParams = useSearchParams();
   const router       = useRouter();
 
-  const rawId      = params?.instrument as string;
-  const instrumentId = rawId?.toUpperCase().replace(/-/g, '_');
+  const rawId        = params?.instrument as string;
+  const rawNormalized = rawId?.replace(/-/g, '_') ?? ''
+  const instrumentId  =
+    (INSTRUMENTS[rawNormalized as InstrumentId] || EMPRESA_INSTRUMENTS[rawNormalized as EmpresaInstrumentId])
+      ? rawNormalized
+      : rawNormalized.toUpperCase();
   const resultId   = searchParams?.get('r') || '';
   const token      = searchParams?.get('t') || '';
 
