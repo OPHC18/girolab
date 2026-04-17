@@ -29,6 +29,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
+  // Bake the deploy SHA into the client bundle for update detection
+  env: {
+    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`,
+  },
+
   // Turbopack (default en Next 16) — WASM soportado nativamente, sin config extra
   turbopack: {},
 
