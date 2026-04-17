@@ -1135,10 +1135,12 @@ const confirmarCambioPlan = async () => {
                       <div style={{ color: '#bbb', fontSize: 10, fontFamily: 'monospace', marginBottom: 8 }}>{u.id}</div>
                       <button
                         onClick={async () => {
-                          const { error } = await supabase.auth.resetPasswordForEmail(u.email, {
-                            redirectTo: `${window.location.origin}/dashboard?reset=1`,
+                          const res = await fetch('/api/auth/request-reset', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: u.email }),
                           })
-                          toast(error ? `Error: ${error.message}` : `Email de reset enviado a ${u.email}`)
+                          toast(res.ok ? `Email de reset enviado a ${u.email}` : 'Error al enviar el email')
                         }}
                         style={{ padding: '4px 14px', borderRadius: 20, background: '#421869', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
                       >

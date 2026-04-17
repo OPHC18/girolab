@@ -1229,10 +1229,13 @@ const handleGoogleAuth = async () => {
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', fontSize: 15 }}
                   onClick={async () => {
                     if (!loginEmail.trim()) { setLoginError('Ingresa tu correo para recuperar tu contraseña'); return }
-                    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
-                      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/dashboard`,
+                    const res = await fetch('/api/auth/request-reset', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: loginEmail.trim() }),
                     })
-                    if (error) { setLoginError(error.message) } else { setLoginError(''); alert('Te enviamos un correo para restablecer tu contraseña') }
+                    if (res.ok) { setLoginError(''); alert('Te enviamos un correo para restablecer tu contraseña') }
+                    else { const d = await res.json(); setLoginError(d.error || 'Error al enviar el correo') }
                   }}
                 >
                   ¿Olvidaste tu contraseña?
