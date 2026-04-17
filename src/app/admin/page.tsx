@@ -173,7 +173,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
   useEffect(() => {
     if (activeTab !== 'personas' || !statsPersonas) return
-    setTimeout(() => {
+    const id = requestAnimationFrame(() => {
       if (statsPersonas.paises?.length > 0)
         crearBarras(chartPaisesPersonasRef, 'paisesPersonas',
           statsPersonas.paises.slice(0,10).map((p: any) => p.pais),
@@ -184,72 +184,60 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
           statsPersonas.motivos.slice(0,8).map((m: any) => m.motivo),
           statsPersonas.motivos.slice(0,8).map((m: any) => m.count),
           ['#421869','#995bd5','#ffa719','#1D9E75','#1565c0','#e65100','#633806','#72243E'])
-    }, 100)
+    })
+    return () => cancelAnimationFrame(id)
   }, [statsPersonas, activeTab])
 
   useEffect(() => {
+    if (activeTab !== 'menters' || !statsMenters) return
+    const id = requestAnimationFrame(() => {
+      if (statsMenters.paises?.length > 0)
+        crearBarras(chartPaisesMentersRef, 'paisesMenters',
+          statsMenters.paises.slice(0, 10).map((p: any) => p.pais),
+          statsMenters.paises.slice(0, 10).map((p: any) => p.count),
+          '#6a1b9a')
+      if (statsMenters.especialidades?.length > 0)
+        crearDona(chartEspecialidadesRef, 'especialidades',
+          statsMenters.especialidades.slice(0, 8).map((e: any) => e.especialidad),
+          statsMenters.especialidades.slice(0, 8).map((e: any) => e.count),
+          ['#421869','#995bd5','#ffa719','#1D9E75','#1565c0','#e65100','#633806','#085041'])
+    })
+    return () => cancelAnimationFrame(id)
+  }, [statsMenters, activeTab])
+
+  useEffect(() => {
     if (activeTab !== 'empresas' || !statsEmpresas) return
-    setTimeout(() => {
+    const id = requestAnimationFrame(() => {
       if (statsEmpresas.paises?.length > 0)
         crearBarras(chartPaisesEmpresasRef, 'paisesEmpresas',
           statsEmpresas.paises.slice(0,10).map((p: any) => p.pais),
           statsEmpresas.paises.slice(0,10).map((p: any) => p.count),
           '#1565c0')
-    }, 100)
+      if (statsEmpresas.areas?.length > 0)
+        crearDona(chartAreasEmpresasRef, 'areasEmpresas',
+          statsEmpresas.areas.slice(0,8).map((a: any) => a.area),
+          statsEmpresas.areas.slice(0,8).map((a: any) => a.count),
+          ['#1565c0','#42a5f5','#ffa719','#421869','#1D9E75','#e65100','#633806','#085041'])
+      if (statsEmpresas.tamanos?.length > 0)
+        crearBarras(chartTamanoEmpresasRef, 'tamanoEmpresas',
+          statsEmpresas.tamanos.map((t: any) => t.tamano),
+          statsEmpresas.tamanos.map((t: any) => t.count),
+          '#085041')
+    })
+    return () => cancelAnimationFrame(id)
   }, [statsEmpresas, activeTab])
 
   useEffect(() => {
-  if (activeTab !== 'menters' || !statsMenters) return
- 
-  const timer = setTimeout(() => {
-    if (statsMenters.paises?.length > 0)
-      crearBarras(
-        chartPaisesMentersRef, 'paisesMenters',
-        statsMenters.paises.slice(0, 10).map((p: any) => p.pais),
-        statsMenters.paises.slice(0, 10).map((p: any) => p.count),
-        '#6a1b9a'
-      )
-    if (statsMenters.especialidades?.length > 0)
-      crearDona(
-        chartEspecialidadesRef, 'especialidades',
-        statsMenters.especialidades.slice(0, 8).map((e: any) => e.especialidad),
-        statsMenters.especialidades.slice(0, 8).map((e: any) => e.count),
-        ['#421869','#995bd5','#ffa719','#1D9E75','#1565c0','#e65100','#633806','#085041']
-      )
-  }, 150)
-  return () => clearTimeout(timer)
-}, [statsMenters]) 
-
-useEffect(() => {
-  if (activeTab !== 'empresas' || !statsEmpresas) return
-  setTimeout(() => {
-    if (statsEmpresas.paises?.length > 0)
-      crearBarras(chartPaisesEmpresasRef, 'paisesEmpresas',
-        statsEmpresas.paises.slice(0,10).map((p: any) => p.pais),
-        statsEmpresas.paises.slice(0,10).map((p: any) => p.count),
-        '#1565c0')
-    if (statsEmpresas.areas?.length > 0)
-      crearDona(chartAreasEmpresasRef, 'areasEmpresas',
-        statsEmpresas.areas.slice(0,8).map((a: any) => a.area),
-        statsEmpresas.areas.slice(0,8).map((a: any) => a.count),
-        ['#1565c0','#42a5f5','#ffa719','#421869','#1D9E75','#e65100','#633806','#085041'])
-    if (statsEmpresas.tamanos?.length > 0)
-      crearBarras(chartTamanoEmpresasRef, 'tamanoEmpresas',
-        statsEmpresas.tamanos.map((t: any) => t.tamano),
-        statsEmpresas.tamanos.map((t: any) => t.count),
-        '#085041')
-  }, 150)
-}, [statsEmpresas])
-
-  useEffect(() => {
     if (activeTab !== 'metricas' || !metricasCitas) return
-    setTimeout(() => {
+    // rAF ensures canvas is painted before Chart.js tries to access it
+    const id = requestAnimationFrame(() => {
       if (metricasCitas.porEstado)
         crearDona(chartCitasRef, 'citasEstado',
           Object.keys(metricasCitas.porEstado),
           Object.values(metricasCitas.porEstado) as number[],
           ['#1D9E75','#421869','#ffa719','#c62828','#666','#6a1b9a'])
-    }, 100)
+    })
+    return () => cancelAnimationFrame(id)
   }, [metricasCitas, activeTab])
 
   // ── Loaders ────────────────────────────────────────────────────────────────
@@ -317,13 +305,10 @@ useEffect(() => {
     .order('created_at', { ascending: false })
     .limit(200)
 
-  // Fetch respuestas from user_profiles (not always exposed in the view)
-  const { data: perfilesData } = await supabase
-    .from('user_profiles')
-    .select('user_id, respuestas')
-
+  // Fetch respuestas from auth.user_metadata via admin API
+  const metaRes = await fetch('/api/admin/users-metadata').then(r => r.json()).catch(() => ({ users: [] }))
   const perfilesMap: Record<string, any> = {}
-  ;(perfilesData || []).forEach((p: any) => { perfilesMap[p.user_id] = p.respuestas })
+  ;(metaRes.users || []).forEach((p: any) => { if (p.respuestas) perfilesMap[p.id] = p.respuestas })
 
   const soloPersonas = (usersData || [])
     .filter((u: any) => !u.role || u.role === 'persona')
