@@ -1315,6 +1315,26 @@ const cargarRutaEmpresas = async () => {
       }
       setLoading(false)
 
+      // Vincular resultado de test anónimo al usuario recién registrado
+      const pendingTestToken = typeof window !== 'undefined' && localStorage.getItem('pendingTestToken')
+      if (pendingTestToken) {
+        localStorage.removeItem('pendingTestToken')
+        try {
+          const { data: session } = await supabase
+            .from('assessment_sessions')
+            .select('id')
+            .eq('session_token', pendingTestToken)
+            .single()
+          if (session?.id) {
+            await supabase
+              .from('assessment_results')
+              .update({ persona_id: u.id })
+              .eq('session_id', session.id)
+              .is('persona_id', null)
+          }
+        } catch { /* non-critical */ }
+      }
+
       // Welcome email pendiente (registro con email — diferido hasta tener sesión activa)
       const pendingRaw = typeof window !== 'undefined' && localStorage.getItem('pendingWelcomeEmail')
       if (pendingRaw) {

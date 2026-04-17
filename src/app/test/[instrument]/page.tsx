@@ -173,7 +173,10 @@ export default function TestPage() {
     if (!anonNombre.trim() || !anonEmail.trim()) return;
     if (sessionToken) {
       await supabase.from('assessment_sessions')
-        .update({ metadata: { nombre: anonNombre.trim(), email: anonEmail.trim() } })
+        .update({
+          persona_nombre: anonNombre.trim(),
+          persona_email:  anonEmail.trim(),
+        })
         .eq('session_token', sessionToken);
     }
     setPhase('test');

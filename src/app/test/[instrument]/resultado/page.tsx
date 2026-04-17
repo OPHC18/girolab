@@ -650,6 +650,8 @@ export default function ResultadoPage() {
   };
 
   const handleRegister = () => {
+    // Persist token so dashboard can link this result after registration
+    if (token) localStorage.setItem('pendingTestToken', token)
     const returnUrl = `/test/${rawId}/resultado?r=${resultId}&t=${token}`;
     router.push(`/?registro=1&returnUrl=${encodeURIComponent(returnUrl)}`);
   };
