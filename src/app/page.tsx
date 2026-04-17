@@ -323,6 +323,7 @@ const toggleOpcion = (opcion: string) => {
         cumpleanos: form.cumpleanos,
         empresa:    form.empresa || null,
         cargo:      form.cargo   || null,
+        respuestas: respuestas,
       })
     }
     // Email de bienvenida Día 1 — diferido hasta después de confirmar email

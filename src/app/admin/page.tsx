@@ -314,9 +314,21 @@ useEffect(() => {
     .order('created_at', { ascending: false })
     .limit(200)
 
-  const soloPersonas = (usersData || []).filter((u: any) =>
-    !u.role || u.role === 'persona'
-  )
+  // Fetch respuestas from user_profiles (not always exposed in the view)
+  const { data: perfilesData } = await supabase
+    .from('user_profiles')
+    .select('user_id, respuestas')
+
+  const perfilesMap: Record<string, any> = {}
+  ;(perfilesData || []).forEach((p: any) => { perfilesMap[p.user_id] = p.respuestas })
+
+  const soloPersonas = (usersData || [])
+    .filter((u: any) => !u.role || u.role === 'persona')
+    .map((u: any) => ({
+      ...u,
+      respuestas: u.respuestas || perfilesMap[u.id] || {},
+    }))
+
   setPersonas(soloPersonas)
 
   // Stats de países
@@ -1028,7 +1040,7 @@ const confirmarCambioPlan = async () => {
                     .filter(u =>
                       (!buscarPersona || `${u.nombre} ${u.apellidos}`.toLowerCase().includes(buscarPersona.toLowerCase()) || u.email?.toLowerCase().includes(buscarPersona.toLowerCase())) &&
                       (!filtroPersonaPais || u.pais === filtroPersonaPais) &&
-                      (!filtroPersonaMotivo || (u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
+                      (!filtroPersonaMotivo || (u.respuestas?.motivo || u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
                       (!filtroPersonaGenero || u.respuestas?.genero === filtroPersonaGenero)
                     )
                     .map(u => (
@@ -1069,7 +1081,7 @@ const confirmarCambioPlan = async () => {
                         .filter(u =>
                           (!buscarPersona || `${u.nombre} ${u.apellidos}`.toLowerCase().includes(buscarPersona.toLowerCase()) || u.email?.toLowerCase().includes(buscarPersona.toLowerCase())) &&
                           (!filtroPersonaPais || u.pais === filtroPersonaPais) &&
-                          (!filtroPersonaMotivo || (u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
+                          (!filtroPersonaMotivo || (u.respuestas?.motivo || u.respuestas?.motivos || u.respuestas?.casos || []).includes(filtroPersonaMotivo)) &&
                           (!filtroPersonaGenero || u.respuestas?.genero === filtroPersonaGenero)
                         )
                         .map((u, i) => (
