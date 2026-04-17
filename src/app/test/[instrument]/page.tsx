@@ -106,7 +106,12 @@ export default function TestPage() {
   const router       = useRouter();
 
   const rawId        = params?.instrument as string;
-  const instrumentId = rawId?.toUpperCase().replace(/-/g, '_');
+  // Try ID preserving case first (ASRS_v1_1 has lowercase 'v'), fallback to uppercase
+  const rawNormalized = rawId?.replace(/-/g, '_') ?? ''
+  const instrumentId  =
+    (INSTRUMENTS[rawNormalized as InstrumentId] || EMPRESA_INSTRUMENTS[rawNormalized as EmpresaInstrumentId])
+      ? rawNormalized
+      : rawNormalized.toUpperCase();
   const token        = searchParams?.get('t') || '';
 
   const [phase, setPhase]               = useState<'intro' | 'datos' | 'test' | 'submitting'>('intro');
