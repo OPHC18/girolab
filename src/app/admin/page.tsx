@@ -71,6 +71,9 @@ const [filtroEmpresaTamano, setFiltroEmpresaTamano] = useState('')
   const [buscarPersona, setBuscarPersona] = useState('')
   const [buscarEmpresa, setBuscarEmpresa] = useState('')
   const [buscarMenter, setBuscarMenter] = useState('')
+  const [authSearch, setAuthSearch] = useState('')
+  const [authResults, setAuthResults] = useState<any[]>([])
+  const [authSearching, setAuthSearching] = useState(false)
 
   // ── Forms ──────────────────────────────────────────────────────────────────
   const [fraseForm, setFraseForm] = useState({ frase: '', autor: '' })
@@ -1110,6 +1113,51 @@ const confirmarCambioPlan = async () => {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+
+            {/* Buscador de emergencia en auth.users */}
+            <div style={{ marginTop: 24, background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <p style={{ fontFamily: 'Raleway', fontWeight: 700, color: '#421869', margin: '0 0 12px', fontSize: 14 }}>
+                Buscar usuario por correo (incluye registros sin confirmar)
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input
+                  placeholder="correo@ejemplo.com"
+                  value={authSearch}
+                  onChange={e => setAuthSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') {
+                    setAuthSearching(true)
+                    fetch(`/api/admin/search-user?email=${encodeURIComponent(authSearch)}`)
+                      .then(r => r.json()).then(d => { setAuthResults(d.users || []); setAuthSearching(false) })
+                  }}}
+                  style={{ flex: 1, padding: '8px 14px', borderRadius: 20, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans' }}
+                />
+                <button
+                  onClick={() => {
+                    setAuthSearching(true)
+                    fetch(`/api/admin/search-user?email=${encodeURIComponent(authSearch)}`)
+                      .then(r => r.json()).then(d => { setAuthResults(d.users || []); setAuthSearching(false) })
+                  }}
+                  style={{ padding: '8px 18px', borderRadius: 20, background: '#421869', color: 'white', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
+                >
+                  {authSearching ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
+              {authResults.length > 0 && (
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {authResults.map(u => (
+                    <div key={u.id} style={{ padding: '10px 14px', borderRadius: 10, background: '#f8f4ff', border: '1px solid #ddd', fontSize: 13 }}>
+                      <div style={{ fontWeight: 700, color: '#421869' }}>{u.nombre} {u.apellidos}</div>
+                      <div style={{ color: '#555' }}>{u.email} · {u.role} · {u.confirmed ? 'Confirmado' : 'Sin confirmar email'}</div>
+                      <div style={{ color: '#999', fontSize: 11 }}>Registro: {new Date(u.created_at).toLocaleDateString('es-PE')} · Último login: {u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString('es-PE') : 'Nunca'}</div>
+                      <div style={{ color: '#bbb', fontSize: 10, fontFamily: 'monospace' }}>{u.id}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {authResults.length === 0 && authSearch && !authSearching && (
+                <p style={{ color: '#999', fontSize: 13, marginTop: 10 }}>No se encontró ningún usuario con ese correo.</p>
               )}
             </div>
           </div>
