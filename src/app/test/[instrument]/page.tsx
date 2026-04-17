@@ -177,12 +177,12 @@ export default function TestPage() {
   const handleDatosConfirm = async () => {
     if (!anonNombre.trim() || !anonEmail.trim()) return;
     if (sessionToken) {
-      await supabase.from('assessment_sessions')
-        .update({
-          persona_nombre: anonNombre.trim(),
-          persona_email:  anonEmail.trim(),
-        })
-        .eq('session_token', sessionToken);
+      // Use API route — direct update is blocked by RLS for anonymous users
+      await fetch('/api/assessment/update-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: sessionToken, nombre: anonNombre.trim(), email: anonEmail.trim() }),
+      });
     }
     setPhase('test');
   };
