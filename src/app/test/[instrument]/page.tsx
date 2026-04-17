@@ -220,6 +220,39 @@ export default function TestPage() {
     });
 
     if (data?.result_id) {
+      // Notify menter if this test was initiated from a menter's link
+      try {
+        const { data: session } = await supabase
+          .from('assessment_sessions')
+          .select('menter_id, persona_nombre, persona_email')
+          .eq('session_token', sessionToken)
+          .single()
+        if (session?.menter_id) {
+          const { data: menterProfile } = await supabase
+            .from('menter_public_profiles')
+            .select('nombre')
+            .eq('id', session.menter_id)
+            .single()
+          if (menterProfile) {
+            await fetch('/api/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tipo: 'resultado_test_menter',
+                data: {
+                  menter_id: session.menter_id,
+                  menterNombre: (menterProfile as any).nombre,
+                  personaNombre: session.persona_nombre || 'Un usuario',
+                  personaEmail: session.persona_email || '',
+                  instrumentoNombre: inst.nombre,
+                  resultadoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`,
+                },
+              }),
+            })
+          }
+        }
+      } catch { /* Non-critical — proceed to result page */ }
+
       router.push(`/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`);
     }
   };

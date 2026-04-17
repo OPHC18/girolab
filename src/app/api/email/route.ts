@@ -18,6 +18,7 @@ import {
   emailDespedida,
   emailEliminadoPorAdmin,
   emailCitaCanceladaAuto,
+  emailResultadoTestMenter,
 } from '@/lib/email'
 
 // ── Rate limiting en memoria (10 emails por usuario por minuto) ──────────────
@@ -42,9 +43,19 @@ export async function POST(req: NextRequest) {
   const internalSecret = req.headers.get('x-internal-secret')
   const isInternal = internalSecret && internalSecret === process.env.INTERNAL_API_SECRET
 
+  const body = await req.json()
+  const { tipo, data } = body
+
+  if (!tipo || !data || typeof tipo !== 'string') {
+    return NextResponse.json({ error: 'Faltan tipo y data' }, { status: 400 })
+  }
+
+  // resultado_test_menter can be sent from public (unauthenticated) test pages
+  const isPublicAllowed = tipo === 'resultado_test_menter'
+
   let userId = 'internal'
 
-  if (!isInternal) {
+  if (!isInternal && !isPublicAllowed) {
     const { createServerClient } = await import('@supabase/ssr')
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
@@ -61,19 +72,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Rate limiting por usuario/IP
-  const rateLimitKey = isInternal
-    ? 'internal'
+  const rateLimitKey = isInternal || isPublicAllowed
+    ? `public:${req.headers.get('x-forwarded-for') || 'local'}`
     : `${userId}:${req.headers.get('x-forwarded-for') || 'local'}`
 
   if (!checkRateLimit(rateLimitKey)) {
     return NextResponse.json({ error: 'Demasiadas solicitudes. Intenta más tarde.' }, { status: 429 })
-  }
-
-  const body = await req.json()
-  const { tipo, data } = body
-
-  if (!tipo || !data || typeof tipo !== 'string') {
-    return NextResponse.json({ error: 'Faltan tipo y data' }, { status: 400 })
   }
 
   let result
@@ -115,6 +119,16 @@ export async function POST(req: NextRequest) {
       result = await emailEliminadoPorAdmin(data); break
     case 'cita_cancelada_auto':
       result = await emailCitaCanceladaAuto(data); break
+    case 'resultado_test_menter': {
+      // Look up menter email via service role
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (!serviceKey) return NextResponse.json({ error: 'No service key' }, { status: 500 })
+      const { createClient: createAdmin } = await import('@supabase/supabase-js')
+      const adminClient = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+      const { data: { user: menterUser } } = await adminClient.auth.admin.getUserById(data.menter_id)
+      if (!menterUser?.email) return NextResponse.json({ error: 'Menter no encontrado' }, { status: 404 })
+      result = await emailResultadoTestMenter({ ...data, menterEmail: menterUser.email }); break
+    }
     default:
       return NextResponse.json({ error: 'Tipo de email no permitido' }, { status: 400 })
   }

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/app/lib/supabase'
 
 interface Props {
@@ -21,7 +21,6 @@ export default function AgendaModalPublico({ menter, user, onClose, onBooked }: 
   const [bookingMsg, setBookingMsg] = useState<string | null>(null)
   const [showPagoModal, setShowPagoModal] = useState(false)
 
-  const dateInputRef = useRef<HTMLInputElement>(null)
   const today = new Date().toISOString().split('T')[0]
   const tienePrecio = Number(menter.precio_sesion) > 0
   const whatsappUrl = menter.enlaces?.whatsapp || null
@@ -180,32 +179,13 @@ export default function AgendaModalPublico({ menter, user, onClose, onBooked }: 
           <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
             Selecciona el día que quieres tu sesión con <strong>{menter.nombre}</strong>.
           </p>
-          {/* Input nativo oculto — lo dispara el botón visible */}
           <input
-            ref={dateInputRef}
             type="date"
             min={today}
             value={fecha}
             onChange={e => handleFechaChange(e.target.value)}
-            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
+            style={{ width: '100%', padding: '14px 16px', border: '2px solid #995bd5', borderRadius: 12, background: 'white', fontSize: 15, color: fecha ? '#2d2926' : '#999', boxSizing: 'border-box', outline: 'none', cursor: 'pointer' }}
           />
-          {/* Botón visible que abre el date picker nativo */}
-          <button
-            type="button"
-            onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.click()}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '16px', border: '2px solid #995bd5', borderRadius: 12, background: 'white', cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box' as const }}
-          >
-            <svg viewBox="0 0 24 24" style={{ width: 22, height: 22, fill: '#995bd5', flexShrink: 0 }}>
-              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-            </svg>
-            <span style={{ color: fecha ? '#2d2926' : '#999', fontSize: 15, fontWeight: fecha ? 600 : 400 }}>
-              {fecha ? (() => {
-                const [y, mo, d] = fecha.split('-')
-                const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-                return `${parseInt(d)} de ${meses[parseInt(mo)-1]} de ${y}`
-              })() : 'Toca para elegir una fecha'}
-            </span>
-          </button>
         </div>
       )}
 

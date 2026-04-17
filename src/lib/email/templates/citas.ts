@@ -239,3 +239,32 @@ export async function emailCitaCanceladaAuto(data: {
     htmlContent: html,
   })
 }
+
+// ── Resultado de test → Menter ───────────────────────────────────────────────
+export async function emailResultadoTestMenter(data: {
+  menterEmail: string
+  menterNombre: string
+  personaNombre: string
+  personaEmail: string
+  instrumentoNombre: string
+  resultadoUrl: string
+}) {
+  const html = emailLayout(`
+    ${h1('Un usuario completó un test')}
+    ${p(`<strong>${data.personaNombre}</strong> completó el test <em>${data.instrumentoNombre}</em> a través de tu enlace.`)}
+    ${infoTable(
+      infoRow('Usuario', data.personaNombre) +
+      (data.personaEmail ? infoRow('Correo', data.personaEmail) : '') +
+      infoRow('Instrumento', data.instrumentoNombre)
+    )}
+    ${btn('Ver resultado', data.resultadoUrl)}
+    ${divider()}
+    ${p('Puedes ver el resultado completo y contactar al usuario desde tu dashboard.')}
+  `, `${data.personaNombre} completó ${data.instrumentoNombre}`)
+
+  return sendEmail({
+    to:      [{ email: data.menterEmail, name: data.menterNombre }],
+    subject: `${data.personaNombre} completó el test ${data.instrumentoNombre}`,
+    htmlContent: html,
+  })
+}

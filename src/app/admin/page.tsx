@@ -808,7 +808,7 @@ const confirmarCambioPlan = async () => {
   )
 
   const MenterCharts = (
-  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 28 }}>
     <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
       <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>🌍 Países de Menters</h4>
       <div style={{ position: 'relative', height: 220 }}>
@@ -877,7 +877,7 @@ const confirmarCambioPlan = async () => {
 
             {/* Gráfica citas por estado */}
             {metricasCitas && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
                 <ChartBox title="📅 Citas por estado" height={260}>
                   <canvas ref={chartCitasRef} />
                 </ChartBox>
@@ -973,7 +973,7 @@ const confirmarCambioPlan = async () => {
 
             {/* Gráficas */}
             {statsPersonas && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
                 <ChartBox title="🌍 Distribución por país" height={200}>
                   <canvas ref={chartPaisesPersonasRef} />
                 </ChartBox>
@@ -1116,7 +1116,7 @@ const confirmarCambioPlan = async () => {
   </>
 )}
                 {/* Charts siempre en DOM */}
-<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+<div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
   <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
     <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>🌍 Distribución por país</h4>
     <div style={{ position: 'relative', height: 200 }}><canvas ref={chartPaisesEmpresasRef} /></div>
@@ -1279,7 +1279,7 @@ const confirmarCambioPlan = async () => {
     )}
 
     {/* Charts — SIEMPRE en el DOM cuando el tab está activo, nunca condicionales */}
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
       <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
         <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>🌍 Países de Menters</h4>
         <div style={{ position: 'relative', height: 220 }}>

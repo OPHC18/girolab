@@ -6066,18 +6066,14 @@ const renderBlogPersona = () => {
         {allTags.length > 0 && (
           <>
             <div style={{ width: 1, background: '#ddd', margin: '0 4px' }} />
-            <button onClick={() => { setBlogFiltroTag(null); setBlogPersonaLimit(6) }} style={{
-              padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              background: !blogFiltroTag ? '#f3e8ff' : '#f0f0f0',
-              color: !blogFiltroTag ? '#6d28d9' : '#333', fontWeight: 600, fontSize: 13
-            }}>Todos</button>
-            {allTags.map(tag => (
-  <button key={tag} onClick={() => { setBlogFiltroTag(blogFiltroTag === tag ? null : tag); setBlogPersonaLimit(6) }} style={{
-    padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-    background: blogFiltroTag === tag ? '#f3e8ff' : '#f0f0f0',
-    color: blogFiltroTag === tag ? '#6d28d9' : '#333', fontWeight: 600, fontSize: 13
-  }}>{tag}</button>
-))}
+            <select
+              value={blogFiltroTag || ''}
+              onChange={e => { setBlogFiltroTag(e.target.value || null); setBlogPersonaLimit(6) }}
+              style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #ddd', background: blogFiltroTag ? '#f3e8ff' : '#f0f0f0', color: blogFiltroTag ? '#6d28d9' : '#333', fontWeight: 600, fontSize: 13, cursor: 'pointer', outline: 'none' }}
+            >
+              <option value="">Todos los temas</option>
+              {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+            </select>
           </>
         )}
       </div>

@@ -355,7 +355,11 @@ const toggleOpcion = (opcion: string) => {
   })
   setLoginLoading(false)
   if (error) {
-    setLoginError('Correo o contraseña incorrectos')
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      setLoginError('Revisa tu correo y confirma tu cuenta antes de iniciar sesión')
+    } else {
+      setLoginError('Correo o contraseña incorrectos')
+    }
   } else {
     console.log('Login exitoso ✓')
     const params = new URLSearchParams(window.location.search)
@@ -429,7 +433,7 @@ const handleGoogleAuth = async () => {
             .nav-desktop-btns { display: none; }
             .nav-hamburger { display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; width: 42px; height: 42px; cursor: pointer; flex-direction: column; gap: 5px; padding: 8px; }
             .nav-hamburger span { display: block; width: 22px; height: 2px; background: white; border-radius: 2px; transition: all 0.2s; }
-            .nav-mobile-menu { position: fixed; top: 64px; left: 0; right: 0; background: rgba(13,6,24,0.96); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; z-index: 99; }
+            .nav-mobile-menu { position: fixed; top: 64px; left: 0; right: 0; background: rgba(13,6,24,0.96); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 20px 24px 16px; display: flex; flex-direction: column; gap: 10px; z-index: 99; }
           }
         `}</style>
 
@@ -466,6 +470,9 @@ const handleGoogleAuth = async () => {
             <span />
           </button>
         </nav>
+
+        {/* Scroll fade overlay — fades content scrolling under the sticky header */}
+        <div style={{ position: 'fixed', top: 64, left: 0, right: 0, height: 40, background: 'linear-gradient(to bottom, rgba(13,6,24,0.85) 0%, transparent 100%)', zIndex: 90, pointerEvents: 'none' }} />
 
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
@@ -515,12 +522,11 @@ const handleGoogleAuth = async () => {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24 }}>
               {[
-                { icon: '🎯', title: 'Diagnóstico profundo', desc: 'Evaluaciones que identifican tus bloqueos reales antes de cualquier intervención.' },
-                { icon: '🤝', title: 'Menters especializados', desc: 'Profesionales verificados con metodología, experiencia y presencia humana.' },
-                { icon: '📈', title: 'Progreso medible', desc: 'Roadmaps personalizados para que puedas ver tu avance con claridad.' },
-              ].map(({ icon, title, desc }) => (
+                { title: 'Diagnóstico profundo', desc: 'Evaluaciones que identifican tus bloqueos reales antes de cualquier intervención.' },
+                { title: 'Menters especializados', desc: 'Profesionales verificados con metodología, experiencia y presencia humana.' },
+                { title: 'Progreso medible', desc: 'Roadmaps personalizados para que puedas ver tu avance con claridad.' },
+              ].map(({ title, desc }) => (
                 <div key={title} className="land-card" style={{ background: 'rgba(66,24,105,0.2)', border: '1px solid rgba(66,24,105,0.5)', borderRadius: 20, padding: '32px 24px', textAlign: 'left' }}>
-                  <div style={{ fontSize: 36, marginBottom: 16 }}>{icon}</div>
                   <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 18, margin: '0 0 10px', color: 'white' }}>{title}</h3>
                   <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, margin: 0 }}>{desc}</p>
                 </div>
@@ -543,7 +549,7 @@ const handleGoogleAuth = async () => {
                 { num: '03', title: 'Transforma tu realidad', desc: 'Trabaja con tu Menter, mide tu avance y alcanza los resultados que buscas.' },
               ].map(({ num, title, desc }) => (
                 <div key={num} style={{ textAlign: 'left' }}>
-                  <div style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 52, color: 'rgba(255,167,25,0.2)', lineHeight: 1, marginBottom: 16 }}>{num}</div>
+                  <div style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 52, color: '#ffa719', lineHeight: 1, marginBottom: 16 }}>{num}</div>
                   <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 18, margin: '0 0 10px' }}>{title}</h3>
                   <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, margin: 0 }}>{desc}</p>
                 </div>
@@ -578,17 +584,14 @@ const handleGoogleAuth = async () => {
               {/* Cards derecha */}
               <div style={{ flex: '1 1 320px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[
-                  { icon: '🌐', title: 'Perfil profesional propio', desc: 'Tu espacio en Giro Lab con bio, especialidades, precios y disponibilidad.' },
-                  { icon: '📅', title: 'Agenda y pagos integrados', desc: 'Tus clientes reservan y pagan directamente desde tu perfil.' },
-                  { icon: '🧪', title: 'Tests psicométricos', desc: 'Evalúa a tus clientes con instrumentos validados antes y durante el proceso.' },
-                  { icon: '📣', title: 'Visibilidad en comunidad', desc: 'Publica eventos, talleres y artículos para que te encuentren antes de buscarte.' },
-                ].map(({ icon, title, desc }) => (
-                  <div key={title} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,167,25,0.14)', borderRadius: 16, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{icon}</span>
-                    <div>
-                      <p style={{ margin: '0 0 4px', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 14, color: 'white' }}>{title}</p>
-                      <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.55 }}>{desc}</p>
-                    </div>
+                  { title: 'Perfil profesional propio', desc: 'Tu espacio en Giro Lab con bio, especialidades, precios y disponibilidad.' },
+                  { title: 'Agenda y pagos integrados', desc: 'Tus clientes reservan y pagan directamente desde tu perfil.' },
+                  { title: 'Tests psicométricos', desc: 'Evalúa a tus clientes con instrumentos validados antes y durante el proceso.' },
+                  { title: 'Visibilidad en comunidad', desc: 'Publica eventos, talleres y artículos para que te encuentren antes de buscarte.' },
+                ].map(({ title, desc }) => (
+                  <div key={title} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,167,25,0.14)', borderRadius: 16, padding: '18px 20px' }}>
+                    <p style={{ margin: '0 0 4px', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 14, color: 'white' }}>{title}</p>
+                    <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.55 }}>{desc}</p>
                   </div>
                 ))}
               </div>
@@ -607,8 +610,8 @@ const handleGoogleAuth = async () => {
             {/* Tab selector — solo Personas y Empresas */}
             <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.06)', borderRadius: 50, padding: 4, gap: 4, marginBottom: 48 }}>
               {([
-                { key: 'persona', label: '🧠 Personas', color: '#7c3aed' },
-                { key: 'empresa', label: '🏢 Empresas', color: '#0891b2' },
+                { key: 'persona', label: 'Personas', color: '#7c3aed' },
+                { key: 'empresa', label: 'Empresas', color: '#0891b2' },
               ] as { key: 'persona' | 'empresa', label: string, color: string }[]).map(({ key, label, color }) => (
                 <button key={key} onClick={() => setActiveProfile(key)}
                   style={{ padding: '10px 22px', borderRadius: 50, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'Raleway, sans-serif', transition: 'all 0.25s',
@@ -1221,7 +1224,16 @@ const handleGoogleAuth = async () => {
                 </button>
               </div>
               <div style={{ textAlign: 'center', marginTop: -4 }}>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', fontSize: 15 }}>
+                <button
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', fontSize: 15 }}
+                  onClick={async () => {
+                    if (!loginEmail.trim()) { setLoginError('Ingresa tu correo para recuperar tu contraseña'); return }
+                    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
+                      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/dashboard`,
+                    })
+                    if (error) { setLoginError(error.message) } else { setLoginError(''); alert('Te enviamos un correo para restablecer tu contraseña') }
+                  }}
+                >
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
