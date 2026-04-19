@@ -139,6 +139,7 @@ supabase.from('events')
         created_at:     new Date().toISOString(),
       }
       setFeed(prev => [newPost, ...prev])
+      setMisPosts(prev => [newPost, ...prev])
       setPostForm({ contenido: '', media_url: '', tipo: 'texto' })
       if (esResena) setResenaDraft(null)
       setToastMsg('Publicado en la comunidad')
