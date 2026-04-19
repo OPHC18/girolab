@@ -62,6 +62,18 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
       setMeta(session.user.user_metadata)
       setLoading(false)
       cargarFeed(0)
+      // Cargar mis posts al inicio para que siempre estén disponibles
+      const userMeta = session.user.user_metadata
+      fetch('/api/community/my-posts', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      }).then(r => r.ok ? r.json() : { posts: [] })
+        .then(({ posts }) => setMisPosts((posts || []).map((p: any) => ({
+          ...p,
+          nombre: userMeta?.nombre, apellidos: userMeta?.apellidos,
+          avatar_url: userMeta?.avatar_url || null, role: userMeta?.role,
+          likes_count: p.likes_count || 0, comments_count: p.comments_count || 0, user_liked: false,
+        }))))
+        .catch(() => {})
       // Cargar sidebar data
 supabase.rpc('get_featured_menters').then(({ data }) => setFeaturedMenters(data || []))
 
@@ -124,10 +136,11 @@ supabase.from('events')
       payload.estrellas          = resenaDraft!.estrellas
       payload.resena_comentario  = resenaDraft!.comentario || null
     }
-    const { error } = await supabase.from('community_posts').insert(payload)
+    const { data: insertedRows, error } = await supabase.from('community_posts').insert(payload).select()
     if (!error) {
+      const realId = insertedRows?.[0]?.id || crypto.randomUUID()
       const newPost = {
-        id: crypto.randomUUID(),
+        id: realId,
         ...payload,
         nombre:         meta?.nombre,
         apellidos:      meta?.apellidos,
@@ -145,7 +158,7 @@ supabase.from('events')
       setToastMsg('Publicado en la comunidad')
       setTimeout(() => setToastMsg(null), 3000)
     } else {
-      setAlertMsg('Error al publicar. Verifica que las columnas existen en la tabla.')
+      setAlertMsg(`Error al publicar: ${error.message}`)
     }
     setPosting(false)
   }
@@ -308,8 +321,7 @@ supabase.from('events')
               { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
               { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => {
                   setHeaderMenuOpen(false)
-                  if (!misPostsMode) { cargarMisPosts(); setMisPostsMode(true) }
-                  else setMisPostsMode(false)
+                  setMisPostsMode(m => !m)
                 }
               },
               { label: 'Editar perfil',         action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
