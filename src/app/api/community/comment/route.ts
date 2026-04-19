@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+
+const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
+
+async function getUser(req: NextRequest) {
+  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const auth = req.headers.get('Authorization')
+  if (auth?.startsWith('Bearer ')) {
+    const { data } = await anon.auth.getUser(auth.slice(7))
+    if (data.user) return data.user
+  }
+  return null
+}
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  )
-  const { data: { user } } = await supabaseUser.auth.getUser()
+  const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { post_id, contenido } = await req.json()
@@ -28,30 +32,29 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const cookieStore = await cookies()
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  )
-  const { data: { user } } = await supabaseUser.auth.getUser()
+  const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { comment_id } = await req.json()
-  if (!comment_id) return NextResponse.json({ error: 'Falta comment_id' }, { status: 400 })
-
+  const { comment_id, post_id } = await req.json()
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-  // Verify ownership OR admin
-  const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
   const isAdmin = ADMIN_EMAILS.includes(user.email || '')
 
-  if (!isAdmin) {
-    const { data: comment } = await admin.from('community_comments').select('user_id').eq('id', comment_id).single()
-    if (!comment || comment.user_id !== user.id) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (comment_id) {
+    if (!isAdmin) {
+      const { data } = await admin.from('community_comments').select('user_id').eq('id', comment_id).single()
+      if (!data || data.user_id !== user.id) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+    const { error } = await admin.from('community_comments').delete().eq('id', comment_id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  } else if (post_id) {
+    if (!isAdmin) {
+      const { data } = await admin.from('community_posts').select('user_id').eq('id', post_id).single()
+      if (!data || data.user_id !== user.id) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+    await admin.from('community_comments').delete().eq('post_id', post_id)
+    const { error } = await admin.from('community_posts').delete().eq('id', post_id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const { error } = await admin.from('community_comments').delete().eq('id', comment_id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

@@ -5,7 +5,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { UserIcon, BuildingOffice2Icon, SparklesIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/app/lib/supabase'
 import { dispararEmail } from '@/lib/email/send'
-// recaptcha removed
+import { getRecaptchaToken, verifyRecaptcha } from '@/lib/recaptcha'
 
 type Role = 'persona' | 'empresa' | 'menter' | null
 type Step = 'landing' | 'roles' | 'diagnostico' | 'cuenta' | 'login' | 'confirmar_email'
@@ -176,7 +176,7 @@ const [loginLoading, setLoginLoading] = useState(false)
   const [mostrarModalOtros, setMostrarModalOtros] = useState(false)
   const [especialidadesOtros, setEspecialidadesOtros] = useState('')
   const [experienciaTexto, setExperienciaTexto] = useState('')
-  const [form, setForm] = useState({ nombre: '', apellidos: '', empresa: '', cargo: '', email: '', pais: '', password: '' })
+  const [form, setForm] = useState({ nombre: '', apellidos: '', empresa: '', cargo: '', email: '', password: '' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [mostrarPassword, setMostrarPassword] = useState(false)
 
@@ -278,7 +278,6 @@ const toggleOpcion = (opcion: string) => {
     }
     if (!form.email.trim()) errors.email = 'Correo electrónico es requerido'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.emailFormat = 'Correo electrónico no válido'
-    if (!form.pais) errors.pais = 'País es requerido'
     if (!form.password.trim()) errors.password = 'Contraseña es requerida'
     else if (form.password.length < 8) errors.passwordLength = 'La contraseña debe tener al menos 8 caracteres'
     setFormErrors(errors)
@@ -293,7 +292,6 @@ const toggleOpcion = (opcion: string) => {
         apellidos: form.apellidos,
         empresa: form.empresa || null,
         cargo: form.cargo || null,
-        pais: form.pais,
         role: role,
         respuestas: respuestas,
         experiencia: experienciaTexto || null,
@@ -1085,19 +1083,6 @@ const handleGoogleAuth = async () => {
                 {(formErrors.email || formErrors.emailFormat) && (
                   <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.email || formErrors.emailFormat}</p>
                 )}
-              </div>
-
-              {/* Fila: País */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <select
-                  value={form.pais}
-                  onChange={e => { setForm({ ...form, pais: e.target.value }); setFormErrors({ ...formErrors, pais: '' }) }}
-                  style={{ ...selectStyle, border: formErrors.pais ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
-                >
-                  <option value="">País *</option>
-                  {paises.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                {formErrors.pais && <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.pais}</p>}
               </div>
 
               {/* Contraseña */}

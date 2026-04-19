@@ -314,7 +314,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     .filter((u: any) => !u.role || u.role === 'persona')
     .map((u: any) => ({
       ...u,
-      respuestas: { ...(perfilesMap[u.id] || {}), ...(u.respuestas || {}) },
+      respuestas: { ...(u.respuestas || {}), ...(perfilesMap[u.id] || {}) },
     }))
 
   setPersonas(soloPersonas)

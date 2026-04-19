@@ -171,12 +171,18 @@ supabase.from('events')
     setComentarios(prev => ({ ...prev, [postId]: data || [] }))
   }
 
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ''
+  }
+
   const comentar = async (postId: string) => {
     const texto = comentarioInput[postId]?.trim()
     if (!texto) return
+    const token = await getToken()
     const res = await fetch('/api/community/comment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ post_id: postId, contenido: texto }),
     })
     if (!res.ok) { setToastMsg('Error al enviar comentario'); setTimeout(() => setToastMsg(null), 3000); return }
@@ -195,9 +201,10 @@ supabase.from('events')
 
   const eliminarComentario = async (postId: string, comentarioId: string) => {
     if (!confirm('¿Eliminar este comentario?')) return
+    const token = await getToken()
     await fetch('/api/community/comment', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ comment_id: comentarioId }),
     })
     setComentarios(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== comentarioId) }))
@@ -225,7 +232,12 @@ supabase.from('events')
 
   const eliminarPost = async (postId: string) => {
     if (!confirm('¿Eliminar esta publicación?')) return
-    await supabase.from('community_posts').delete().eq('id', postId)
+    const token = await getToken()
+    await fetch('/api/community/comment', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ post_id: postId }),
+    })
     setFeed(prev => prev.filter(p => p.id !== postId))
     setMisPosts(prev => prev.filter(p => p.id !== postId))
   }
@@ -597,7 +609,7 @@ supabase.from('events')
                         <span style={{ fontSize: 11, color: '#999' }}>{fmtFecha(post.created_at)}</span>
                       </div>
                     </div>
-                    {post.user_id === user?.id && (
+                    {(post.user_id === user?.id || ADMIN_EMAILS.includes(user?.email || '')) && (
                       <button onClick={() => eliminarPost(post.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 16, padding: '4px 8px' }}>🗑️</button>
                     )}
                   </div>
