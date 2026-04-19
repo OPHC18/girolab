@@ -36,7 +36,11 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
   const [comentarios, setComentarios] = useState<Record<string, any[]>>({})
   const [comentarioInput, setComentarioInput] = useState<Record<string, string>>({})
   const [postExpandido, setPostExpandido] = useState<string | null>(null)
+  const [misPostsMode, setMisPostsMode] = useState(false)
+  const [misPosts, setMisPosts] = useState<any[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
 
   useEffect(() => {
     const raw = sessionStorage.getItem('comunidad_draft_resena')
@@ -170,20 +174,53 @@ supabase.from('events')
   const comentar = async (postId: string) => {
     const texto = comentarioInput[postId]?.trim()
     if (!texto) return
-    const { data } = await supabase.from('community_comments')
+    const { error } = await supabase.from('community_comments')
       .insert({ post_id: postId, user_id: user!.id, contenido: texto })
-      .select('*, user:user_id(raw_user_meta_data)').single()
-    if (data) {
-      setComentarios(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }))
-      setComentarioInput(prev => ({ ...prev, [postId]: '' }))
-      setFeed(prev => prev.map(p => p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p))
+    if (error) { setToastMsg('Error al enviar comentario'); setTimeout(() => setToastMsg(null), 3000); return }
+    const nuevoComentario = {
+      id: crypto.randomUUID(),
+      post_id: postId,
+      user_id: user!.id,
+      contenido: texto,
+      created_at: new Date().toISOString(),
+      user: { raw_user_meta_data: meta },
     }
+    setComentarios(prev => ({ ...prev, [postId]: [...(prev[postId] || []), nuevoComentario] }))
+    setComentarioInput(prev => ({ ...prev, [postId]: '' }))
+    setFeed(prev => prev.map(p => p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p))
+  }
+
+  const eliminarComentario = async (postId: string, comentarioId: string) => {
+    if (!confirm('¿Eliminar este comentario?')) return
+    await supabase.from('community_comments').delete().eq('id', comentarioId)
+    setComentarios(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== comentarioId) }))
+    setFeed(prev => prev.map(p => p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count - 1) } : p))
+  }
+
+  const cargarMisPosts = async () => {
+    if (!user) return
+    const { data } = await supabase.from('community_posts')
+      .select('*, nombre:user_id(raw_user_meta_data)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setMisPosts((data || []).map((p: any) => ({
+      ...p,
+      nombre: meta?.nombre,
+      apellidos: meta?.apellidos,
+      avatar_url: meta?.avatar_url || null,
+      role: meta?.role,
+      likes_count: p.likes_count || 0,
+      comments_count: p.comments_count || 0,
+      user_liked: false,
+    })))
   }
 
   const eliminarPost = async (postId: string) => {
     if (!confirm('¿Eliminar esta publicación?')) return
     await supabase.from('community_posts').delete().eq('id', postId)
     setFeed(prev => prev.filter(p => p.id !== postId))
+    setMisPosts(prev => prev.filter(p => p.id !== postId))
   }
 
   const fmtFecha = (f: string) => {
@@ -248,6 +285,12 @@ supabase.from('events')
           <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
             {[
               { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
+              { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => {
+                  setHeaderMenuOpen(false)
+                  if (!misPostsMode) { cargarMisPosts(); setMisPostsMode(true) }
+                  else setMisPostsMode(false)
+                }
+              },
               { label: 'Editar perfil',         action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
               { label: 'Resultados de Tests',   action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
               { label: 'Cerrar sesión',         action: async () => { await supabase.auth.signOut(); router.push('/') } },
@@ -495,18 +538,31 @@ supabase.from('events')
             </div>
           </div>
 
+          {/* Banner Mis Posts */}
+          {misPostsMode && (
+            <div style={{ background: '#421869', borderRadius: 12, padding: '12px 20px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'white', fontWeight: 700, fontSize: 14, fontFamily: 'Raleway, sans-serif' }}>Mis publicaciones ({misPosts.length})</span>
+              <button onClick={() => setMisPostsMode(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Ver todo el feed</button>
+            </div>
+          )}
+
           {/* Feed */}
           {feedLoading && feed.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>Cargando feed...</div>
-          ) : feed.length === 0 ? (
+          ) : (!misPostsMode && feed.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>🌱</div>
               <h3 style={{ fontFamily: 'Raleway', color: '#421869' }}>¡Sé el primero en publicar!</h3>
               <p style={{ color: '#666' }}>La comunidad Giro Lab está comenzando. Comparte algo que inspire.</p>
             </div>
+          ) : (misPostsMode && misPosts.length === 0) ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+              <p>Aún no tienes publicaciones.</p>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {feed.map(post => (
+              {(misPostsMode ? misPosts : feed).map(post => (
                 <div key={post.id} style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
                   {/* Header del post */}
@@ -616,7 +672,7 @@ supabase.from('events')
                   {postExpandido === post.id && (
                     <div style={{ padding: '12px 20px', borderTop: '0.5px solid #f0f0f0', background: '#fafafa' }}>
                       {(comentarios[post.id] || []).map((c: any) => (
-                        <div key={c.id} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                        <div key={c.id} style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'flex-start' }}>
                           <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#421869', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                             {c.user?.raw_user_meta_data?.nombre?.[0]?.toUpperCase() || '?'}
                           </div>
@@ -624,6 +680,11 @@ supabase.from('events')
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#421869', marginBottom: 2 }}>{c.user?.raw_user_meta_data?.nombre} {c.user?.raw_user_meta_data?.apellidos}</div>
                             <div style={{ fontSize: 13, color: '#333' }}>{c.contenido}</div>
                           </div>
+                          {(c.user_id === user?.id || ADMIN_EMAILS.includes(user?.email || '')) && (
+                            <button onClick={() => eliminarComentario(post.id, c.id)}
+                              style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 13, padding: '4px', flexShrink: 0 }}
+                              title="Eliminar comentario">🗑️</button>
+                          )}
                         </div>
                       ))}
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
