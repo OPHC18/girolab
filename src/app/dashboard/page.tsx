@@ -7006,7 +7006,18 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
             <div style={{ position: 'relative', background: 'white', borderRadius: 24, padding: '32px 32px 28px', maxWidth: 440, width: '100%', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', pointerEvents: 'auto', animation: 'tourSlideUp 0.35s cubic-bezier(.22,.68,0,1.2) both' }}>
               {/* close */}
               <button onClick={closeTour} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
-              
+
+              {/* icon */}
+              <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)', fontSize: 32 }}>
+                  {step.icon}
+                </div>
+                {step.tab && (
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#995bd5', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'DM Sans, sans-serif' }}>
+                    Sección: {step.title}
+                  </div>
+                )}
+              </div>
               {/* title */}
               <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 20, fontWeight: 900, margin: '0 0 10px', textAlign: 'center' }}>{step.title}</h3>
               {/* desc */}

@@ -5,7 +5,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { UserIcon, BuildingOffice2Icon, SparklesIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/app/lib/supabase'
 import { dispararEmail } from '@/lib/email/send'
-import { getRecaptchaToken, verifyRecaptcha } from '@/lib/recaptcha'
+// recaptcha removed
 
 type Role = 'persona' | 'empresa' | 'menter' | null
 type Step = 'landing' | 'roles' | 'diagnostico' | 'cuenta' | 'login' | 'confirmar_email'
@@ -176,8 +176,7 @@ const [loginLoading, setLoginLoading] = useState(false)
   const [mostrarModalOtros, setMostrarModalOtros] = useState(false)
   const [especialidadesOtros, setEspecialidadesOtros] = useState('')
   const [experienciaTexto, setExperienciaTexto] = useState('')
-  const [form, setForm] = useState({ nombre: '', apellidos: '', empresa: '', cargo: '', email: '', telefono: '', pais: '', password: '', cumpleanos: '' })
-  const [focusCumpleanos, setFocusCumpleanos] = useState(false)
+  const [form, setForm] = useState({ nombre: '', apellidos: '', empresa: '', cargo: '', email: '', pais: '', password: '' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [mostrarPassword, setMostrarPassword] = useState(false)
 
@@ -279,20 +278,11 @@ const toggleOpcion = (opcion: string) => {
     }
     if (!form.email.trim()) errors.email = 'Correo electrónico es requerido'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.emailFormat = 'Correo electrónico no válido'
-    if (!form.telefono.trim()) errors.telefono = 'Teléfono es requerido'
     if (!form.pais) errors.pais = 'País es requerido'
-    if (!form.cumpleanos) errors.cumpleanos = 'Fecha de nacimiento es requerida'
     if (!form.password.trim()) errors.password = 'Contraseña es requerida'
     else if (form.password.length < 8) errors.passwordLength = 'La contraseña debe tener al menos 8 caracteres'
     setFormErrors(errors)
     if (Object.keys(errors).length === 0) {
-  // Verificar reCAPTCHA v3 (solo bloquea si el token existe y el score es bajo)
-  // reCAPTCHA v3 — no bloqueante mientras el dominio no esté registrado en Google Console
-  const token = await getRecaptchaToken('registro')
-  if (token) {
-    const ok = await verifyRecaptcha(token, 'registro')
-    if (!ok) console.warn('[recaptcha] verificación fallida en registro — se continúa igual')
-  }
   const { data, error } = await supabase.auth.signUp({
     email: form.email,
     password: form.password,
@@ -303,7 +293,6 @@ const toggleOpcion = (opcion: string) => {
         apellidos: form.apellidos,
         empresa: form.empresa || null,
         cargo: form.cargo || null,
-        telefono: form.telefono,
         pais: form.pais,
         role: role,
         respuestas: respuestas,
@@ -318,9 +307,7 @@ const toggleOpcion = (opcion: string) => {
     if (data.user) {
       await supabase.from('user_profiles').insert({
         user_id:    data.user.id,
-        telefono:   form.telefono,
         pais:       form.pais,
-        cumpleanos: form.cumpleanos,
         empresa:    form.empresa || null,
         cargo:      form.cargo   || null,
         respuestas: respuestas,
@@ -600,74 +587,147 @@ const handleGoogleAuth = async () => {
           </div>
         </section>
 
-        {/* PARA QUIÉN — TABS POR PERFIL */}
-        <section style={{ padding: '100px 24px', background: '#0d0618' }}>
+        {/* ¿QUÉ ES UN MENTER? */}
+        <section style={{ padding: '80px 24px', background: '#0d0618' }}>
           <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center' }}>
-            <p style={{ color: '#ffa719', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>Para quién es</p>
-            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 900, margin: '0 0 40px' }}>
-              Diseñado para cada perfil
+            <p style={{ color: '#ffa719', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>Nuevo concepto</p>
+            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 900, margin: '0 0 20px', color: 'white' }}>
+              ¿Qué es un <span style={{ color: '#ffa719' }}>Menter</span>?
             </h2>
-
-            {/* Tab selector — solo Personas y Empresas */}
-            <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.06)', borderRadius: 50, padding: 4, gap: 4, marginBottom: 48 }}>
-              {([
-                { key: 'persona', label: 'Personas', color: '#7c3aed' },
-                { key: 'empresa', label: 'Empresas', color: '#0891b2' },
-              ] as { key: 'persona' | 'empresa', label: string, color: string }[]).map(({ key, label, color }) => (
-                <button key={key} onClick={() => setActiveProfile(key)}
-                  style={{ padding: '10px 22px', borderRadius: 50, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'Raleway, sans-serif', transition: 'all 0.25s',
-                    background: activeProfile === key ? color : 'transparent',
-                    color: activeProfile === key ? 'white' : 'rgba(255,255,255,0.55)',
-                  }}>
-                  {label}
-                </button>
+            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', lineHeight: 1.8, maxWidth: 680, margin: '0 auto 40px' }}>
+              Un <strong style={{ color: 'white' }}>Menter</strong> es un profesional del bienestar —psicólogo, coach, terapeuta, guía holístico— que combina la profundidad de un mentor con la especialización en salud mental. No solo te escucha: te acompaña con metodología, herramientas y un plan real hacia tu mejor versión.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, maxWidth: 800, margin: '0 auto 40px' }}>
+              {[
+                { icon: '🧠', label: 'Psicólogos clínicos', desc: 'Con enfoque terapéutico y herramientas validadas.' },
+                { icon: '🎯', label: 'Coaches certificados', desc: 'Orientados a resultados, objetivos y liderazgo.' },
+                { icon: '🌿', label: 'Terapeutas holísticos', desc: 'Mindfulness, Gestalt, constelaciones y más.' },
+                { icon: '💡', label: 'Guías de desarrollo', desc: 'Neurociencia, nutrición, propósito y hábitos.' },
+              ].map(({ icon, label, desc }) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,167,25,0.14)', borderRadius: 16, padding: '20px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>{icon}</div>
+                  <p style={{ margin: '0 0 6px', fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 14, color: 'white' }}>{label}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{desc}</p>
+                </div>
               ))}
             </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={irARegistro} style={{ padding: '12px 28px', borderRadius: 30, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                Encuentra tu Menter →
+              </button>
+              <button onClick={() => setMenterModal(true)} style={{ padding: '12px 28px', borderRadius: 30, border: '1px solid rgba(255,167,25,0.4)', background: 'transparent', color: '#ffa719', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                Quiero ser Menter
+              </button>
+            </div>
+          </div>
+        </section>
 
-            {/* Contenido del tab activo */}
-            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: '40px 40px', textAlign: 'left', maxWidth: 640, margin: '0 auto' }}>
-              {activeProfile === 'persona' && (
-                <div>
-                  <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 22, color: 'white', margin: '0 0 24px' }}>Para Personas</h3>
-                  {[
-                    { icon: '🌐', text: 'Acceso gratuito al directorio de Menters especializados en salud mental.' },
-                    { icon: '🧪', text: 'Tests psicométricos validados para descubrir rasgos de personalidad y bienestar.' },
-                    { icon: '🗺️', text: 'Roadmap personal para el seguimiento de tus objetivos con tu Menter.' },
-                    { icon: '🤝', text: 'Comunidad gratuita de soporte emocional.' },
-                    { icon: '🎟️', text: 'Accede a eventos, talleres y webinars de bienestar.' },
-                  ].map(({ icon, text }, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 18 }}>
-                      <span style={{ fontSize: 20, marginTop: 1 }}>{icon}</span>
-                      <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.75)', lineHeight: 1.65 }}>{text}</p>
-                    </div>
-                  ))}
-                  <button onClick={irARegistro} style={{ marginTop: 16, padding: '12px 28px', borderRadius: 30, border: 'none', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
-                    Quiero un Menter →
-                  </button>
-                </div>
-              )}
-
-              {activeProfile === 'empresa' && (
-                <div>
-                  <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 22, color: 'white', margin: '0 0 24px' }}>Para Empresas</h3>
-                  {[
-                    { icon: '🌐', text: 'Acceso gratuito al directorio de Menters especializados en salud mental organizacional.' },
-                    { icon: '🧪', text: 'Tests psicométricos para descubrir rasgos de personalidad de tus colaboradores.' },
-                    { icon: '🗺️', text: 'Roadmap de objetivos de equipo e individuales con seguimiento en tiempo real.' },
-                    { icon: '🎟️', text: 'Eventos, blogs y recursos de bienestar corporativo.' },
-                  ].map(({ icon, text }, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 18 }}>
-                      <span style={{ fontSize: 20, marginTop: 1 }}>{icon}</span>
-                      <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.75)', lineHeight: 1.65 }}>{text}</p>
-                    </div>
-                  ))}
-                  <button onClick={irARegistro} style={{ marginTop: 16, padding: '12px 28px', borderRadius: 30, border: 'none', background: '#0891b2', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
-                    Para mi empresa →
-                  </button>
-                </div>
-              )}
+        {/* PARA QUIÉN — 3 PERFILES */}
+        <section style={{ padding: '100px 24px', background: 'linear-gradient(180deg, #0d0618 0%, #12082a 100%)' }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: 60 }}>
+              <p style={{ color: '#ffa719', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>Para quién es Giro Lab</p>
+              <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 900, margin: 0, color: 'white' }}>
+                Cada perfil tiene su <span style={{ color: '#ffa719' }}>solución exacta</span>
+              </h2>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+
+              {/* PERSONAS */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(124,58,237,0.04) 100%)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 24, padding: '36px 32px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(124,58,237,0.15)', borderRadius: 30, padding: '6px 14px', marginBottom: 20, alignSelf: 'flex-start' }}>
+                  <span style={{ fontSize: 16 }}>👤</span>
+                  <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 12, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Personas</span>
+                </div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 22, color: 'white', margin: '0 0 12px', lineHeight: 1.3 }}>
+                  Encuentra al Menter que realmente necesitas
+                </h3>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, margin: '0 0 24px', fontStyle: 'italic' }}>
+                  "Quiero crecer personalmente pero no sé cómo elegir a alguien de confianza a quien no conozco."
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28, flex: 1 }}>
+                  {[
+                    { icon: '🌐', text: 'Elige tu Menter en cualquier parte del mundo — filtra por especialidad, precio e idioma.' },
+                    { icon: '⭐', text: 'Conoce a cada Menter por su presentación real: bio, valoraciones de clientes, blogs y eventos.' },
+                    { icon: '🧪', text: 'Tests psicométricos validados para que llegues a tu sesión con autoconocimiento.' },
+                    { icon: '🗺️', text: 'Roadmap personal: sigue tu progreso sesión a sesión con objetivos medibles.' },
+                    { icon: '🤝', text: 'Comunidad de bienestar y eventos a los que puedes unirte gratis.' },
+                  ].map(({ icon, text }, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 16, marginTop: 2, flexShrink: 0 }}>{icon}</span>
+                      <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>{text}</p>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={irARegistro} style={{ padding: '13px 24px', borderRadius: 30, border: 'none', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', width: '100%' }}>
+                  Quiero un Menter →
+                </button>
+              </div>
+
+              {/* EMPRESAS */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(8,145,178,0.12) 0%, rgba(8,145,178,0.04) 100%)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 24, padding: '36px 32px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(8,145,178,0.15)', borderRadius: 30, padding: '6px 14px', marginBottom: 20, alignSelf: 'flex-start' }}>
+                  <span style={{ fontSize: 16 }}>🏢</span>
+                  <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 12, color: '#67e8f9', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Empresas</span>
+                </div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 22, color: 'white', margin: '0 0 12px', lineHeight: 1.3 }}>
+                  Autonomía total en el bienestar de tu equipo
+                </h3>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, margin: '0 0 24px', fontStyle: 'italic' }}>
+                  "Necesito evaluar a mis colaboradores, hacer seguimiento real de su progreso y tomar decisiones con datos."
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28, flex: 1 }}>
+                  {[
+                    { icon: '🧪', text: 'Aplica tests psicométricos a tus colaboradores y visualiza los resultados como administrador.' },
+                    { icon: '📊', text: 'Dashboard con KPIs de bienestar, resultados por área y evolución temporal del equipo.' },
+                    { icon: '🎯', text: 'Define objetivos organizacionales, asigna Menters y mide el impacto en cada persona.' },
+                    { icon: '🌐', text: 'Accede al directorio de Menters especializados en bienestar organizacional.' },
+                    { icon: '🗺️', text: 'Roadmaps de equipo: hitos, logros y decisiones documentadas en un solo lugar.' },
+                  ].map(({ icon, text }, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 16, marginTop: 2, flexShrink: 0 }}>{icon}</span>
+                      <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>{text}</p>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={irARegistro} style={{ padding: '13px 24px', borderRadius: 30, border: 'none', background: '#0891b2', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', width: '100%' }}>
+                  Para mi empresa →
+                </button>
+              </div>
+
+              {/* MENTERS */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(255,167,25,0.12) 0%, rgba(255,167,25,0.04) 100%)', border: '1px solid rgba(255,167,25,0.3)', borderRadius: 24, padding: '36px 32px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,167,25,0.15)', borderRadius: 30, padding: '6px 14px', marginBottom: 20, alignSelf: 'flex-start' }}>
+                  <span style={{ fontSize: 16 }}>⭐</span>
+                  <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 12, color: '#ffa719', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Menters</span>
+                </div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 22, color: 'white', margin: '0 0 12px', lineHeight: 1.3 }}>
+                  Tu comunidad cautiva, lista para trabajar contigo
+                </h3>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, margin: '0 0 24px', fontStyle: 'italic' }}>
+                  "Invierto en redes sociales dispersas pero no consigo clientes constantes que paguen por mis servicios."
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28, flex: 1 }}>
+                  {[
+                    { icon: '🎯', text: 'Público objetivo y cautivo: personas que ya buscan exactamente lo que tú ofreces.' },
+                    { icon: '💰', text: 'Agenda inteligente + pasarela de pagos: cobra sesiones, talleres y eventos sin fricción.' },
+                    { icon: '📈', text: 'Crece sin pauta: tu perfil, blogs y eventos te posicionan orgánicamente dentro de la plataforma.' },
+                    { icon: '🧪', text: 'Evalúa a tus clientes con tests validados antes, durante y después del proceso.' },
+                    { icon: '🗺️', text: 'Diseña roadmaps personalizados y demuestra el impacto real de tu trabajo.' },
+                  ].map(({ icon, text }, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 16, marginTop: 2, flexShrink: 0 }}>{icon}</span>
+                      <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>{text}</p>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setMenterModal(true)} style={{ padding: '13px 24px', borderRadius: 30, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', width: '100%' }}>
+                  Quiero ser Menter →
+                </button>
+              </div>
+
+            </div>
           </div>
         </section>
 
@@ -1013,57 +1073,31 @@ const handleGoogleAuth = async () => {
                 </div>
               )}
 
-              {/* Fila 3: Correo y Teléfono */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <input
-                    placeholder="Correo electrónico *"
-                    type="email"
-                    value={form.email}
-                    onChange={e => { setForm({ ...form, email: e.target.value }); setFormErrors({ ...formErrors, email: '', emailFormat: '' }) }}
-                    style={{ ...inputStyle, border: (formErrors.email || formErrors.emailFormat) ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
-                  />
-                  {(formErrors.email || formErrors.emailFormat) && (
-                    <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.email || formErrors.emailFormat}</p>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <input
-                    placeholder="Teléfono (ej: +51 987 654 321) *"
-                    type="tel"
-                    value={form.telefono}
-                    onChange={e => { setForm({ ...form, telefono: e.target.value }); setFormErrors({ ...formErrors, telefono: '' }) }}
-                    style={{ ...inputStyle, border: formErrors.telefono ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
-                  />
-                  {formErrors.telefono && <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.telefono}</p>}
-                </div>
+              {/* Fila 3: Correo */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <input
+                  placeholder="Correo electrónico *"
+                  type="email"
+                  value={form.email}
+                  onChange={e => { setForm({ ...form, email: e.target.value }); setFormErrors({ ...formErrors, email: '', emailFormat: '' }) }}
+                  style={{ ...inputStyle, border: (formErrors.email || formErrors.emailFormat) ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
+                />
+                {(formErrors.email || formErrors.emailFormat) && (
+                  <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.email || formErrors.emailFormat}</p>
+                )}
               </div>
 
-              {/* Fila: País + Fecha de nacimiento */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <select
-                    value={form.pais}
-                    onChange={e => { setForm({ ...form, pais: e.target.value }); setFormErrors({ ...formErrors, pais: '' }) }}
-                    style={{ ...selectStyle, border: formErrors.pais ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
-                  >
-                    <option value="">País *</option>
-                    {paises.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  {formErrors.pais && <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.pais}</p>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <input
-                    type={form.cumpleanos || focusCumpleanos ? 'date' : 'text'}
-                    placeholder="Nacimiento (dd/mm/aaaa) *"
-                    value={form.cumpleanos}
-                    onFocus={() => setFocusCumpleanos(true)}
-                    onBlur={() => setFocusCumpleanos(false)}
-                    onChange={e => { setForm({ ...form, cumpleanos: e.target.value }); setFormErrors({ ...formErrors, cumpleanos: '' }) }}
-                    style={{ ...inputStyle, border: formErrors.cumpleanos ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
-                  />
-                  {formErrors.cumpleanos && <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.cumpleanos}</p>}
-                </div>
+              {/* Fila: País */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <select
+                  value={form.pais}
+                  onChange={e => { setForm({ ...form, pais: e.target.value }); setFormErrors({ ...formErrors, pais: '' }) }}
+                  style={{ ...selectStyle, border: formErrors.pais ? '1px solid #ff6b6b' : '1px solid rgba(255,255,255,0.2)' }}
+                >
+                  <option value="">País *</option>
+                  {paises.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                {formErrors.pais && <p style={{ color: '#ff9999', fontSize: 12, paddingLeft: 4 }}>{formErrors.pais}</p>}
               </div>
 
               {/* Contraseña */}

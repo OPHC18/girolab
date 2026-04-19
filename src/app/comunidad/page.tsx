@@ -174,9 +174,12 @@ supabase.from('events')
   const comentar = async (postId: string) => {
     const texto = comentarioInput[postId]?.trim()
     if (!texto) return
-    const { error } = await supabase.from('community_comments')
-      .insert({ post_id: postId, user_id: user!.id, contenido: texto })
-    if (error) { setToastMsg('Error al enviar comentario'); setTimeout(() => setToastMsg(null), 3000); return }
+    const res = await fetch('/api/community/comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: postId, contenido: texto }),
+    })
+    if (!res.ok) { setToastMsg('Error al enviar comentario'); setTimeout(() => setToastMsg(null), 3000); return }
     const nuevoComentario = {
       id: crypto.randomUUID(),
       post_id: postId,
@@ -192,7 +195,11 @@ supabase.from('events')
 
   const eliminarComentario = async (postId: string, comentarioId: string) => {
     if (!confirm('¿Eliminar este comentario?')) return
-    await supabase.from('community_comments').delete().eq('id', comentarioId)
+    await fetch('/api/community/comment', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment_id: comentarioId }),
+    })
     setComentarios(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== comentarioId) }))
     setFeed(prev => prev.map(p => p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count - 1) } : p))
   }
@@ -200,7 +207,7 @@ supabase.from('events')
   const cargarMisPosts = async () => {
     if (!user) return
     const { data } = await supabase.from('community_posts')
-      .select('*, nombre:user_id(raw_user_meta_data)')
+      .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50)
@@ -511,13 +518,19 @@ supabase.from('events')
                     {!resenaDraft && (<>
                       <label style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'foto' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'foto' ? '#f3e8ff' : 'white', color: postForm.tipo === 'foto' ? '#421869' : '#666' }}>
                         📷 Foto
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
                           const file = e.target.files?.[0]
                           if (!file) return
                           if (file.size > 5 * 1024 * 1024) { setAlertMsg('La imagen no puede superar 5MB'); return }
-                          const reader = new FileReader()
-                          reader.onload = () => setPostForm(p => ({ ...p, media_url: reader.result as string, tipo: 'foto' }))
-                          reader.readAsDataURL(file)
+                          const ext = file.name.split('.').pop()
+                          const path = `imagenes/${user!.id}/${Date.now()}.${ext}`
+                          setPosting(true)
+                          const { error } = await supabase.storage.from('community').upload(path, file)
+                          setPosting(false)
+                          if (!error) {
+                            const { data } = supabase.storage.from('community').getPublicUrl(path)
+                            setPostForm(p => ({ ...p, media_url: data.publicUrl, tipo: 'foto' }))
+                          } else { setAlertMsg('Error al subir la imagen. Intenta de nuevo.') }
                         }} />
                       </label>
                       <button

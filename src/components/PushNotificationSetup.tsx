@@ -11,6 +11,7 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function PushNotificationSetup({ userId }: { userId: string }) {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [subscribed, setSubscribed] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
@@ -57,7 +58,7 @@ export default function PushNotificationSetup({ userId }: { userId: string }) {
     }
   }, [permission])
 
-  if (subscribed || permission === 'denied') return null
+  if (dismissed || subscribed || permission === 'denied') return null
 
   return (
     <div style={{
@@ -81,6 +82,11 @@ export default function PushNotificationSetup({ userId }: { userId: string }) {
       >
         Activar
       </button>
+      <button
+        onClick={() => setDismissed(true)}
+        style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: '50%', width: 26, height: 26, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        aria-label="Cerrar"
+      >✕</button>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
 import { INSTRUMENTS, type InstrumentId } from '@/lib/assessments/instruments';
 import { EMPRESA_INSTRUMENTS, type EmpresaInstrumentId } from '@/lib/assessments/instruments_empresa';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 const CHART_PALETTE = [
   '#5C6BC0','#42A5F5','#66BB6A','#FFA726','#EC407A',
@@ -871,9 +872,14 @@ export default function ResultadoPage() {
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight:'100vh', background:'#421869', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width:48, height:48, border:'3px solid rgba(255,255,255,0.2)', borderTopColor:'#ffa719', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{ minHeight:'100vh', background:'#421869', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap: 16 }}>
+      <DotLottieReact
+        src="https://lottie.host/fc37eb39-3bb0-41db-b866-99ac7449ef1d/rpkq6ZVATl.lottie"
+        loop autoplay style={{ width: 120, height: 120 }}
+      />
+      <p style={{ color: 'rgba(255,255,255,0.7)', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 16, margin: 0 }}>
+        Analizando tu resultado...
+      </p>
     </div>
   );
 }

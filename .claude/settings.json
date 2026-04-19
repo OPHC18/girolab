@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"reseña\\\\|review\\\\|rating\\\\|comment\" d:/Usuarios/Op/Documentos/girolab/src/app/blog/[id]/page.tsx -i)",
+      "Bash(ls /d/Usuarios/Op/Documentos/girolab/src/app/eventos/[id])",
+      "Bash(ls /d/Usuarios/Op/Documentos/girolab/src/app/menter/[id])",
+      "Bash(cat /d/Usuarios/Op/Documentos/girolab/src/app/eventos/[id]/page.tsx)",
+      "Bash(cat /d/Usuarios/Op/Documentos/girolab/src/app/menter/[id]/page.tsx)",
+      "Bash(cat /d/Usuarios/Op/Documentos/girolab/src/app/unirse/[token]/page.tsx)",
+      "Read(//usr/**)",
+      "Read(//usr/local/**)",
+      "Bash(/c/Users/Op/AppData/Local/Microsoft/WindowsApps/python3 -c ':*)",
+      "Read(//c/Users/Op/.claude/projects/d--Usuarios-Op-Documentos-girolab/**)",
+      "Bash(sed -n '3166p' \"C:/Users/Op/.claude/projects/d--Usuarios-Op-Documentos-girolab/b8ecd5b6-7045-4244-a49d-0dafac353095.jsonl\")",
+      "Read(//tmp/**)",
+      "Bash(dd if=/tmp/line3166.json bs=1 skip=56793 count=171120)"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "C:\\Users\\Op\\AppData\\Local\\Temp"
+    ]
+  }
+}
