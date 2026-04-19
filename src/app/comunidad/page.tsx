@@ -214,12 +214,13 @@ supabase.from('events')
 
   const cargarMisPosts = async () => {
     if (!user) return
-    const { data } = await supabase.from('community_posts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setMisPosts((data || []).map((p: any) => ({
+    const token = await getToken()
+    const res = await fetch('/api/community/my-posts', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const { posts } = await res.json()
+    setMisPosts((posts || []).map((p: any) => ({
       ...p,
       nombre: meta?.nombre,
       apellidos: meta?.apellidos,
