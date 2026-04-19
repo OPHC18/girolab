@@ -418,7 +418,6 @@ const handleGoogleAuth = async () => {
           .land-card { transition: transform 0.3s, box-shadow 0.3s; }
           .land-btn-primary:hover { background: #e5951a !important; }
           .land-btn-ghost:hover { background: rgba(255,255,255,0.1) !important; }
-          .grecaptcha-badge { visibility: hidden !important; }
           .wa-btn:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(37,211,102,0.45) !important; }
           .nav-desktop-btns { display: flex; gap: 12px; }
           .nav-hamburger { display: none; }
