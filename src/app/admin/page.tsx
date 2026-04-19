@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -48,6 +48,8 @@ export default function AdminPage() {
   const [frases, setFrases] = useState<any[]>([])
   const [eventos, setEventos] = useState<any[]>([])
   const [blogs, setBlogs] = useState<any[]>([])
+  const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
+  const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
   const [statsPersonas, setStatsPersonas] = useState<any>(null)
@@ -168,12 +170,14 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'frases')   cargarFrases()
     else if (activeTab === 'eventos')  cargarEventos()
     else if (activeTab === 'blog')     cargarBlogs()
+    else if (activeTab === 'comunidad') cargarComunidad()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
   useEffect(() => {
     if (activeTab !== 'personas' || !statsPersonas) return
-    const id = requestAnimationFrame(() => {
+    let id1: number, id2: number
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => {
       if (statsPersonas.paises?.length > 0)
         crearBarras(chartPaisesPersonasRef, 'paisesPersonas',
           statsPersonas.paises.slice(0,10).map((p: any) => p.pais),
@@ -184,13 +188,14 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
           statsPersonas.motivos.slice(0,8).map((m: any) => m.motivo),
           statsPersonas.motivos.slice(0,8).map((m: any) => m.count),
           ['#421869','#995bd5','#ffa719','#1D9E75','#1565c0','#e65100','#633806','#72243E'])
-    })
-    return () => cancelAnimationFrame(id)
+    })})
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [statsPersonas, activeTab])
 
   useEffect(() => {
     if (activeTab !== 'menters' || !statsMenters) return
-    const id = requestAnimationFrame(() => {
+    let id1: number, id2: number
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => {
       if (statsMenters.paises?.length > 0)
         crearBarras(chartPaisesMentersRef, 'paisesMenters',
           statsMenters.paises.slice(0, 10).map((p: any) => p.pais),
@@ -201,13 +206,14 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
           statsMenters.especialidades.slice(0, 8).map((e: any) => e.especialidad),
           statsMenters.especialidades.slice(0, 8).map((e: any) => e.count),
           ['#421869','#995bd5','#ffa719','#1D9E75','#1565c0','#e65100','#633806','#085041'])
-    })
-    return () => cancelAnimationFrame(id)
+    })})
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [statsMenters, activeTab])
 
   useEffect(() => {
     if (activeTab !== 'empresas' || !statsEmpresas) return
-    const id = requestAnimationFrame(() => {
+    let id1: number, id2: number
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => {
       if (statsEmpresas.paises?.length > 0)
         crearBarras(chartPaisesEmpresasRef, 'paisesEmpresas',
           statsEmpresas.paises.slice(0,10).map((p: any) => p.pais),
@@ -223,21 +229,21 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
           statsEmpresas.tamanos.map((t: any) => t.tamano),
           statsEmpresas.tamanos.map((t: any) => t.count),
           '#085041')
-    })
-    return () => cancelAnimationFrame(id)
+    })})
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [statsEmpresas, activeTab])
 
   useEffect(() => {
     if (activeTab !== 'metricas' || !metricasCitas) return
-    // rAF ensures canvas is painted before Chart.js tries to access it
-    const id = requestAnimationFrame(() => {
+    let id1: number, id2: number
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => {
       if (metricasCitas.porEstado)
         crearDona(chartCitasRef, 'citasEstado',
           Object.keys(metricasCitas.porEstado),
           Object.values(metricasCitas.porEstado) as number[],
           ['#1D9E75','#421869','#ffa719','#c62828','#666','#6a1b9a'])
-    })
-    return () => cancelAnimationFrame(id)
+    })})
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [metricasCitas, activeTab])
 
   // ── Loaders ────────────────────────────────────────────────────────────────
@@ -389,7 +395,7 @@ const cargarEmpresas = async () => {
   // Stats de áreas
   const areasMap: Record<string, number> = {}
   soloEmpresas.forEach((u: any) => {
-    const areas = u.areas || []
+    const areas = u.respuestas?.areas || u.areas || []
     areas.forEach((area: string) => {
       areasMap[area] = (areasMap[area] || 0) + 1
     })
@@ -401,7 +407,7 @@ const cargarEmpresas = async () => {
   // Stats de tamaño
   const tamanoMap: Record<string, number> = {}
   soloEmpresas.forEach((u: any) => {
-    const tamanos = u.tamano || []
+    const tamanos = u.respuestas?.tamano || u.tamano || []
     tamanos.forEach((t: string) => {
       tamanoMap[t] = (tamanoMap[t] || 0) + 1
     })
@@ -543,6 +549,42 @@ const especialidades = Object.entries(especialidadesMap)
       .limit(100)
     setBlogs(data || [])
     setLoad('blogs', false)
+  }
+
+  const cargarComunidad = async () => {
+    setLoad('comunidad', true)
+    const { data } = await supabase
+      .from('community_posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(300)
+    setComunidadPosts(data || [])
+    setLoad('comunidad', false)
+  }
+
+  const eliminarPostAdmin = async (postId: string) => {
+    if (!confirm('¿Eliminar este post y todos sus comentarios?')) return
+    const { data: { session } } = await supabase.auth.getSession()
+    await fetch('/api/community/comment', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ post_id: postId }),
+    })
+    setComunidadPosts(prev => prev.filter(p => p.id !== postId))
+    toast('🗑️ Post eliminado')
+  }
+
+  const lanzarSeed = async () => {
+    if (!confirm('¿Crear 4 Menters demo y posts de prueba? Esto no se puede deshacer.')) return
+    setSeedLoading(true)
+    const res = await fetch('/api/admin/seed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+    })
+    const data = await res.json()
+    setSeedLoading(false)
+    if (res.ok) toast(`✅ Seed completado: ${data.message}`)
+    else toast(`❌ Error: ${data.error}`)
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -774,6 +816,7 @@ const confirmarCambioPlan = async () => {
     { id: 'frases',       label: 'Frases',       emoji: '✨' },
     { id: 'eventos',      label: 'Eventos',      emoji: '🎪' },
     { id: 'blog',         label: 'Blog',         emoji: '📝' },
+    { id: 'comunidad',    label: 'Comunidad',    emoji: '💬' },
   ]
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -1673,6 +1716,38 @@ const confirmarCambioPlan = async () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ COMUNIDAD ═══ */}
+        {activeTab === 'comunidad' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: 0 }}>💬 Comunidad — Posts</h2>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => cargarComunidad()} style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', fontSize: 13, cursor: 'pointer' }}>↻ Recargar</button>
+                <button onClick={lanzarSeed} disabled={seedLoading} style={{ padding: '8px 18px', borderRadius: 20, border: 'none', background: seedLoading ? '#ccc' : '#421869', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Raleway' }}>
+                  {seedLoading ? 'Creando...' : '🌱 Seed Menters + Posts'}
+                </button>
+              </div>
+            </div>
+            {loadings.comunidad ? <p style={{ color: '#999' }}>Cargando...</p> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {comunidadPosts.length === 0 && <p style={{ color: '#999', textAlign: 'center', padding: 40 }}>No hay posts aún.</p>}
+                {comunidadPosts.map(p => (
+                  <div key={p.id} style={{ background: 'white', borderRadius: 12, padding: '14px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: '0 0 6px', fontSize: 14, color: '#333', lineHeight: 1.5 }}>{p.contenido}</p>
+                      <div style={{ fontSize: 11, color: '#999' }}>
+                        {new Date(p.created_at).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {' · '}{p.likes_count || 0} ❤️ · {p.comments_count || 0} 💬
+                      </div>
+                    </div>
+                    <button onClick={() => eliminarPostAdmin(p.id)} style={{ background: '#ffebee', border: 'none', color: '#c62828', borderRadius: 10, padding: '6px 12px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>🗑️ Eliminar</button>
                   </div>
                 ))}
               </div>

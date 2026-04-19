@@ -311,6 +311,14 @@ const toggleOpcion = (opcion: string) => {
         respuestas: respuestas,
       })
     }
+    // Notificar a admins si se registró un Menter
+    if (role === 'menter') {
+      fetch('/api/push/notify-admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+        body: JSON.stringify({ title: 'Nuevo Menter registrado', body: `${form.nombre} ${form.apellidos} se unió como Menter`, url: '/admin' }),
+      }).catch(() => {})
+    }
     // Email de bienvenida Día 1 — diferido hasta después de confirmar email
     // (no hay sesión autenticada hasta que el usuario confirme el link)
     localStorage.setItem('pendingWelcomeEmail', JSON.stringify({
