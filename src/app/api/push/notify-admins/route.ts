@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const adminUserIds = new Set<string>()
   await Promise.all(ADMIN_EMAILS.map(async email => {
     try {
-      const { data } = await admin.auth.admin.getUserByEmail(email)
+      const { data } = await (admin.auth.admin as any).getUserByEmail(email)
       if (data?.user?.id) adminUserIds.add(data.user.id)
     } catch {}
   }))

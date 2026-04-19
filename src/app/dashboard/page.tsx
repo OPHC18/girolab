@@ -11,6 +11,7 @@ import RenderInstrumentosMenter from '@/app/dashboard/components/renderInstrumen
 import RenderResultadosTests from '@/app/dashboard/components/renderResultadosTests'
 import RenderInstrumentosEmpresa from '@/app/dashboard/components/renderInstrumentosEmpresa'
 import RenderCompras from '@/app/dashboard/components/renderCompras'
+import { INSTRUMENTS } from '@/lib/assessments/instruments'
 import { dispararEmail } from '@/lib/email/send'
 import PushNotificationSetup from '@/components/PushNotificationSetup'
 
@@ -137,15 +138,13 @@ function ClienteSelectorRoadmap({ clientes, loading, clienteActivo, onSelect }: 
   onSelect: (id: string) => void
 }) {
   const [busqueda, setBusqueda] = useState('')
-  const [mostrarTodos, setMostrarTodos] = useState(false)
-  const LIMITE = 6
+  const [abierto, setAbierto] = useState(false)
 
   const filtrados = busqueda.trim()
     ? clientes.filter(c => c.client_name?.toLowerCase().includes(busqueda.toLowerCase()))
     : clientes
 
-  const visibles = mostrarTodos || busqueda.trim() ? filtrados : filtrados.slice(0, LIMITE)
-  const hayMas = !busqueda.trim() && !mostrarTodos && clientes.length > LIMITE
+  const seleccionado = clientes.find(c => c.client_id === clienteActivo)
 
   if (loading && clientes.length === 0) {
     return <p style={{ color: '#999', fontSize: 13, marginBottom: 20 }}>Cargando clientes...</p>
@@ -159,52 +158,60 @@ function ClienteSelectorRoadmap({ clientes, loading, clienteActivo, onSelect }: 
   }
 
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Cliente</div>
-      {clientes.length > LIMITE && (
-        <input
-          type="text"
-          placeholder="Buscar cliente..."
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-          style={{ width: '100%', maxWidth: 280, padding: '7px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 13, fontFamily: 'DM Sans', marginBottom: 10, outline: 'none', boxSizing: 'border-box' as const }}
-        />
-      )}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-        {visibles.map((c: any) => (
-          <button
-            key={c.client_id}
-            onClick={() => onSelect(c.client_id)}
-            style={{
-              padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans',
-              border: clienteActivo === c.client_id ? '2px solid #7F77DD' : '2px solid #e0e0e0',
-              background: clienteActivo === c.client_id ? '#EEEDFE' : 'white',
-              color: clienteActivo === c.client_id ? '#3C3489' : '#555',
-              fontSize: 13, fontWeight: clienteActivo === c.client_id ? 700 : 400,
-            }}
-          >
-            {c.client_name}
-          </button>
-        ))}
-        {hayMas && (
-          <button
-            onClick={() => setMostrarTodos(true)}
-            style={{ padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans', border: '2px dashed #e0e0e0', background: 'none', color: '#999', fontSize: 13 }}
-          >
-            +{clientes.length - LIMITE} más
-          </button>
-        )}
-        {mostrarTodos && !busqueda.trim() && (
-          <button
-            onClick={() => setMostrarTodos(false)}
-            style={{ padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'DM Sans', border: '2px solid #e0e0e0', background: 'none', color: '#999', fontSize: 13 }}
-          >
-            Ver menos
-          </button>
-        )}
+    <div style={{ marginBottom: 20, position: 'relative' as const }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 8 }}>Cliente</div>
+      <div
+        onClick={() => { setAbierto(a => !a); setBusqueda('') }}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '9px 14px', borderRadius: 10, border: '1.5px solid #ddd',
+          background: 'white', cursor: 'pointer', fontSize: 14, fontFamily: 'DM Sans',
+          color: seleccionado ? '#421869' : '#999', fontWeight: seleccionado ? 600 : 400,
+          maxWidth: 320,
+        }}
+      >
+        <span>{seleccionado?.client_name || 'Seleccionar cliente...'}</span>
+        <span style={{ fontSize: 10, color: '#999', marginLeft: 8 }}>{abierto ? '▲' : '▼'}</span>
       </div>
-      {busqueda.trim() && filtrados.length === 0 && (
-        <p style={{ fontSize: 13, color: '#999', margin: '8px 0 0' }}>Sin resultados para "{busqueda}"</p>
+      {abierto && (
+        <div style={{
+          position: 'absolute' as const, top: '100%', left: 0, zIndex: 50,
+          background: 'white', border: '1.5px solid #ddd', borderRadius: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', width: 320, maxHeight: 280, overflow: 'hidden',
+          display: 'flex', flexDirection: 'column' as const,
+        }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscar por nombre..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const, outline: 'none' }}
+            />
+          </div>
+          <div style={{ overflowY: 'auto' as const, maxHeight: 220 }}>
+            {filtrados.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#999', padding: '12px 14px', margin: 0 }}>Sin resultados</p>
+            ) : filtrados.map((c: any) => (
+              <div
+                key={c.client_id}
+                onClick={() => { onSelect(c.client_id); setAbierto(false); setBusqueda('') }}
+                style={{
+                  padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans',
+                  background: clienteActivo === c.client_id ? '#EEEDFE' : 'white',
+                  color: clienteActivo === c.client_id ? '#3C3489' : '#333',
+                  fontWeight: clienteActivo === c.client_id ? 700 : 400,
+                  borderBottom: '0.5px solid #f5f5f5',
+                }}
+                onMouseEnter={e => { if (clienteActivo !== c.client_id) (e.currentTarget as HTMLDivElement).style.background = '#fafafa' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = clienteActivo === c.client_id ? '#EEEDFE' : 'white' }}
+              >
+                {c.client_name}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -374,6 +381,11 @@ const [rutaEmpresasData, setRutaEmpresasData] = useState<any[]>([])
 const [rutaEmpresasLoading, setRutaEmpresasLoading] = useState(false)
 const [rutaEmpresasColabHitos, setRutaEmpresasColabHitos] = useState<Record<string, any[]>>({})
 const [mentersVinculados, setMentresVinculados] = useState<Record<string, any[]>>({})
+// Test linking (objetivos ↔ assessment_results)
+const [objTestsVinculados, setObjTestsVinculados] = useState<Record<string, any[]>>({}) // objetivo_id → results
+const [objTestsDisponibles, setObjTestsDisponibles] = useState<Record<string, any[]>>({}) // objetivo_id → results
+const [objTestsShowPanel, setObjTestsShowPanel] = useState<string | null>(null) // objetivo_id with panel open
+const [objTestsLoading, setObjTestsLoading] = useState<Record<string, boolean>>({})
   const [blogPersonaLimit, setBlogPersonaLimit] = useState(6)
   const [selectedMenter, setSelectedMenter] = useState<MenterResult | null>(null)
   const [filtros, setFiltros]           = useState({ especialidad: '', precio_max: '', pais: '', soloDescuento: false })
@@ -579,7 +591,7 @@ useEffect(() => {
                   .select('*, roadmap_milestones(*)')
                   .eq('roadmap_id', roadmapId)
                   .order('created_at', { ascending: true })
-                setRoadmapData({ id: roadmapId, objetivos: objetivos || [] })
+                setRoadmapData({ id: roadmapId, client_id: primero.client_id, objetivos: objetivos || [] })
               }
               setRoadmapLoading(false)
             })
@@ -1867,6 +1879,56 @@ const AREA_COLORS: Record<string, { bg: string; color: string; border: string }>
   'Bienestar Integral':             { bg: '#ECFDF5', color: '#064E3B', border: '#34D399' },
 }
 
+// ── Test linking helpers ──────────────────────────────────────────────────────
+const cargarTestsObjetivo = async (objetivo_id: string, tipo: 'roadmap' | 'empresa', user_id?: string) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token || ''
+  setObjTestsLoading(prev => ({ ...prev, [objetivo_id]: true }))
+  const params = new URLSearchParams({ objetivo_id, tipo })
+  if (user_id) params.set('user_id', user_id)
+  const [vinculadosRes, dispRes] = await Promise.all([
+    fetch(`/api/objetivos/vincular-test?${params}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    fetch(`/api/objetivos/vincular-test?${params}&disponibles=true`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+  ])
+  setObjTestsVinculados(prev => ({ ...prev, [objetivo_id]: vinculadosRes.results || [] }))
+  setObjTestsDisponibles(prev => ({ ...prev, [objetivo_id]: dispRes.results || [] }))
+  setObjTestsLoading(prev => ({ ...prev, [objetivo_id]: false }))
+}
+
+const vincularTest = async (objetivo_id: string, tipo: 'roadmap' | 'empresa', result_id: string, user_id?: string) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token || ''
+  const res = await fetch('/api/objetivos/vincular-test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ objetivo_id, tipo, result_id }),
+  })
+  if (res.ok) await cargarTestsObjetivo(objetivo_id, tipo, user_id)
+}
+
+const desvincularTest = async (objetivo_id: string, tipo: 'roadmap' | 'empresa', result_id: string, user_id?: string) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token || ''
+  const res = await fetch('/api/objetivos/vincular-test', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ objetivo_id, tipo, result_id }),
+  })
+  if (res.ok) await cargarTestsObjetivo(objetivo_id, tipo, user_id)
+}
+
+const toggleTestsPanel = async (objetivo_id: string, tipo: 'roadmap' | 'empresa', user_id?: string) => {
+  if (objTestsShowPanel === objetivo_id) {
+    setObjTestsShowPanel(null)
+    return
+  }
+  setObjTestsShowPanel(objetivo_id)
+  if (!objTestsVinculados[objetivo_id]) {
+    await cargarTestsObjetivo(objetivo_id, tipo, user_id)
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const renderObjetivosEmpresa = () => {
 
 const agregarObjetivo = async () => {
@@ -2599,6 +2661,71 @@ setObjMenterSearch(`${m.nombre} ${m.apellidos || ''}`.trim())
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── TESTS VINCULADOS (empresa objetivo) ── */}
+                <div style={{ padding: '14px 18px', borderTop: '0.5px solid #f0f0f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: objTestsShowPanel === obj.id ? 10 : 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                      Tests vinculados {(objTestsVinculados[obj.id] || []).length > 0 && `(${objTestsVinculados[obj.id].length})`}
+                    </span>
+                    <button
+                      onClick={() => toggleTestsPanel(obj.id, 'empresa')}
+                      style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, border: '0.5px solid #ddd', background: 'white', color: '#421869', cursor: 'pointer' }}
+                    >
+                      {objTestsShowPanel === obj.id ? 'Cerrar' : 'Ver tests'}
+                    </button>
+                  </div>
+                  {objTestsShowPanel === obj.id && (
+                    <div>
+                      {objTestsLoading[obj.id] ? (
+                        <p style={{ fontSize: 12, color: '#999', margin: '8px 0 0' }}>Cargando...</p>
+                      ) : (
+                        <>
+                          {(objTestsVinculados[obj.id] || []).length === 0 ? (
+                            <p style={{ fontSize: 12, color: '#999', margin: '8px 0' }}>Sin tests vinculados aún.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                              {(objTestsVinculados[obj.id] || []).map((r: any) => (
+                                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#f8f4ff', borderRadius: 8, gap: 8 }}>
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#421869' }}>{INSTRUMENTS[r.instrument_id as keyof typeof INSTRUMENTS]?.nombre || r.instrument_id || 'Test'}</div>
+                                    <div style={{ fontSize: 11, color: '#999' }}>{r.puntuacion_bruta != null ? `Puntaje: ${r.puntuacion_bruta}` : ''} {r.created_at ? new Date(r.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
+                                  </div>
+                                  <button
+                                    onClick={() => desvincularTest(obj.id, 'empresa', r.id)}
+                                    style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '0.5px solid #ffebee', background: 'white', color: '#c62828', cursor: 'pointer', flexShrink: 0 }}
+                                  >
+                                    Quitar
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(objTestsDisponibles[obj.id] || []).length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>Vincular un test:</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                {(objTestsDisponibles[obj.id] || []).map((r: any) => (
+                                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#fafafa', borderRadius: 8, border: '0.5px solid #e0e0e0', gap: 8 }}>
+                                    <div style={{ fontSize: 12, color: '#333' }}>
+                                      {INSTRUMENTS[r.instrument_id as keyof typeof INSTRUMENTS]?.nombre || r.instrument_id || 'Test'}{r.puntuacion_bruta != null ? ` — ${r.puntuacion_bruta}` : ''}
+                                    </div>
+                                    <button
+                                      onClick={() => vincularTest(obj.id, 'empresa', r.id)}
+                                      style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '0.5px solid #421869', background: '#f3e8ff', color: '#421869', cursor: 'pointer', flexShrink: 0, fontWeight: 600 }}
+                                    >
+                                      Vincular
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3705,6 +3832,71 @@ const renderRoadmap = () => {
                       </div>
                     )
                   })}
+                </div>
+
+                {/* ── TESTS VINCULADOS (roadmap objetivo) ── */}
+                <div style={{ padding: '14px 16px', borderTop: '0.5px solid #f0f0f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: objTestsShowPanel === obj.id ? 10 : 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                      Tests vinculados {(objTestsVinculados[obj.id] || []).length > 0 && `(${objTestsVinculados[obj.id].length})`}
+                    </span>
+                    <button
+                      onClick={() => toggleTestsPanel(obj.id, 'roadmap', dataActiva?.client_id || user?.id || undefined)}
+                      style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, border: '0.5px solid #ddd', background: 'white', color: '#421869', cursor: 'pointer' }}
+                    >
+                      {objTestsShowPanel === obj.id ? 'Cerrar' : 'Ver tests'}
+                    </button>
+                  </div>
+                  {objTestsShowPanel === obj.id && (
+                    <div>
+                      {objTestsLoading[obj.id] ? (
+                        <p style={{ fontSize: 12, color: '#999', margin: '8px 0 0' }}>Cargando...</p>
+                      ) : (
+                        <>
+                          {(objTestsVinculados[obj.id] || []).length === 0 ? (
+                            <p style={{ fontSize: 12, color: '#999', margin: '8px 0' }}>Sin tests vinculados aún.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                              {(objTestsVinculados[obj.id] || []).map((r: any) => (
+                                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#f8f4ff', borderRadius: 8, gap: 8 }}>
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#421869' }}>{INSTRUMENTS[r.instrument_id as keyof typeof INSTRUMENTS]?.nombre || r.instrument_id || 'Test'}</div>
+                                    <div style={{ fontSize: 11, color: '#999' }}>{r.puntuacion_bruta != null ? `Puntaje: ${r.puntuacion_bruta}` : ''} {r.created_at ? new Date(r.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
+                                  </div>
+                                  <button
+                                    onClick={() => desvincularTest(obj.id, 'roadmap', r.id, dataActiva?.client_id || user?.id || undefined)}
+                                    style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '0.5px solid #ffebee', background: 'white', color: '#c62828', cursor: 'pointer', flexShrink: 0 }}
+                                  >
+                                    Quitar
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(objTestsDisponibles[obj.id] || []).length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>Vincular un test:</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                {(objTestsDisponibles[obj.id] || []).map((r: any) => (
+                                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#fafafa', borderRadius: 8, border: '0.5px solid #e0e0e0', gap: 8 }}>
+                                    <div style={{ fontSize: 12, color: '#333' }}>
+                                      {INSTRUMENTS[r.instrument_id as keyof typeof INSTRUMENTS]?.nombre || r.instrument_id || 'Test'}{r.puntuacion_bruta != null ? ` — ${r.puntuacion_bruta}` : ''}
+                                    </div>
+                                    <button
+                                      onClick={() => vincularTest(obj.id, 'roadmap', r.id, dataActiva?.client_id || user?.id || undefined)}
+                                      style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '0.5px solid #421869', background: '#f3e8ff', color: '#421869', cursor: 'pointer', flexShrink: 0, fontWeight: 600 }}
+                                    >
+                                      Vincular
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Form agregar hito */}

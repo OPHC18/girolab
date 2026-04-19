@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
   for (const menter of DEMO_MENTERS) {
     // Check if already exists
-    const existing = await admin.auth.admin.getUserByEmail(menter.email).catch(() => null)
+    const existing = await (admin.auth.admin as any).getUserByEmail(menter.email).catch(() => null)
     let userId: string
 
     if (existing?.data?.user?.id) {

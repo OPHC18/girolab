@@ -305,7 +305,6 @@ const toggleOpcion = (opcion: string) => {
     if (data.user) {
       await supabase.from('user_profiles').insert({
         user_id:    data.user.id,
-        pais:       form.pais,
         empresa:    form.empresa || null,
         cargo:      form.cargo   || null,
         respuestas: respuestas,
