@@ -85,7 +85,7 @@ supabase.from('blog_posts')
   .then(({ data }) => setBlogRecientes(data || []))
 
 supabase.from('events')
-  .select('id, title, date, start_time, modality, cover_image, price')
+  .select('id, title, date, start_time, modality, cover_image')
   .eq('status', 'publicado')
   .gte('date', new Date().toISOString().split('T')[0])
   .order('date', { ascending: true })
