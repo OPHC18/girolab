@@ -300,6 +300,7 @@ const [misCertificados, setMisCertificados] = useState<any[]>([])
 const [misCertificadosLoading, setMisCertificadosLoading] = useState(false)
   const [eventos, setEventos] = useState<any[]>([])
 const [eventosPublicos, setEventosPublicos] = useState<any[]>([])
+const [eventosPublicosLoaded, setEventosPublicosLoaded] = useState(false)
 const [eventosLoading, setEventosLoading] = useState(false)
 const [eventoModal, setEventoModal] = useState<any>(null)
 const [eventoView, setEventoView] = useState<'lista' | 'editor'>('lista')
@@ -1018,16 +1019,14 @@ useEffect(() => {
 
   supabase
     .from('events')
-    .select(`
-      *,
-      event_tickets(*),
-      event_registrations(count),
-      menter:menter_public_profiles(nombre, avatar_url, plan)
-    `)
+    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, event_registrations(count), menter:menter_public_profiles(nombre, avatar_url, plan)')
     .eq('status', 'publicado')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date', { ascending: true })
-    .then(({ data }) => setEventosPublicos(data || []))
+    .then(({ data, error }) => {
+      if (!error) setEventosPublicos(data || [])
+      setEventosPublicosLoaded(true)
+    })
 }, [activeTab, user?.id])
 
 useEffect(() => {
@@ -5268,7 +5267,7 @@ const renderGrillaEventosPublicos = (eventosLista: any[]) => {
   if (eventosLista.length === 0) return (
     <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
       <div style={{ fontSize: 48, marginBottom: 12 }}></div>
-      <p>Cargando eventos...</p>
+      <p>{eventosPublicosLoaded ? 'No hay eventos próximos' : 'Cargando eventos...'}</p>
     </div>
   )
 
@@ -5300,9 +5299,9 @@ const renderGrillaEventosPublicos = (eventosLista: any[]) => {
                 {evento.modality === 'virtual' ? 'Virtual' : evento.modality === 'presencial' ? 'Presencial' : 'Híbrido'}
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#421869' }}>
-                {(evento.event_tickets || []).length === 0 ? 'Gratis' :
-                  Math.min(...(evento.event_tickets || []).map((t: any) => t.price)) === 0 ? 'Gratis' :
-                  `$${Math.min(...(evento.event_tickets || []).map((t: any) => t.price))} USD`}
+                {evento.event_tickets?.length > 0
+                  ? (Math.min(...evento.event_tickets.map((t: any) => t.price)) === 0 ? 'Gratis' : `$${Math.min(...evento.event_tickets.map((t: any) => t.price))} USD`)
+                  : 'Ver detalles'}
               </span>
             </div>
           </div>
