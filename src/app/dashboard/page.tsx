@@ -5565,7 +5565,7 @@ const renderEventosMenter = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={{ fontSize: 13, color: '#666', marginBottom: 6, display: 'block' }}>Imagen de portada (máx. 2MB)</label>
+          <label style={{ fontSize: 13, color: '#666', marginBottom: 6, display: 'block' }}>Imagen de portada (máx. 2MB · dimensiones sugeridas: 1200 × 628 px)</label>
           {eventoForm.cover_image && (
             <div style={{ position: 'relative', marginBottom: 8 }}>
               <img src={eventoForm.cover_image} style={{ width: '100%', maxHeight: 180, objectFit: 'cover' as const, borderRadius: 12 }} />
@@ -5587,9 +5587,13 @@ const renderEventosMenter = () => {
           onChange={e => setEventoForm(prev => ({ ...prev, title: e.target.value }))}
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #ddd', fontSize: 15, fontFamily: 'inherit' }} />
 
-        <textarea placeholder="Descripción del evento *" value={eventoForm.description} rows={4}
-          onChange={e => setEventoForm(prev => ({ ...prev, description: e.target.value }))}
-          style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #ddd', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+        <div>
+          <label style={{ fontSize: 13, color: '#666', marginBottom: 6, display: 'block' }}>Descripción del evento *</label>
+          <RichTextEditor
+            content={eventoForm.description}
+            onChange={html => setEventoForm(prev => ({ ...prev, description: html }))}
+          />
+        </div>
 
         <input placeholder="Expositor / Presenter" value={eventoForm.presenter}
           onChange={e => setEventoForm(prev => ({ ...prev, presenter: e.target.value }))}
