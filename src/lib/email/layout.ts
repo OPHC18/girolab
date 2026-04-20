@@ -21,8 +21,7 @@ export function emailLayout(content: string, preheader = ''): string {
         <tr>
           <td style="background:#421869;border-radius:16px 16px 0 0;padding:28px 40px;text-align:center;">
             <div style="display:inline-block;text-align:center;line-height:1;">
-              <div style="font-family:Raleway,Arial,sans-serif;font-size:30px;font-weight:900;color:#ffffff;letter-spacing:3px;line-height:1;text-transform:uppercase;">GIRO</div>
-              <div style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:300;color:#ffa719;letter-spacing:6px;line-height:1.4;text-transform:uppercase;">LAB</div>
+              <span style="font-family:Raleway,Arial,sans-serif;font-size:30px;font-weight:900;color:#ffffff;letter-spacing:3px;text-transform:uppercase;">GIRO </span><span style="font-family:'DM Sans',Arial,sans-serif;font-size:30px;font-weight:300;color:#ffa719;letter-spacing:6px;text-transform:uppercase;">LAB</span>
             </div>
           </td>
         </tr>
@@ -54,10 +53,10 @@ export function emailLayout(content: string, preheader = ''): string {
 </html>`
 }
 
-export function btn(text: string, url: string, color = '#421869'): string {
+export function btn(text: string, url: string, color = '#995bd5'): string {
   return `<table cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
-    <tr><td style="background:${color};border-radius:30px;padding:14px 32px;text-align:center;">
-      <a href="${url}" style="color:#ffffff;font-family:Raleway,Arial,sans-serif;font-size:15px;font-weight:700;text-decoration:none;display:inline-block;">${text}</a>
+    <tr><td style="background:${color};border-radius:50px;padding:12px 28px;text-align:center;">
+      <a href="${url}" style="color:#ffffff;font-family:Raleway,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;display:inline-block;letter-spacing:0.3px;">${text}</a>
     </td></tr>
   </table>`
 }
