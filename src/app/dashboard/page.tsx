@@ -14,6 +14,7 @@ import RenderCompras from '@/app/dashboard/components/renderCompras'
 import { INSTRUMENTS } from '@/lib/assessments/instruments'
 import { dispararEmail } from '@/lib/email/send'
 import PushNotificationSetup from '@/components/PushNotificationSetup'
+import CertificateGenerator from '@/components/CertificateGenerator'
 
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
@@ -305,12 +306,13 @@ const [eventosLoading, setEventosLoading] = useState(false)
 const [eventoModal, setEventoModal] = useState<any>(null)
 const [eventoInscritoConfirmado, setEventoInscritoConfirmado] = useState(false)
 const [inscribiendose, setInscribiendose] = useState(false)
+const [certModal, setCertModal] = useState<{ cert: any; evento: any } | null>(null)
 const [eventoView, setEventoView] = useState<'lista' | 'editor'>('lista')
 const [eventoForm, setEventoForm] = useState({
   title: '', description: '', cover_image: '', date: '', start_time: '',
   end_time: '', modality: 'virtual', location_address: '', meeting_link: '',
   max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador',
-  certificate_image: ''
+  certificate_text: '', certificate_firma: ''
 })
 const [eventoEditId, setEventoEditId] = useState<string | null>(null)
 const [eventoTickets, setEventoTickets] = useState<any[]>([])
@@ -987,7 +989,7 @@ useEffect(() => {
   setMisCertificadosLoading(true)
   supabase
     .from('event_certificates')
-    .select('*, event:events(title, date, certificate_image, cover_image)')
+    .select('*, event:events(title, date, cover_image, certificate_text, certificate_firma, presenter)')
     .eq('user_id', user.id)
     .order('issued_at', { ascending: false })
     .then(({ data }) => {
@@ -5354,7 +5356,7 @@ const saveEvento = async (status: string) => {
 
   setEventoView('lista')
   setEventoEditId(null)
-  setEventoForm({ title: '', description: '', cover_image: '', date: '', start_time: '', end_time: '', modality: 'virtual', location_address: '', meeting_link: '', max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador', certificate_image: '' })
+  setEventoForm({ title: '', description: '', cover_image: '', date: '', start_time: '', end_time: '', modality: 'virtual', location_address: '', meeting_link: '', max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador', certificate_text: '', certificate_firma: '' })
   setEventoTickets([])
  const { data } = await supabase
   .from('events')
@@ -5416,7 +5418,7 @@ const renderInscritosModal = () => {
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#666' }}>{inscritosModal.title}</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            {inscritosModal?.certificate_image && inscritosList.length > 0 && (
+            {inscritosList.length > 0 && (
               <button
                 disabled={certIssuing === 'all'}
                 onClick={async () => {
@@ -5480,17 +5482,17 @@ const renderInscritosModal = () => {
               {/* Tabla */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}>
                 {/* Header tabla */}
-                <div style={{ display: 'grid', gridTemplateColumns: inscritosModal?.certificate_image ? '2fr 2fr 1.5fr 1fr 1fr 1.2fr' : '2fr 2fr 1.5fr 1fr 1fr', gap: 0, background: '#f8f9fa', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: '#666' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr 1fr 1.2fr', gap: 0, background: '#f8f9fa', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: '#666' }}>
                   <span>Nombre</span>
                   <span>Email</span>
                   <span>Entrada</span>
                   <span>Cant.</span>
                   <span>Pago</span>
-                  {inscritosModal?.certificate_image && <span>Certificado</span>}
+                  <span>Certificado</span>
                 </div>
                 {/* Filas */}
                 {inscritosList.map((r, i) => (
-                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: inscritosModal?.certificate_image ? '2fr 2fr 1.5fr 1fr 1fr 1.2fr' : '2fr 2fr 1.5fr 1fr 1fr', gap: 0, padding: '12px 16px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', alignItems: 'center' }}>
+                  <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1fr 1fr 1.2fr', gap: 0, padding: '12px 16px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', alignItems: 'center' }}>
                     <span style={{ fontWeight: 600 }}>{r.user?.nombre || '—'}</span>
                     <span style={{ color: '#666', fontSize: 12 }}>{r.user?.email || '—'}</span>
                     <span style={{ fontSize: 12 }}>{r.ticket?.name || '—'}</span>
@@ -5504,29 +5506,27 @@ const renderInscritosModal = () => {
                         {r.payment_status === 'pagado' ? 'Pagado' : r.payment_status === 'gratis' ? 'Gratis' : 'Pendiente'}
                       </span>
                     </span>
-                    {inscritosModal?.certificate_image && (
-                      <span>
-                        {certifiedMap[r.user_id] ? (
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20' }}>Emitido</span>
-                        ) : (
-                          <button
-                            disabled={certIssuing === r.user_id}
-                            onClick={async () => {
-                              setCertIssuing(r.user_id)
-                              await supabase.from('event_certificates').upsert({
-                                event_id: inscritosModal.id,
-                                user_id: r.user_id,
-                                menter_id: user?.id
-                              }, { onConflict: 'event_id,user_id' })
-                              setCertifiedMap(prev => ({ ...prev, [r.user_id]: true }))
-                              setCertIssuing(null)
-                            }}
-                            style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: 'none', background: certIssuing === r.user_id ? '#ccc' : '#f3e8ff', color: '#6d28d9', cursor: certIssuing === r.user_id ? 'default' : 'pointer' }}>
-                            {certIssuing === r.user_id ? '...' : 'Emitir'}
-                          </button>
-                        )}
-                      </span>
-                    )}
+                    <span>
+                      {certifiedMap[r.user_id] ? (
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20' }}>Emitido</span>
+                      ) : (
+                        <button
+                          disabled={certIssuing === r.user_id}
+                          onClick={async () => {
+                            setCertIssuing(r.user_id)
+                            await supabase.from('event_certificates').upsert({
+                              event_id: inscritosModal.id,
+                              user_id: r.user_id,
+                              menter_id: user?.id
+                            }, { onConflict: 'event_id,user_id' })
+                            setCertifiedMap(prev => ({ ...prev, [r.user_id]: true }))
+                            setCertIssuing(null)
+                          }}
+                          style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: 'none', background: certIssuing === r.user_id ? '#ccc' : '#f3e8ff', color: '#6d28d9', cursor: certIssuing === r.user_id ? 'default' : 'pointer' }}>
+                          {certIssuing === r.user_id ? '...' : 'Emitir'}
+                        </button>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -5659,21 +5659,30 @@ const renderEventosMenter = () => {
         <div style={{ background: '#f3e8ff', borderRadius: 16, padding: '20px', border: '1px solid #e9d5ff' }}>
           <h3 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 6px', fontSize: 16 }}>Certificado de participación</h3>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b21a8' }}>
-            Sube la imagen que se usará como certificado para los asistentes. Disponible para planes Premium y Master.
+            Opcional. Giro Lab generará el certificado con nuestra plantilla. Puedes personalizar el texto y subir una firma.
           </p>
-          {eventoForm.certificate_image && (
-            <div style={{ position: 'relative', marginBottom: 10 }}>
-              <img src={eventoForm.certificate_image} style={{ width: '100%', maxHeight: 180, objectFit: 'cover' as const, borderRadius: 10, border: '1px solid #ddd' }} />
-              <button type="button" onClick={() => setEventoForm(prev => ({ ...prev, certificate_image: '' }))}
-                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+          <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>Texto del certificado (opcional)</label>
+          <textarea
+            placeholder={`Por haber participado en "${eventoForm.title || 'el evento'}"`}
+            value={eventoForm.certificate_text}
+            onChange={e => setEventoForm(prev => ({ ...prev, certificate_text: e.target.value }))}
+            rows={3}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 12, border: '1px solid #c4b5fd', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' as const, resize: 'vertical', marginBottom: 12 }}
+          />
+          <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>Firma del expositor (opcional, PNG transparente recomendado)</label>
+          {eventoForm.certificate_firma && (
+            <div style={{ position: 'relative', marginBottom: 10, display: 'inline-block' }}>
+              <img src={eventoForm.certificate_firma} style={{ maxHeight: 80, borderRadius: 8, border: '1px solid #ddd', background: '#f9f0ff' }} alt="Firma" />
+              <button type="button" onClick={() => setEventoForm(prev => ({ ...prev, certificate_firma: '' }))}
+                style={{ position: 'absolute', top: -8, right: -8, background: '#c62828', border: 'none', borderRadius: '50%', width: 22, height: 22, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 13, lineHeight: '22px', textAlign: 'center' }}>✕</button>
             </div>
           )}
           <input type="file" accept="image/*" onChange={(e) => {
             const file = e.target.files?.[0]
             if (!file) return
-            if (file.size > 5 * 1024 * 1024) { alert('Máx. 5MB'); return }
+            if (file.size > 2 * 1024 * 1024) { alert('Máx. 2MB'); return }
             const reader = new FileReader()
-            reader.onload = () => setEventoForm(prev => ({ ...prev, certificate_image: reader.result as string }))
+            reader.onload = () => setEventoForm(prev => ({ ...prev, certificate_firma: reader.result as string }))
             reader.readAsDataURL(file)
           }} style={{ padding: '10px', borderRadius: 12, border: '1px dashed #a855f7', fontSize: 13, width: '100%', boxSizing: 'border-box' as const, cursor: 'pointer', background: 'white' }} />
         </div>
@@ -5850,7 +5859,7 @@ const renderEventosMenter = () => {
                           presenter: evento.presenter || '',
                           organizers: (evento.organizers || []).join(', '),
                           sponsors: (evento.sponsors || []).join(', '), status: evento.status,
-                          certificate_image: evento.certificate_image || ''
+                          certificate_text: evento.certificate_text || '', certificate_firma: evento.certificate_firma || ''
                         })
                         setEventoTickets(evento.event_tickets || [])
                         setEventoView('editor')
@@ -5875,7 +5884,7 @@ const renderEventosMenter = () => {
                           organizers: (evento.organizers || []).join(', '),
                           sponsors: (evento.sponsors || []).join(', '),
                           status: 'borrador',
-                          certificate_image: evento.certificate_image || ''
+                          certificate_text: evento.certificate_text || '', certificate_firma: evento.certificate_firma || ''
                         })
                         setEventoTickets(evento.event_tickets?.map((t: any) => ({
                           name: t.name, type: t.type, price: t.price,
@@ -6974,19 +6983,11 @@ const renderMisCertificados = () => {
           const fechaEmision = cert.issued_at
             ? new Date(cert.issued_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
             : '—'
-          const imgSrc = evento?.certificate_image || evento?.cover_image || null
           return (
             <div key={cert.id} style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(66,24,105,0.1)', border: '1px solid #f0e6ff' }}>
-              {/* Imagen del certificado */}
-              <div style={{ position: 'relative', background: '#f3e8ff', minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {imgSrc ? (
-                  <img src={imgSrc} alt="Certificado" style={{ width: '100%', height: 180, objectFit: 'cover' as const }} />
-                ) : (
-                  <svg viewBox="0 0 24 24" width={48} height={48} style={{ fill: '#c4b5fd' }}>
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-                  </svg>
-                )}
-                {/* Badge emitido */}
+              {/* Preview del certificado */}
+              <div style={{ position: 'relative', background: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)', minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/certificate-template.svg" style={{ width: '100%', height: 160, objectFit: 'cover' as const, opacity: 0.7 }} alt="" />
                 <span style={{ position: 'absolute', top: 10, right: 10, background: '#16a34a', color: 'white', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>
                   Emitido
                 </span>
@@ -6998,20 +6999,11 @@ const renderMisCertificados = () => {
                 </h3>
                 <p style={{ margin: '0 0 2px', fontSize: 12, color: '#888' }}>Evento: {fechaEvento}</p>
                 <p style={{ margin: '0 0 14px', fontSize: 12, color: '#aaa' }}>Emitido el {fechaEmision}</p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {imgSrc && (
-                    <a href={imgSrc} target="_blank" rel="noopener noreferrer"
-                      style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none' }}>
-                      Ver certificado
-                    </a>
-                  )}
-                  {imgSrc && (
-                    <a href={imgSrc} download={`certificado_${evento?.title || 'evento'}.jpg`}
-                      style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: 20, border: '2px solid #421869', background: 'white', color: '#421869', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none' }}>
-                      Descargar
-                    </a>
-                  )}
-                </div>
+                <button
+                  onClick={() => setCertModal({ cert, evento })}
+                  style={{ width: '100%', padding: '9px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
+                  Ver y descargar certificado
+                </button>
               </div>
             </div>
           )
@@ -7395,6 +7387,19 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
     {renderBlogModal()}
     {renderEventoModal()}
     {renderInscritosModal()}
+
+      {/* ── Certificate Generator Modal ────────────────────────────────── */}
+      {certModal && (
+        <CertificateGenerator
+          participantName={`${meta?.nombre || ''} ${meta?.apellidos || ''}`.trim() || 'Participante'}
+          eventTitle={certModal.evento?.title || ''}
+          eventDate={certModal.evento?.date || ''}
+          certificateText={certModal.evento?.certificate_text || null}
+          presenterName={certModal.evento?.presenter || null}
+          firmaUrl={certModal.evento?.certificate_firma || null}
+          onClose={() => setCertModal(null)}
+        />
+      )}
 
     {toastMsg && (
       <div style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', backgroundColor: '#DC2626', color: 'white', padding: '14px 20px', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)', zIndex: 10001, fontSize: '15px', fontWeight: 600, minWidth: '280px', textAlign: 'center' }}>
