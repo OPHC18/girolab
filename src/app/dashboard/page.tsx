@@ -303,6 +303,8 @@ const [eventosPublicos, setEventosPublicos] = useState<any[]>([])
 const [eventosPublicosLoaded, setEventosPublicosLoaded] = useState(false)
 const [eventosLoading, setEventosLoading] = useState(false)
 const [eventoModal, setEventoModal] = useState<any>(null)
+const [eventoInscritoConfirmado, setEventoInscritoConfirmado] = useState(false)
+const [inscribiendose, setInscribiendose] = useState(false)
 const [eventoView, setEventoView] = useState<'lista' | 'editor'>('lista')
 const [eventoForm, setEventoForm] = useState({
   title: '', description: '', cover_image: '', date: '', start_time: '',
@@ -1019,7 +1021,7 @@ useEffect(() => {
 
   supabase
     .from('events')
-    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, event_registrations(count), menter:menter_public_profiles(nombre, avatar_url, plan)')
+    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, event_registrations(count), menter:menter_public_profiles(nombre, avatar_url, plan, enlaces)')
     .eq('status', 'publicado')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date', { ascending: true })
@@ -5997,38 +5999,28 @@ const renderEventosPersona = () => (
 const renderEventoModal = () => {
   if (!eventoModal) return null
 
-  const tickets = eventoModal.event_tickets || []
-  const precioFinal = ticketSeleccionado
-    ? ticketSeleccionado.price * cantidadTickets * (1 - (ticketSeleccionado.discount_pct || 0) / 100)
-    : 0
+  const closeModal = () => {
+    setEventoModal(null)
+    setEventoInscritoConfirmado(false)
+    setTicketSeleccionado(null)
+    setCantidadTickets(1)
+  }
 
   const handleInscribirse = async () => {
-    if (!user?.id || !ticketSeleccionado) return
+    if (!user?.id) return
+    setInscribiendose(true)
     const { data: reg, error } = await supabase.from('event_registrations').insert({
       event_id: eventoModal.id,
-      ticket_id: ticketSeleccionado.id,
       user_id: user.id,
-      quantity: cantidadTickets,
-      total_price: precioFinal,
-      discount_code: codigoDescuento || null,
-      payment_status: precioFinal === 0 ? 'gratis' : 'pendiente'
+      quantity: 1,
+      total_price: 0,
+      payment_status: 'pendiente'
     }).select('id').single()
+    setInscribiendose(false)
     if (error || !reg) return
 
-    // Evento de pago → redirigir a MercadoPago
-    if (precioFinal > 0) {
-      const res = await fetch('/api/mp/create-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'event_reg', id: reg.id }),
-      })
-      const data = await res.json()
-      if (data.init_point) { window.location.href = data.init_point; return }
-    }
-
-    // Evento gratis → email de confirmación inmediato
     const fechaFormato = new Date(eventoModal.date + 'T12:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })
-    await fetch('/api/email', {
+    fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -6041,8 +6033,8 @@ const renderEventoModal = () => {
           eventoHora:     eventoModal.start_time || '',
           eventoLugar:    eventoModal.location_address || eventoModal.meeting_link || 'Por confirmar',
           modalidad:      eventoModal.modality || 'presencial',
-          tipoEntrada:    ticketSeleccionado.name || 'Entrada',
-          cantidad:       cantidadTickets,
+          tipoEntrada:    'General',
+          cantidad:       1,
           precioTotal:    0,
           registrationId: reg.id,
           eventoId:       eventoModal.id,
@@ -6050,12 +6042,7 @@ const renderEventoModal = () => {
       })
     }).catch(() => {})
 
-    setToastMsg('¡Inscripción confirmada! Revisa tu correo.')
-    setTimeout(() => setToastMsg(null), 5000)
-    setEventoModal(null)
-    setTicketSeleccionado(null)
-    setCantidadTickets(1)
-    setCodigoDescuento('')
+    setEventoInscritoConfirmado(true)
   }
 
   const addToGoogleCalendar = () => {
@@ -6069,7 +6056,7 @@ const renderEventoModal = () => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-      onClick={() => { setEventoModal(null); setTicketSeleccionado(null); setCantidadTickets(1) }}>
+      onClick={closeModal}>
       <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}>
 
@@ -6084,7 +6071,7 @@ const renderEventoModal = () => {
             )}
             <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#421869' }}>{eventoModal.menter?.nombre || 'Menter'}</p>
           </div>
-          <button onClick={() => { setEventoModal(null); setTicketSeleccionado(null) }}
+          <button onClick={closeModal}
             style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}>✕</button>
         </div>
 
@@ -6122,124 +6109,76 @@ const renderEventoModal = () => {
                 <span style={{ background: '#421869', color: 'white', padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
                   {eventoModal.event_registrations?.[0]?.count || 0} / {eventoModal.max_participants} inscritos
                 </span>
-                {eventoModal.event_tickets?.length > 0 && (
-                  <span style={{ background: '#f3e8ff', color: '#6d28d9', padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-                    Desde ${Math.min(...eventoModal.event_tickets.map((t: any) => t.price))} USD
-                  </span>
-                )}
               </div>
             )}
           </div>
 
-          {eventoModal.description && (
-            <p style={{ fontSize: 15, color: '#444', lineHeight: 1.7, marginBottom: 20 }}>{eventoModal.description}</p>
-          )}
-
-          {eventoModal.organizers?.length > 0 && (
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>Organiza: {eventoModal.organizers.join(', ')}</p>
-          )}
-          {eventoModal.sponsors?.length > 0 && (
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Auspicia: {eventoModal.sponsors.join(', ')}</p>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-            <button onClick={addToGoogleCalendar}
-              style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-              Google Calendar
-            </button>
-            <button onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/eventos/${eventoModal.id}`)
-                .then(() => { setToastMsg('Link del evento copiado'); setTimeout(() => setToastMsg(null), 3000) })
-            }} style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-              Compartir
-            </button>
-          </div>
-
-          {tickets.length > 0 && (
-            <div>
-              <h3 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 14, fontSize: 16 }}>Selecciona tu entrada</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                {tickets.map((ticket: any) => {
-                  const agotado = ticket.quantity && ticket.sold >= ticket.quantity
-                  const prevVencida = ticket.type === 'preventa' && ticket.preventa_ends_at && new Date(ticket.preventa_ends_at) < new Date()
-                  const disponible = !agotado && !prevVencida
-                  return (
-                    <div key={ticket.id}
-                      onClick={() => disponible && setTicketSeleccionado(ticket)}
-                      style={{ padding: '14px 16px', borderRadius: 12, border: `2px solid ${ticketSeleccionado?.id === ticket.id ? '#421869' : '#eee'}`, background: ticketSeleccionado?.id === ticket.id ? '#f3e8ff' : 'white', cursor: disponible ? 'pointer' : 'not-allowed', opacity: disponible ? 1 : 0.5 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#421869' }}>{ticket.name}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#666' }}>
-                            {ticket.type === 'preventa' && 'Preventa · '}
-                            {ticket.type === 'combo' && `Combo ${ticket.combo_min_people}+ personas · `}
-                            {ticket.type === 'vip' && 'VIP · '}
-                            {ticket.type === 'supervip' && 'Super VIP · '}
-                            {ticket.quantity ? `${ticket.quantity - ticket.sold} disponibles` : 'Ilimitado'}
-                          </p>
-                        </div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: ticket.price === 0 ? '#16a34a' : '#421869' }}>
-                          {ticket.price === 0 ? 'Gratis' : `$${ticket.price} USD`}
-                        </p>
-                      </div>
-                      {agotado && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#c62828', fontWeight: 700 }}>AGOTADO</p>}
-                      {prevVencida && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#c62828', fontWeight: 700 }}>PREVENTA VENCIDA</p>}
-                    </div>
-                  )
-                })}
+          {eventoInscritoConfirmado ? (
+            <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+              <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
+              <h3 style={{ fontFamily: 'Raleway', color: '#421869', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>¡Inscripción confirmada!</h3>
+              <p style={{ color: '#555', fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' }}>
+                Tu lugar en <strong>{eventoModal.title}</strong> está reservado. Revisa tu correo para los detalles.
+              </p>
+              <div style={{ background: '#fff8e1', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left', border: '1.5px solid #ffa719' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#e65100', margin: '0 0 6px' }}>Coordina el pago con el organizador</p>
+                <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: 0 }}>
+                  Escríbele a <strong>{eventoModal.menter?.nombre || 'el organizador'}</strong> para confirmar tu asistencia y acordar el método de pago.
+                </p>
               </div>
-
-              {ticketSeleccionado && (
-                <div style={{ background: '#f8f9fa', borderRadius: 14, padding: '16px' }}>
-                  <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Cantidad</label>
-                      <input type="number" min={1}
-                        max={ticketSeleccionado.quantity ? ticketSeleccionado.quantity - ticketSeleccionado.sold : 10}
-                        value={cantidadTickets} onChange={e => setCantidadTickets(parseInt(e.target.value) || 1)}
-                        style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' as const }} />
-                    </div>
-                    <div style={{ flex: 2 }}>
-                      <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Código de descuento (opcional)</label>
-                      <input placeholder="Ingresa tu código" value={codigoDescuento}
-                        onChange={e => setCodigoDescuento(e.target.value)}
-                        style={{ width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' as const }} />
-                    </div>
-                  </div>
-
-                  <div style={{ background: 'white', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666', marginBottom: 4 }}>
-                      <span>{ticketSeleccionado.name} × {cantidadTickets}</span>
-                      <span>${(ticketSeleccionado.price * cantidadTickets).toFixed(2)} USD</span>
-                    </div>
-                    {ticketSeleccionado.discount_pct && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a', marginBottom: 4 }}>
-                        <span>Descuento {ticketSeleccionado.discount_pct}%</span>
-                        <span>-${(ticketSeleccionado.price * cantidadTickets * ticketSeleccionado.discount_pct / 100).toFixed(2)} USD</span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, color: '#421869', borderTop: '1px solid #eee', paddingTop: 8, marginTop: 4 }}>
-                      <span>Total</span>
-                      <span>{precioFinal === 0 ? 'Gratis' : `$${precioFinal.toFixed(2)} USD`}</span>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 12, padding: '8px 12px', background: '#e8f5e9', borderRadius: 8 }}>
-                    Inscripción a nombre de: <strong>{(user as any)?.user_metadata?.nombre || meta?.nombre || user?.email}</strong>
-                  </div>
-
-                  <button onClick={handleInscribirse}
-                    style={{ width: '100%', padding: '14px', borderRadius: 20, border: 'none', background: precioFinal === 0 ? '#16a34a' : '#421869', color: 'white', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway' }}>
-                    {precioFinal === 0 ? 'Confirmar inscripción gratis' : `Pagar $${precioFinal.toFixed(2)} USD`}
-                  </button>
-                  {precioFinal > 0 && (
-                    <p style={{ fontSize: 11, color: '#999', textAlign: 'center', marginTop: 8 }}>
-                      Serás redirigido a MercadoPago para completar el pago
-                    </p>
-                  )}
+              {eventoModal.menter?.enlaces?.whatsapp ? (
+                <a href={eventoModal.menter.enlaces.whatsapp} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '14px', borderRadius: 30, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12, boxSizing: 'border-box' as const }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.107.549 4.09 1.51 5.814L0 24l6.335-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.626 0 11.999 0zm.001 21.818a9.818 9.818 0 01-5.017-1.373l-.36-.214-3.733.977.999-3.645-.234-.374A9.817 9.817 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.416 0 9.819 4.403 9.819 9.818 0 5.416-4.403 9.818-9.819 9.818z"/></svg>
+                  Escribir por WhatsApp
+                </a>
+              ) : (
+                <div style={{ background: '#f5f5f5', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#666' }}>
+                  Contacta directamente a <strong>{eventoModal.menter?.nombre || 'el organizador'}</strong> para coordinar el pago.
                 </div>
               )}
+              <button onClick={closeModal}
+                style={{ width: '100%', padding: '12px', borderRadius: 30, border: '2px solid #e0e0e0', background: 'white', color: '#666', fontWeight: 600, fontSize: 14, cursor: 'pointer', boxSizing: 'border-box' as const }}>
+                Cerrar
+              </button>
             </div>
+          ) : (
+            <>
+              {eventoModal.description && (
+                <div style={{ fontSize: 15, color: '#444', lineHeight: 1.7, marginBottom: 20 }} dangerouslySetInnerHTML={{ __html: eventoModal.description }} />
+              )}
+
+              {eventoModal.organizers?.length > 0 && (
+                <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>Organiza: {eventoModal.organizers.join(', ')}</p>
+              )}
+              {eventoModal.sponsors?.length > 0 && (
+                <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Auspicia: {eventoModal.sponsors.join(', ')}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+                <button onClick={addToGoogleCalendar}
+                  style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Google Calendar
+                </button>
+                <button onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/eventos/${eventoModal.id}`)
+                    .then(() => { setToastMsg('Link del evento copiado'); setTimeout(() => setToastMsg(null), 3000) })
+                }} style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Compartir
+                </button>
+              </div>
+
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 12, padding: '8px 12px', background: '#e8f5e9', borderRadius: 8 }}>
+                Inscripción a nombre de: <strong>{(user as any)?.user_metadata?.nombre || meta?.nombre || user?.email}</strong>
+              </div>
+              <button onClick={handleInscribirse} disabled={inscribiendose}
+                style={{ width: '100%', padding: '14px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontWeight: 800, fontSize: 15, cursor: inscribiendose ? 'not-allowed' : 'pointer', fontFamily: 'Raleway', opacity: inscribiendose ? 0.7 : 1 }}>
+                {inscribiendose ? 'Registrando...' : 'Confirmar inscripción'}
+              </button>
+              <p style={{ fontSize: 12, color: '#999', textAlign: 'center', marginTop: 8 }}>
+                Coordinarás el pago directamente con el organizador
+              </p>
+            </>
           )}
         </div>
       </div>
