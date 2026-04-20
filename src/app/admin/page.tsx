@@ -386,7 +386,15 @@ const cargarEmpresas = async () => {
     .order('created_at', { ascending: false })
     .limit(200)
 
-  const soloEmpresas = data || []
+  // Fetch respuestas from auth.user_metadata (igual que cargarPersonas)
+  const metaRes = await fetch('/api/admin/users-metadata').then(r => r.json()).catch(() => ({ users: [] }))
+  const perfilesMap: Record<string, any> = {}
+  ;(metaRes.users || []).forEach((p: any) => { if (p.respuestas) perfilesMap[p.id] = p.respuestas })
+
+  const soloEmpresas = (data || []).map((u: any) => ({
+    ...u,
+    respuestas: { ...(u.respuestas || {}), ...(perfilesMap[u.id] || {}) },
+  }))
   setEmpresas(soloEmpresas)
 
   // Stats de países
@@ -1626,7 +1634,7 @@ const confirmarCambioPlan = async () => {
             {loadings.frases ? <p style={{ color: '#999' }}>Cargando...</p> : (
               <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ padding: '14px 20px', background: '#f8f9fa', borderBottom: '1px solid #f0f0f0', fontSize: 13, color: '#666' }}>
-                  {frases.length} frases · {frases.filter(f => f.activa).length} activa
+                  {frases.length} frases cargadas
                 </div>
                 {frases.map((f, i) => (
                   <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0', background: f.activa ? '#f3fdf6' : 'white' }}>
@@ -1636,10 +1644,9 @@ const confirmarCambioPlan = async () => {
                       {f.fecha && <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>📅 {f.fecha}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                      {f.activa
-                        ? <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20', fontWeight: 700 }}>✅ Activa hoy</span>
-                        : <button onClick={() => activarFrase(f.id)} style={{ padding: '5px 14px', borderRadius: 20, border: 'none', background: '#421869', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Activar</button>
-                      }
+                      {f.fecha === new Date().toISOString().split('T')[0] && (
+                        <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20', fontWeight: 700 }}>✅ Hoy</span>
+                      )}
                       <button onClick={() => eliminarFrase(f.id)} style={{ padding: '5px 10px', borderRadius: 20, border: '1px solid #ffebee', background: 'white', color: '#c62828', fontSize: 11, cursor: 'pointer' }}>🗑️</button>
                     </div>
                   </div>

@@ -1295,7 +1295,7 @@ const cargarRutaEmpresas = async () => {
   await supabase.rpc('sincronizar_insignias_menter', { p_menter_id: u.id })
   supabase.from('frases_del_dia')
   .select('frase, autor')
-  .eq('activa', true)
+  .eq('fecha', new Date().toISOString().split('T')[0])
   .single()
   .then(({ data }) => { if (data) setFraseDelDia(data) })
 

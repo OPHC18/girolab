@@ -294,8 +294,8 @@ supabase.from('events')
             </div>
           </div>
 
-          {/* Derecha: nombre + rol + hamburguesa */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Derecha: nombre + rol + hamburguesa + dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ color: 'white', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>{meta?.nombre}</div>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#ffa719', textTransform: 'capitalize', lineHeight: 1.2 }}>{meta?.role || 'Persona'}</div>
@@ -311,29 +311,25 @@ supabase.from('events')
               <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2 }} />
               <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2 }} />
             </button>
+
+            {/* Dropdown — posición absoluta alineado a la derecha */}
+            {headerMenuOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: '#421869', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)', minWidth: 230, zIndex: 200, boxShadow: '0 8px 28px rgba(0,0,0,0.35)' }}>
+                {[
+                  { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
+                  { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => { setHeaderMenuOpen(false); setMisPostsMode(m => !m) } },
+                  { label: 'Editar perfil',       action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
+                  { label: 'Resultados de Tests', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
+                  { label: 'Cerrar sesión',       action: async () => { await supabase.auth.signOut(); router.push('/') } },
+                ].map(({ label, action }) => (
+                  <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Dropdown menú */}
-        {headerMenuOpen && (
-          <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
-            {[
-              { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
-              { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => {
-                  setHeaderMenuOpen(false)
-                  setMisPostsMode(m => !m)
-                }
-              },
-              { label: 'Editar perfil',         action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
-              { label: 'Resultados de Tests',   action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
-              { label: 'Cerrar sesión',         action: async () => { await supabase.auth.signOut(); router.push('/') } },
-            ].map(({ label, action }) => (
-              <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer' }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <style>{`
