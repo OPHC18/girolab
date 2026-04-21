@@ -1168,8 +1168,13 @@ const handleGoogleAuth = async () => {
         {/* ── STEP: CONFIRMAR EMAIL ── */}
         {step === 'confirmar_email' && (
           <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-            {/* Mentis — personaje de Giro Lab */}
-            <div style={{ marginBottom: 24 }}>
+            {/* Ícono confirmación */}
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,167,25,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
+                ✉️
+              </div>
+            </div>
+            <div style={{ display: 'none' }}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 640" style={{ width: 160, height: 'auto' }}>
                 <defs><style>{`.mc1{fill:#fff}.mc2{fill:#60509c}.mc3{fill:#8fc0e8}.mc4{fill:none;stroke:#60509c;stroke-linecap:round;stroke-linejoin:round}`}</style></defs>
                 <path className="mc3" d="M692.33,320c-7.07,414.04-622.95,413.97-629.96-.01,7.07-414.03,622.94-413.96,629.96.01Z"/>

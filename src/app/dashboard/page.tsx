@@ -1002,7 +1002,7 @@ useEffect(() => {
 
   supabase
     .from('events')
-    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, event_registrations(count), menter:menter_public_profiles(nombre, avatar_url, plan, enlaces)')
+    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, menter:menter_public_profiles(nombre, avatar_url, plan, enlaces)')
     .eq('status', 'publicado')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date', { ascending: true })
