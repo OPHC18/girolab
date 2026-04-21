@@ -113,6 +113,7 @@ export default function TestPage() {
       ? rawNormalized
       : rawNormalized.toUpperCase();
   const token        = searchParams?.get('t') || '';
+  const menterId     = searchParams?.get('ref') || null;
 
   const [phase, setPhase]               = useState<'intro' | 'datos' | 'test' | 'submitting'>('intro');
   const [sessionToken, setSessionToken] = useState(token);
@@ -160,7 +161,7 @@ export default function TestPage() {
     );
     supabase.rpc('create_assessment_link', {
       p_instrument_id: instrumentId,
-      p_menter_id: null,
+      p_menter_id: menterId,
     }).then(({ data }) => {
       if (data?.token) {
         setSessionToken(data.token);
@@ -183,6 +184,9 @@ export default function TestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: sessionToken, nombre: anonNombre.trim(), email: anonEmail.trim() }),
       });
+    }
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'test_iniciado', { instrument: instrumentId, menter_id: menterId || undefined });
     }
     setPhase('test');
   };
@@ -261,6 +265,9 @@ export default function TestPage() {
         }
       } catch { /* Non-critical — proceed to result page */ }
 
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
+      }
       router.push(`/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`);
     }
   };
@@ -286,7 +293,12 @@ export default function TestPage() {
           inst={inst}
           instruccion={INSTRUMENT_INSTRUCTIONS[instrumentId] || ''}
           authChecked={authChecked}
-          onStart={() => isAnon ? setPhase('datos') : setPhase('test')}
+          onStart={() => {
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+              (window as any).gtag('event', 'test_iniciado', { instrument: instrumentId, menter_id: menterId || undefined });
+            }
+            isAnon ? setPhase('datos') : setPhase('test');
+          }}
         />
       </PageShell>
     );
