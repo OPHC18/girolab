@@ -6832,6 +6832,27 @@ const renderDestacados = () => (
           </div>
         )}
 
+        {/* VIDEO YouTube embebido */}
+        {selectedMenter.enlaces?.youtube && (() => {
+          const yt = selectedMenter.enlaces.youtube
+          const match = yt.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
+          if (!match) return null
+          return (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ color: '#421869', fontFamily: 'Raleway, sans-serif', margin: '0 0 10px' }}>Presentación en video</h4>
+              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 14, overflow: 'hidden' }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${match[1]}`}
+                  title="Presentación del Menter"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                />
+              </div>
+            </div>
+          )
+        })()}
+
         {/* REDES - premium+ */}
         {selectedMenter.enlaces && Object.values(selectedMenter.enlaces).some(v => v) && (() => {
           const safeHref = (url: string) => /^https?:\/\//i.test(url) ? url : `https://${url}`
@@ -6844,7 +6865,6 @@ const renderDestacados = () => (
                 {selectedMenter.enlaces.facebook && <a href={safeHref(selectedMenter.enlaces.facebook)} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: '#1877f2', color: 'white', fontWeight: 600, textDecoration: 'none' }}>Facebook</a>}
                 {selectedMenter.enlaces.tiktok && <a href={safeHref(selectedMenter.enlaces.tiktok)} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: '#010101', color: 'white', fontWeight: 600, textDecoration: 'none' }}>TikTok</a>}
                 {selectedMenter.enlaces.x && <a href={safeHref(selectedMenter.enlaces.x)} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: '#000', color: 'white', fontWeight: 600, textDecoration: 'none' }}>X</a>}
-                {selectedMenter.enlaces.youtube && <a href={safeHref(selectedMenter.enlaces.youtube)} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: '#ff0000', color: 'white', fontWeight: 600, textDecoration: 'none' }}>YouTube</a>}
                 {selectedMenter.enlaces.whatsapp && <a href={safeHref(selectedMenter.enlaces.whatsapp)} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: '#25d366', color: 'white', fontWeight: 600, textDecoration: 'none' }}>WhatsApp</a>}
               </div>
             </div>
