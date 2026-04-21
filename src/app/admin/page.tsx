@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -49,6 +49,8 @@ export default function AdminPage() {
   const [eventos, setEventos] = useState<any[]>([])
   const [blogs, setBlogs] = useState<any[]>([])
   const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
+  const [leads, setLeads] = useState<any[]>([])
+  const [filtroLeadMenter, setFiltroLeadMenter] = useState('')
   const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
@@ -171,6 +173,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'eventos')  cargarEventos()
     else if (activeTab === 'blog')     cargarBlogs()
     else if (activeTab === 'comunidad') cargarComunidad()
+    else if (activeTab === 'leads')     cargarLeads()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -572,6 +575,18 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('comunidad', false)
   }
 
+  const cargarLeads = async () => {
+    setLoad('leads', true)
+    const { data } = await supabase
+      .from('assessment_sessions')
+      .select('id, persona_nombre, persona_email, instrument_id, menter_id, created_at, metadata, menter:menter_public_profiles(nombre)')
+      .not('persona_email', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    setLeads(data || [])
+    setLoad('leads', false)
+  }
+
   const eliminarPostAdmin = async (postId: string) => {
     if (!confirm('¿Eliminar este post y todos sus comentarios?')) return
     const { data: { session } } = await supabase.auth.getSession()
@@ -827,6 +842,7 @@ const confirmarCambioPlan = async () => {
     { id: 'eventos',      label: 'Eventos',      emoji: '🎪' },
     { id: 'blog',         label: 'Blog',         emoji: '📝' },
     { id: 'comunidad',    label: 'Comunidad',    emoji: '💬' },
+    { id: 'leads',        label: 'Leads',        emoji: '🎯' },
   ]
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -1737,6 +1753,67 @@ const confirmarCambioPlan = async () => {
         )}
 
         {/* ═══ COMUNIDAD ═══ */}
+        {activeTab === 'leads' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+              <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: 0 }}>Leads de Tests</h2>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <input
+                  placeholder="Filtrar por menter..."
+                  value={filtroLeadMenter}
+                  onChange={e => setFiltroLeadMenter(e.target.value)}
+                  style={{ padding: '8px 14px', borderRadius: 20, border: '1px solid #ddd', fontSize: 13, outline: 'none', minWidth: 180 }}
+                />
+                <button onClick={() => cargarLeads()} style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', fontSize: 13, cursor: 'pointer' }}>↻ Recargar</button>
+              </div>
+            </div>
+            {loadings.leads ? <p style={{ color: '#999' }}>Cargando...</p> : (() => {
+              const filtered = leads.filter(l =>
+                !filtroLeadMenter || (l.menter as any)?.nombre?.toLowerCase().includes(filtroLeadMenter.toLowerCase())
+              )
+              return (
+                <>
+                  <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>{filtered.length} leads {filtroLeadMenter ? 'filtrados' : 'en total'}</p>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f8f4ff' }}>
+                          {['Nombre', 'Email', 'Instrumento', 'Menter', 'Fuente', 'Fecha'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#421869', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length === 0 && (
+                          <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: '#999' }}>Sin leads aún.</td></tr>
+                        )}
+                        {filtered.map(l => (
+                          <tr key={l.id} style={{ borderBottom: '1px solid #f0f0f0' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fafafa'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                            <td style={{ padding: '10px 14px', fontWeight: 600, color: '#333' }}>{l.persona_nombre || '—'}</td>
+                            <td style={{ padding: '10px 14px', color: '#555' }}>
+                              <a href={`mailto:${l.persona_email}`} style={{ color: '#421869', textDecoration: 'none' }}>{l.persona_email}</a>
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ background: '#f3e8ff', color: '#6a1b9a', padding: '2px 10px', borderRadius: 20, fontWeight: 600, fontSize: 12 }}>{l.instrument_id || '—'}</span>
+                            </td>
+                            <td style={{ padding: '10px 14px', color: '#555' }}>{(l.menter as any)?.nombre || <span style={{ color: '#bbb' }}>Sin menter</span>}</td>
+                            <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>{l.metadata?.utm_source || l.metadata?.fuente || '—'}</td>
+                            <td style={{ padding: '10px 14px', color: '#999', whiteSpace: 'nowrap' }}>
+                              {new Date(l.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        )}
+
         {activeTab === 'comunidad' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
