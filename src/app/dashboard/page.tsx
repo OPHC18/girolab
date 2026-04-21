@@ -393,6 +393,7 @@ const [objTestsShowPanel, setObjTestsShowPanel] = useState<string | null>(null) 
 const [objTestsLoading, setObjTestsLoading] = useState<Record<string, boolean>>({})
   const [blogPersonaLimit, setBlogPersonaLimit] = useState(6)
   const [selectedMenter, setSelectedMenter] = useState<MenterResult | null>(null)
+  const [youtubePlayerOpen, setYoutubePlayerOpen] = useState(false)
   const [filtros, setFiltros]           = useState({ especialidad: '', precio_max: '', pais: '', soloDescuento: false })
   const [featuredMenters, setFeaturedMenters] = useState<MenterResult[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(false)
@@ -6529,7 +6530,7 @@ const renderDestacados = () => (
         </h3>
         <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
           {featuredMenters.map(m => (
-            <div key={m.menter_id} onClick={() => setSelectedMenter(m)} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
+            <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false) }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#421869,#995bd5)' }}>
                 {m.avatar_url && <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />}
               </div>
@@ -6683,7 +6684,7 @@ const renderDestacados = () => (
             <span style={{ fontSize: 12, color: '#666' }}>{menterRatings[m.menter_id].avg} ({menterRatings[m.menter_id].count} {menterRatings[m.menter_id].count === 1 ? 'reseña' : 'reseñas'})</span>
           </div>
         ) : <div style={{ marginBottom: 12 }} />}
-        <button onClick={() => setSelectedMenter(m)} style={{
+        <button onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false) }} style={{
   width: '100%', padding: '11px', borderRadius: 30, border: 'none',
   background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14,
   cursor: 'pointer', fontFamily: 'Raleway, sans-serif',
@@ -6837,17 +6838,33 @@ const renderDestacados = () => (
           const yt = selectedMenter.enlaces.youtube
           const match = yt.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
           if (!match) return null
+          const videoId = match[1]
           return (
             <div style={{ marginBottom: 20 }}>
               <h4 style={{ color: '#421869', fontFamily: 'Raleway, sans-serif', margin: '0 0 10px' }}>Presentación en video</h4>
-              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 14, overflow: 'hidden' }}>
-                <iframe
-                  src={`https://www.youtube.com/embed/${match[1]}`}
-                  title="Presentación del Menter"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                />
+              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 14, overflow: 'hidden', background: '#000' }}>
+                {youtubePlayerOpen ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                    title="Presentación del Menter"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <div onClick={() => setYoutubePlayerOpen(true)} style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}>
+                    <img
+                      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                      alt="Presentación en video"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+                      <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ff0000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )
