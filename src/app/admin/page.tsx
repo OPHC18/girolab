@@ -426,8 +426,9 @@ const cargarEmpresas = async () => {
     .map(([tamano, count]) => ({ tamano, count }))
     .sort((a, b) => b.count - a.count)
 
-  console.log('[DEBUG empresas] soloEmpresas:', soloEmpresas)
-  console.log('[DEBUG empresas] perfilesMap:', perfilesMap)
+  console.log('[DEBUG empresas] perfilesMap keys:', Object.keys(perfilesMap))
+  console.log('[DEBUG empresas] perfilesMap values:', JSON.stringify(perfilesMap))
+  console.log('[DEBUG empresas] soloEmpresas[0].respuestas:', JSON.stringify(soloEmpresas[0]?.respuestas))
   console.log('[DEBUG empresas] areas:', areas, '| tamanos:', tamanos)
   setStatsEmpresas({ total: soloEmpresas.length, paises, areas, tamanos })
   setLoad('empresas', false)
