@@ -1364,6 +1364,9 @@ const cargarRutaEmpresas = async () => {
     // PayPal redirect de vuelta tras aprobar suscripción
     if (params.get('pp') === 'ok') {
       setActiveTab('membresia')
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'suscripcion_completada')
+      }
       setTimeout(() => setPpModal({ type: 'success', msg: '¡Suscripción iniciada! PayPal activará tu plan en los próximos minutos. Recarga la página para ver tu nuevo plan.' }), 400)
       window.history.replaceState({}, '', window.location.pathname + (tabParam ? `?tab=${tabParam}` : ''))
     }
@@ -4509,6 +4512,9 @@ const renderIngresos = () => {
                           })
                           const data = await res.json()
                           if (data.approve_url) {
+                            if (typeof window !== 'undefined' && (window as any).gtag) {
+                              (window as any).gtag('event', 'suscripcion_iniciada', { plan: p, billing_cycle: billingCycle })
+                            }
                             window.location.href = data.approve_url
                           } else {
                             setPpModal({ type: 'error', msg: data.error || 'Error al iniciar suscripción' })
@@ -4910,6 +4916,9 @@ const renderBlogMenter = () => {
                   contenido: `Nuevo artículo: ${blogForm.title}${blogForm.content ? '\n\n' + blogForm.content.replace(/<[^>]+>/g, '').slice(0, 200) : ''}`,
                   media_url: blogForm.cover_image || null,
                 })
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'comunidad_post_creado', { tipo: 'blog', titulo: blogForm.title })
+                }
               }
               setBlogView('lista')
               setBlogEditId(null)
@@ -5180,6 +5189,9 @@ const renderBlogModal = () => {
   const { sanitizeHtml } = await import('@/lib/sanitize')
   const safeContent = await sanitizeHtml(post.content || '')
   setBlogModalPost({ ...post, content: safeContent })
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', 'blog_leido', { post_id: post.id, titulo: post.title })
+  }
   
   const { data: likesData, count } = await supabase
     .from('blog_likes').select('*', { count: 'exact' }).eq('post_id', post.id)
@@ -5346,6 +5358,9 @@ const saveEvento = async (status: string) => {
       contenido: `Nuevo evento: ${eventoForm.title}${eventoForm.description ? '\n\n' + eventoForm.description.slice(0, 200) : ''}`,
       media_url: eventoForm.cover_image || null,
     })
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'comunidad_post_creado', { tipo: 'evento', titulo: eventoForm.title })
+    }
     fetch('/api/push/notify-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
@@ -6054,6 +6069,9 @@ const renderEventoModal = () => {
       })
     }).catch(() => {})
 
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'evento_inscripcion', { evento_id: eventoModal.id, evento_titulo: eventoModal.title })
+    }
     setEventoInscritoConfirmado(true)
   }
 
@@ -6530,7 +6548,7 @@ const renderDestacados = () => (
         </h3>
         <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
           {featuredMenters.map(m => (
-            <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false) }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
+            <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false); if (typeof window !== 'undefined' && (window as any).gtag) { (window as any).gtag('event', 'menter_perfil_visto', { menter_id: m.menter_id }) } }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#421869,#995bd5)' }}>
                 {m.avatar_url && <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />}
               </div>
@@ -6684,7 +6702,7 @@ const renderDestacados = () => (
             <span style={{ fontSize: 12, color: '#666' }}>{menterRatings[m.menter_id].avg} ({menterRatings[m.menter_id].count} {menterRatings[m.menter_id].count === 1 ? 'reseña' : 'reseñas'})</span>
           </div>
         ) : <div style={{ marginBottom: 12 }} />}
-        <button onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false) }} style={{
+        <button onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false); if (typeof window !== 'undefined' && (window as any).gtag) { (window as any).gtag('event', 'menter_perfil_visto', { menter_id: m.menter_id }) } }} style={{
   width: '100%', padding: '11px', borderRadius: 30, border: 'none',
   background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14,
   cursor: 'pointer', fontFamily: 'Raleway, sans-serif',

@@ -620,7 +620,12 @@ export default function ResultadoPage() {
         const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.resultado_json) setResult(data.resultado_json);
+          if (data.resultado_json) {
+            setResult(data.resultado_json);
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+              (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+            }
+          }
         }
       }
       setLoading(false);

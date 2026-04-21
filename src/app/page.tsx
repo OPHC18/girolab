@@ -328,6 +328,9 @@ const toggleOpcion = (opcion: string) => {
       userName:  `${form.nombre} ${form.apellidos}`,
       userEmail: form.email,
     }))
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'registro_completado', { role })
+    }
     cambiarStep(() => setStep('confirmar_email'))
   }
 }

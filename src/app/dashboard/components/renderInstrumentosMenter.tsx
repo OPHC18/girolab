@@ -96,6 +96,9 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     const link = shareLinks[instrumentId];
     if (!link) return;
     navigator.clipboard.writeText(link.url);
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'enlace_test_copiado', { instrument: instrumentId })
+    }
     setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: true } }));
     setTimeout(() => setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: false } })), 2000);
   };
