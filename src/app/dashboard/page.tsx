@@ -478,6 +478,13 @@ useEffect(() => {
   if (activeTab !== 'escribir') return
   
 
+  supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('menter_id', user.id)
+    .order('created_at', { ascending: false })
+    .then(({ data }) => { setBlogPosts(data || []) })
+
   setBlogPostsPublicosLoading(true)
   supabase
     .from('blog_posts')
