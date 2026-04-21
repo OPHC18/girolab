@@ -403,7 +403,8 @@ const cargarEmpresas = async () => {
   // Stats de áreas
   const areasMap: Record<string, number> = {}
   soloEmpresas.forEach((u: any) => {
-    const areas = u.respuestas?.areas || u.areas || []
+    const raw = u.respuestas?.areas ?? u.areas ?? u.respuestas?.area ?? []
+    const areas = Array.isArray(raw) ? raw : (raw ? [raw] : [])
     areas.forEach((area: string) => {
       areasMap[area] = (areasMap[area] || 0) + 1
     })
@@ -415,7 +416,8 @@ const cargarEmpresas = async () => {
   // Stats de tamaño
   const tamanoMap: Record<string, number> = {}
   soloEmpresas.forEach((u: any) => {
-    const tamanos = u.respuestas?.tamano || u.tamano || []
+    const raw = u.respuestas?.tamano ?? u.tamano ?? u.respuestas?.empresa_tamano ?? []
+    const tamanos = Array.isArray(raw) ? raw : (raw ? [raw] : [])
     tamanos.forEach((t: string) => {
       tamanoMap[t] = (tamanoMap[t] || 0) + 1
     })
@@ -1228,12 +1230,16 @@ const confirmarCambioPlan = async () => {
   </div>
   <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
     <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>🎯 Áreas de mejora</h4>
-    <div style={{ position: 'relative', height: 200 }}><canvas ref={chartAreasEmpresasRef} /></div>
+    {statsEmpresas?.areas?.length > 0
+      ? <div style={{ position: 'relative', height: 200 }}><canvas ref={chartAreasEmpresasRef} /></div>
+      : <p style={{ color: '#bbb', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>Sin datos — requiere que las empresas completen el onboarding</p>}
   </div>
 </div>
 <div style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 28 }}>
   <h4 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 16px', fontSize: 14 }}>👥 Tamaño de empresas</h4>
-  <div style={{ position: 'relative', height: 180 }}><canvas ref={chartTamanoEmpresasRef} /></div>
+  {statsEmpresas?.tamanos?.length > 0
+    ? <div style={{ position: 'relative', height: 180 }}><canvas ref={chartTamanoEmpresasRef} /></div>
+    : <p style={{ color: '#bbb', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>Sin datos — requiere que las empresas completen el onboarding</p>}
 </div>
                     
 
