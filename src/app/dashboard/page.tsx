@@ -1004,7 +1004,7 @@ useEffect(() => {
 
   supabase
     .from('events')
-    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, menter:menter_public_profiles(nombre, avatar_url)')
+    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, menter:menter_public_profiles(nombre, avatar_url, enlaces)')
     .eq('status', 'publicado')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date', { ascending: true })
@@ -1748,30 +1748,30 @@ const fetchFeaturedMenters = async () => {
   ]
 
   // ─── Tour ────────────────────────────────────────────────────────────────────
-  type TourStep = { icon: string; tab?: TabId; title: string; desc: string }
+  type TourStep = { icon: IconKey; tab?: TabId; title: string; desc: string }
   const tourSteps: TourStep[] = isMenter ? [
-    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar. Te mostramos las secciones clave para que puedas sacarle el máximo provecho desde el primer día.' },
-    { icon: '⭐', tab: 'perfil-pro', title: 'Perfil Pro', desc: 'Configura tu perfil profesional: especialidades, precios, disponibilidad y enlaces. Este es el perfil que verán tus futuros clientes.' },
-    { icon: '📅', tab: 'citas', title: 'Agenda', desc: 'Aquí gestionas las solicitudes de cita de tus clientes: confirma, rechaza o reprograma sesiones. Las solicitudes pendientes aparecen con una notificación.' },
-    { icon: '🗺️', tab: 'roadmap', title: 'Roadmap', desc: 'Diseña y monitorea la ruta de bienestar de cada uno de tus clientes. Agrega objetivos e hitos para llevar un seguimiento claro del progreso.' },
-    { icon: '💰', tab: 'ingresos', title: 'Ingresos', desc: 'Visualiza tus ingresos por sesiones y eventos. Filtra por período y exporta el historial para llevar el control de tu actividad.' },
-    { icon: '✍️', tab: 'escribir', title: 'Blog', desc: 'Publica artículos de bienestar para posicionarte como referente. El contenido que escribas será visible para toda la comunidad.' },
-    { icon: '💎', tab: 'membresia', title: '¡Elige tu plan y despega!', desc: 'Los planes Starter y Premium desbloquean instrumentos de evaluación, reportes de ingresos y más herramientas para hacer crecer tu práctica. ¡Comienza hoy!' },
+    { icon: 'perfil',      title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar. Te mostramos las secciones clave para que puedas sacarle el máximo provecho desde el primer día.' },
+    { icon: 'destacados',  tab: 'perfil-pro',   title: 'Perfil Pro', desc: 'Configura tu perfil profesional: especialidades, precios, disponibilidad y enlaces. Este es el perfil que verán tus futuros clientes.' },
+    { icon: 'citas',       tab: 'citas',         title: 'Agenda', desc: 'Aquí gestionas las solicitudes de cita de tus clientes: confirma, rechaza o reprograma sesiones. Las solicitudes pendientes aparecen con una notificación.' },
+    { icon: 'roadmap',     tab: 'roadmap',       title: 'Roadmap', desc: 'Diseña y monitorea la ruta de bienestar de cada uno de tus clientes. Agrega objetivos e hitos para llevar un seguimiento claro del progreso.' },
+    { icon: 'ingresos',    tab: 'ingresos',      title: 'Ingresos', desc: 'Visualiza tus ingresos por sesiones y eventos. Filtra por período y exporta el historial para llevar el control de tu actividad.' },
+    { icon: 'escribir',    tab: 'escribir',      title: 'Blog', desc: 'Publica artículos de bienestar para posicionarte como referente. El contenido que escribas será visible para toda la comunidad.' },
+    { icon: 'membresia',   tab: 'membresia',     title: '¡Elige tu plan y despega!', desc: 'Los planes Starter y Premium desbloquean instrumentos de evaluación, reportes de ingresos y más herramientas para hacer crecer tu práctica. ¡Comienza hoy!' },
   ] : meta?.role === 'empresa' ? [
-    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar organizacional. Te mostramos las secciones clave para que tu equipo empiece a transformarse.' },
-    { icon: '👤', tab: 'perfil', title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar la información de tu cuenta. Agrega una foto, completa tus datos y mantén tu perfil al día.' },
-    { icon: '📅', tab: 'mis-citas', title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones o cancelar con anticipación.' },
-    { icon: '🎯', tab: 'objetivos', title: 'Objetivos Empresariales', desc: 'Define los objetivos de bienestar de tu organización, asigna colaboradores y Menters, y monitorea el avance con hitos medibles.' },
-    { icon: '🧪', tab: 'instrumentos_empresa', title: 'Instrumentos', desc: 'Aplica evaluaciones psicológicas validadas a tu equipo para medir clima laboral, inteligencia emocional y otras dimensiones.' },
-    { icon: '🌐', tab: 'destacados', title: '¡Encuentra a tu Menter ideal!', desc: 'Explora el directorio de profesionales de bienestar validados. Filtra por especialidad, precio o país y agenda la primera sesión para tu equipo hoy mismo.' },
+    { icon: 'directorio',     title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar organizacional. Te mostramos las secciones clave para que tu equipo empiece a transformarse.' },
+    { icon: 'perfil',         tab: 'perfil',               title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar la información de tu cuenta. Agrega una foto, completa tus datos y mantén tu perfil al día.' },
+    { icon: 'citas',          tab: 'mis-citas',             title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones o cancelar con anticipación.' },
+    { icon: 'roadmap',        tab: 'objetivos',             title: 'Objetivos Empresariales', desc: 'Define los objetivos de bienestar de tu organización, asigna colaboradores y Menters, y monitorea el avance con hitos medibles.' },
+    { icon: 'instrumentos',   tab: 'instrumentos_empresa',  title: 'Instrumentos', desc: 'Aplica evaluaciones psicológicas validadas a tu equipo para medir clima laboral, inteligencia emocional y otras dimensiones.' },
+    { icon: 'directorio',     tab: 'destacados',            title: '¡Encuentra a tu Menter ideal!', desc: 'Explora el directorio de profesionales de bienestar validados. Filtra por especialidad, precio o país y agenda la primera sesión para tu equipo hoy mismo.' },
   ] : [
-    { icon: '👋', title: '¡Bienvenido a Giro Lab!', desc: 'Tu espacio de bienestar personal. Te mostramos las secciones clave para que comiences tu camino hacia el bienestar.' },
-    { icon: '👤', tab: 'perfil', title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar tu información. Agrega una foto, revisa tus insignias y accede rápidamente a tus datos.' },
-    { icon: '📅', tab: 'mis-citas', title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones y dejar reseñas.' },
-    { icon: '🗺️', tab: 'roadmap', title: 'Mi Ruta de Bienestar', desc: 'Tu Menter diseña aquí tu plan personalizado. Sigue el progreso de tus objetivos e hitos semana a semana.' },
-    { icon: '📊', tab: 'resultados_tests', title: 'Mis Resultados', desc: 'Consulta los resultados de los instrumentos que hayas completado. Son una guía de autoconocimiento para tu proceso.' },
-    { icon: '🎟️', tab: 'eventos', title: 'Eventos', desc: 'Descubre talleres y webinars de la comunidad. Inscríbete y obtén certificados de participación.' },
-    { icon: '🌐', tab: 'destacados', title: '¡Agenda tu primera sesión!', desc: 'Explora nuestro directorio de Menters certificados. Filtra por especialidad, modalidad o precio y da el primer paso hacia tu bienestar hoy mismo.' },
+    { icon: 'directorio',    title: '¡Bienvenido a Giro Lab!', desc: 'Tu espacio de bienestar personal. Te mostramos las secciones clave para que comiences tu camino hacia el bienestar.' },
+    { icon: 'perfil',        tab: 'perfil',            title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar tu información. Agrega una foto, revisa tus insignias y accede rápidamente a tus datos.' },
+    { icon: 'citas',         tab: 'mis-citas',         title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones y dejar reseñas.' },
+    { icon: 'roadmap',       tab: 'roadmap',           title: 'Mi Ruta de Bienestar', desc: 'Tu Menter diseña aquí tu plan personalizado. Sigue el progreso de tus objetivos e hitos semana a semana.' },
+    { icon: 'resultados',    tab: 'resultados_tests',  title: 'Mis Resultados', desc: 'Consulta los resultados de los instrumentos que hayas completado. Son una guía de autoconocimiento para tu proceso.' },
+    { icon: 'eventos',       tab: 'eventos',           title: 'Eventos', desc: 'Descubre talleres y webinars de la comunidad. Inscríbete y obtén certificados de participación.' },
+    { icon: 'directorio',    tab: 'destacados',        title: '¡Agenda tu primera sesión!', desc: 'Explora nuestro directorio de Menters certificados. Filtra por especialidad, modalidad o precio y da el primer paso hacia tu bienestar hoy mismo.' },
   ]
 
   const closeTour = () => {
@@ -4903,6 +4903,12 @@ const renderBlogMenter = () => {
                 await supabase.from('blog_posts').update({ ...blogForm, tags, status: 'publicado', updated_at: new Date().toISOString() }).eq('id', blogEditId)
               } else {
                 await supabase.from('blog_posts').insert({ ...blogForm, tags, status: 'publicado', menter_id: user?.id })
+                await supabase.from('community_posts').insert({
+                  user_id: user?.id,
+                  tipo: 'texto',
+                  contenido: `Nuevo artículo: ${blogForm.title}${blogForm.content ? '\n\n' + blogForm.content.replace(/<[^>]+>/g, '').slice(0, 200) : ''}`,
+                  media_url: blogForm.cover_image || null,
+                })
               }
               setBlogView('lista')
               setBlogEditId(null)
@@ -4965,7 +4971,7 @@ const renderBlogMenter = () => {
                       setBlogPosts(prev => prev.filter(p => p.id !== post.id))
                     }
                   }} style={{ padding: '8px 14px', borderRadius: 20, border: '1px solid #ffebee', background: 'white', color: '#c62828', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-
+                    Eliminar
                   </button>
                 </div>
               </div>
@@ -5332,16 +5338,34 @@ const saveEvento = async (status: string) => {
     if (error) console.log('Error tickets:', error)
   }
 
+  if (status === 'publicado' && !eventoEditId) {
+    await supabase.from('community_posts').insert({
+      user_id: user?.id,
+      tipo: 'texto',
+      contenido: `Nuevo evento: ${eventoForm.title}${eventoForm.description ? '\n\n' + eventoForm.description.slice(0, 200) : ''}`,
+      media_url: eventoForm.cover_image || null,
+    })
+    fetch('/api/push/notify-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+      body: JSON.stringify({
+        title: 'Nuevo evento en Giro Lab',
+        body: eventoForm.title,
+        url: '/dashboard?tab=eventos',
+      }),
+    }).catch(() => {})
+  }
+
   setEventoView('lista')
   setEventoEditId(null)
   setEventoForm({ title: '', description: '', cover_image: '', date: '', start_time: '', end_time: '', modality: 'virtual', location_address: '', meeting_link: '', max_participants: '', presenter: '', organizers: '', sponsors: '', status: 'borrador', certificate_text: '', certificate_firma: '' })
   setEventoTickets([])
- const { data } = await supabase
-  .from('events')
-  .select('*, event_tickets(*), event_registrations(count)')
-  .eq('menter_id', user?.id)
-  .order('date', { ascending: true })
-setEventos(data || [])
+  const { data } = await supabase
+    .from('events')
+    .select('*, event_tickets(*), event_registrations(count)')
+    .eq('menter_id', user?.id)
+    .order('date', { ascending: true })
+  setEventos(data || [])
 }
 
 const agregarTicket = () => {
@@ -7116,8 +7140,8 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
 
               {/* icon */}
               <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)', fontSize: 32 }}>
-                  {step.icon}
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg,#f3e8ff,#e9d5ff)' }}>
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="#6a1b9a">{icons[step.icon]}</svg>
                 </div>
                 {step.tab && (
                   <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#995bd5', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'DM Sans, sans-serif' }}>
