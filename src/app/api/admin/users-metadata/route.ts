@@ -35,10 +35,15 @@ export async function GET(req: NextRequest) {
     if (p.respuestas) profilesMap[p.user_id] = p.respuestas
   })
 
-  const result = users.map(u => ({
-    id: u.id,
-    respuestas: u.user_metadata?.respuestas || profilesMap[u.id] || null,
-  }))
+  const result = users.map(u => {
+    const fromMeta = u.user_metadata?.respuestas
+    const fromProfile = profilesMap[u.id]
+    // Merge both sources — some fields may live in one but not the other
+    const merged = (fromMeta || fromProfile)
+      ? { ...(fromProfile || {}), ...(fromMeta || {}) }
+      : null
+    return { id: u.id, respuestas: merged, email: u.email }
+  })
 
   return NextResponse.json({ users: result }, {
     headers: { 'Cache-Control': 'no-store' },

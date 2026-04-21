@@ -699,27 +699,6 @@ useEffect(() => {
   }
 }, [activeTab, user?.id])
 
-useEffect(() => {
-  if (!user?.id) return
-  if (activeTab !== 'escribir' && activeTab !== 'mis-citas') return
-  // Solo carga si es Persona o si es Menter (para la sección comunidad)
-  
-  setBlogPostsPublicosLoading(true)
-  supabase
-    .from('blog_posts')
-    .select(`
-      *,
-      blog_likes(count),
-      blog_comments(count),
-      menter:menter_id(raw_user_meta_data, id)
-    `)
-    .eq('status', 'publicado')
-    .order('created_at', { ascending: false })
-    .then(({ data }) => {
-      setBlogPostsPublicos(data || [])
-      setBlogPostsPublicosLoading(false)
-    })
-}, [activeTab, user?.id])
 
 useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
