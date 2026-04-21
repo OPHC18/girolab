@@ -301,13 +301,17 @@ const toggleOpcion = (opcion: string) => {
   if (error) {
     setFormErrors({ general: error.message })
   } else {
-    // Crear fila en user_profiles con todos los datos del registro
+    // Crear fila en user_profiles via server route (usa service role para bypassear RLS)
     if (data.user) {
-      await supabase.from('user_profiles').insert({
-        user_id:    data.user.id,
-        empresa:    form.empresa || null,
-        cargo:      form.cargo   || null,
-        respuestas: respuestas,
+      await fetch('/api/auth/register-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId:     data.user.id,
+          empresa:    form.empresa || null,
+          cargo:      form.cargo   || null,
+          respuestas: respuestas,
+        }),
       })
     }
     // Notificar a admins si se registró un Menter

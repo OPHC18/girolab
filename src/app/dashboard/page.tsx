@@ -481,12 +481,7 @@ useEffect(() => {
   setBlogPostsPublicosLoading(true)
   supabase
     .from('blog_posts')
-.select(`
-  *,
-  blog_likes(count),
-  blog_comments(count),
-  menter:menter_public_profiles(nombre, avatar_url, plan)
-`)
+    .select('*, menter:menter_public_profiles(nombre, avatar_url, plan)')
     .eq('status', 'publicado')
     .order('created_at', { ascending: false })
     .then(({ data }) => {
@@ -1002,7 +997,7 @@ useEffect(() => {
 
   supabase
     .from('events')
-    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, menter:menter_public_profiles(nombre, avatar_url, plan, enlaces)')
+    .select('id, title, description, cover_image, date, start_time, end_time, modality, location_address, meeting_link, max_participants, presenter, status, menter_id, menter:menter_public_profiles(nombre, avatar_url)')
     .eq('status', 'publicado')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date', { ascending: true })
@@ -1250,27 +1245,24 @@ const cargarRutaEmpresas = async () => {
   if (googleAvatar) setAvatarUrl(googleAvatar)
   setEditForm({ nombre, apellidos, telefono, pais, empresa, cargo, cumpleanos })
 
-  // Modal de completar perfil: SOLO para usuarios de Google con datos faltantes
-  if (isGoogleUser) {
-    const missingFields = {
-      nombre:     !m.nombre,
-      apellidos:  !m.apellidos,
-      telefono:   !perfil?.telefono,
-      pais:       !perfil?.pais,
-      cumpleanos: !perfil?.cumpleanos,
-    }
-    if (Object.values(missingFields).some(Boolean)) {
-      setMissingProfileFields(missingFields)
-      // Pre-rellenar con los valores de Google que ya tengamos
-      setCompleteForm({
-        nombre:     nombre,
-        apellidos:  apellidos,
-        telefono:   perfil?.telefono || '',
-        pais:       perfil?.pais     || '',
-        cumpleanos: perfil?.cumpleanos || '',
-      })
-      setShowCompleteProfile(true)
-    }
+  // Modal de completar perfil: para cualquier usuario con datos faltantes
+  const missingFields = {
+    nombre:     !m.nombre,
+    apellidos:  !m.apellidos,
+    telefono:   !perfil?.telefono,
+    pais:       !perfil?.pais,
+    cumpleanos: !perfil?.cumpleanos,
+  }
+  if (Object.values(missingFields).some(Boolean)) {
+    setMissingProfileFields(missingFields)
+    setCompleteForm({
+      nombre:     nombre,
+      apellidos:  apellidos,
+      telefono:   perfil?.telefono || '',
+      pais:       perfil?.pais     || '',
+      cumpleanos: perfil?.cumpleanos || '',
+    })
+    setShowCompleteProfile(true)
   }
 
   await supabase.rpc('sincronizar_insignias_menter', { p_menter_id: u.id })
