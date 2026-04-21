@@ -426,9 +426,10 @@ const cargarEmpresas = async () => {
     .map(([tamano, count]) => ({ tamano, count }))
     .sort((a, b) => b.count - a.count)
 
-  console.log('[DEBUG empresas] perfilesMap keys:', Object.keys(perfilesMap))
-  console.log('[DEBUG empresas] perfilesMap values:', JSON.stringify(perfilesMap))
-  console.log('[DEBUG empresas] soloEmpresas[0].respuestas:', JSON.stringify(soloEmpresas[0]?.respuestas))
+  const empresaId = soloEmpresas[0]?.id
+  console.log('[DEBUG empresas] empresa id:', empresaId)
+  console.log('[DEBUG empresas] empresa id en perfilesMap?', empresaId ? !!perfilesMap[empresaId] : 'n/a')
+  console.log('[DEBUG empresas] API raw para empresa:', empresaId ? JSON.stringify(perfilesMap[empresaId]) : 'NO ESTÁ')
   console.log('[DEBUG empresas] areas:', areas, '| tamanos:', tamanos)
   setStatsEmpresas({ total: soloEmpresas.length, paises, areas, tamanos })
   setLoad('empresas', false)
