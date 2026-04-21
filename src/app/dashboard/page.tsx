@@ -6866,6 +6866,12 @@ const renderDestacados = () => (
                   </div>
                 )}
               </div>
+              {youtubePlayerOpen && (
+                <a href={/^https?:\/\//i.test(yt) ? yt : `https://${yt}`} target="_blank" rel="noreferrer"
+                  style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#ff0000', textDecoration: 'none', textAlign: 'right' }}>
+                  Ver en YouTube →
+                </a>
+              )}
             </div>
           )
         })()}
