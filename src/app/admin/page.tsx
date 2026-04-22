@@ -63,6 +63,9 @@ export default function AdminPage() {
   const [syncingBrevo, setSyncingBrevo] = useState(false)
   const selectedChatRef = useRef<any>(null)
   const chatBottomRef = useRef<HTMLDivElement>(null)
+  const activeTabRef = useRef<AdminTab>('metricas')
+  const notifiedMsgIds = useRef<Set<string>>(new Set())
+  const notifiedChatIds = useRef<Set<string>>(new Set())
   const [pagos, setPagos] = useState<any[]>([])
   const [memberships, setMemberships] = useState<any[]>([])
   const [filtroPagos, setFiltroPagos] = useState('')
@@ -624,6 +627,11 @@ const especialidades = Object.entries(especialidadesMap)
   }, [selectedChat])
 
   useEffect(() => {
+    activeTabRef.current = activeTab
+    if (activeTab === 'soporte') setSoporteBadge(0)
+  }, [activeTab])
+
+  useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [selectedChat?.support_messages?.length])
 
@@ -636,24 +644,32 @@ const especialidades = Object.entries(especialidadesMap)
       if (!fresh) return
 
       setChats(prev => {
-        // Detectar chats nuevos o mensajes nuevos para toast
         fresh.forEach((fc: any) => {
           const existing = prev.find((c: any) => c.id === fc.id)
-          const prevMsgCount = existing?.support_messages?.length || 0
-          const newMsgCount = fc.support_messages?.length || 0
-          if (newMsgCount > prevMsgCount) {
-            const lastMsg = fc.support_messages[fc.support_messages.length - 1]
-            if (lastMsg?.sender === 'user') {
-              setChatToast({ nombre: fc.user_name || 'Usuario', mensaje: lastMsg.content })
+          const onSoporte = activeTabRef.current === 'soporte'
+
+          // Chat nuevo
+          if (!existing && !notifiedChatIds.current.has(fc.id)) {
+            notifiedChatIds.current.add(fc.id)
+            if (!onSoporte) {
+              setChatToast({ nombre: fc.user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
               setSoporteBadge(b => b + 1)
               setTimeout(() => setChatToast(null), 5000)
             }
           }
-          if (!existing) {
-            setChatToast({ nombre: fc.user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
-            setSoporteBadge(b => b + 1)
-            setTimeout(() => setChatToast(null), 5000)
-          }
+
+          // Mensajes nuevos del usuario
+          const msgs: any[] = fc.support_messages || []
+          msgs.forEach((msg: any) => {
+            if (msg.sender === 'user' && !notifiedMsgIds.current.has(msg.id)) {
+              notifiedMsgIds.current.add(msg.id)
+              if (!onSoporte) {
+                setChatToast({ nombre: fc.user_name || 'Usuario', mensaje: msg.content })
+                setSoporteBadge(b => b + 1)
+                setTimeout(() => setChatToast(null), 5000)
+              }
+            }
+          })
         })
         return fresh
       })
@@ -2146,9 +2162,9 @@ const confirmarCambioPlan = async () => {
                       <div style={{ fontWeight: 700, color: '#333' }}>{selectedChat.user_name}</div>
                       <div style={{ fontSize: 12, color: '#999' }}>{selectedChat.user_email}</div>
                     </div>
-                    {selectedChat.status !== 'closed' && (
-                      <button onClick={() => closeChat(selectedChat.id)} style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #ddd', background: 'white', fontSize: 12, cursor: 'pointer', color: '#666' }}>Cerrar chat</button>
-                    )}
+                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: selectedChat.status === 'closed' ? '#f5f5f5' : selectedChat.status === 'needs_human' ? '#fff3e0' : '#ede7f6', color: selectedChat.status === 'closed' ? '#999' : selectedChat.status === 'needs_human' ? '#e65100' : '#421869', fontWeight: 600 }}>
+                      {selectedChat.status === 'closed' ? 'Cerrado' : selectedChat.status === 'needs_human' ? 'Pide asesor' : 'Abierto'}
+                    </span>
                   </div>
                   <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {(selectedChat.support_messages || []).map((m: any) => (
@@ -2163,20 +2179,30 @@ const confirmarCambioPlan = async () => {
                     ))}
                     <div ref={chatBottomRef} />
                   </div>
-                  {selectedChat.status !== 'closed' && (
-                    <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 10 }}>
-                      <input
-                        placeholder="Responder..."
-                        value={adminReply}
-                        onChange={e => setAdminReply(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendAdminReply()}
-                        style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none' }}
-                      />
-                      <button onClick={sendAdminReply} disabled={!adminReply.trim() || sendingReply}
-                        style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: adminReply.trim() ? '#421869' : '#e0e0e0', color: 'white', fontWeight: 700, fontSize: 13, cursor: adminReply.trim() ? 'pointer' : 'not-allowed', fontFamily: 'Raleway' }}>
-                        {sendingReply ? '...' : 'Enviar'}
-                      </button>
-                    </div>
+                  {selectedChat.status !== 'closed' ? (
+                    <>
+                      <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 10 }}>
+                        <input
+                          placeholder="Responder..."
+                          value={adminReply}
+                          onChange={e => setAdminReply(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && sendAdminReply()}
+                          style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none', color: '#1a1a1a' }}
+                        />
+                        <button onClick={sendAdminReply} disabled={!adminReply.trim() || sendingReply}
+                          style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: adminReply.trim() ? '#421869' : '#e0e0e0', color: 'white', fontWeight: 700, fontSize: 13, cursor: adminReply.trim() ? 'pointer' : 'not-allowed', fontFamily: 'Raleway' }}>
+                          {sendingReply ? '...' : 'Enviar'}
+                        </button>
+                      </div>
+                      <div style={{ padding: '8px 16px 14px', textAlign: 'center' }}>
+                        <button onClick={() => closeChat(selectedChat.id)}
+                          style={{ fontSize: 12, color: '#999', background: 'none', border: '1px solid #e0e0e0', borderRadius: 20, padding: '5px 16px', cursor: 'pointer', fontFamily: 'DM Sans' }}>
+                          Terminar conversación
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px 16px', textAlign: 'center', color: '#bbb', fontSize: 13 }}>Conversación cerrada</div>
                   )}
                 </>
               )}
