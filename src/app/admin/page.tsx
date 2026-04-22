@@ -1014,7 +1014,7 @@ const confirmarCambioPlan = async () => {
   ]
 
   const visibleTabs = userRole === 'asesor'
-    ? tabs.filter(t => t.id === 'soporte')
+    ? tabs.filter(t => t.id === 'soporte' || t.id === 'pagos')
     : tabs
 
   const StatusBadge = ({ status }: { status: string }) => {
