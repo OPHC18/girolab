@@ -88,27 +88,27 @@ export default function ChatWidget() {
       .then(d => setMessages(d.messages || []))
   }, [chatId])
 
-  // Realtime subscription
+  // Polling cada 3s para recibir respuestas del admin en tiempo real
   useEffect(() => {
-    if (!chatId) return
-    const channel = supabase
-      .channel(`chat_${chatId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'support_messages',
-        filter: `chat_id=eq.${chatId}`,
-      }, payload => {
-        const msg = payload.new as Message
-        if (msg.sender === 'admin') {
-          setMessages(prev => [...prev, msg])
-          if (!open) setUnread(u => u + 1)
-        }
+    if (!chatId || phase !== 'chat') return
+    const poll = async () => {
+      const res = await fetch(`/api/chat?chat_id=${chatId}`)
+      const { messages: msgs } = await res.json()
+      if (!msgs) return
+      setMessages(prev => {
+        // Solo actualizar si hay mensajes nuevos
+        if (msgs.length === prev.length) return prev
+        const newMsgs = msgs.slice(prev.length)
+        newMsgs.forEach((m: Message) => {
+          if (m.sender === 'admin' && !open) setUnread(u => u + 1)
+        })
+        return msgs
       })
-      .subscribe()
-    channelRef.current = channel
-    return () => { supabase.removeChannel(channel) }
-  }, [chatId, open])
+    }
+    poll()
+    const interval = setInterval(poll, 3000)
+    return () => clearInterval(interval)
+  }, [chatId, phase, open])
 
   useEffect(() => {
     if (open) setUnread(0)

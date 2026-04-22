@@ -586,48 +586,51 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('soporte', false)
   }
 
-  // Realtime: escuchar nuevos mensajes y chats de soporte
+  // Polling soporte: actualiza chats y mensajes cada 4s cuando hay usuario admin
   useEffect(() => {
     if (!user) return
     selectedChatRef.current = selectedChat
 
-    const channel = supabase
-      .channel('admin_support_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, async payload => {
-        const msg = payload.new as any
-        // Actualizar chat seleccionado si es el mismo
-        if (selectedChatRef.current?.id === msg.chat_id) {
-          setSelectedChat((prev: any) => ({
-            ...prev,
-            support_messages: [...(prev.support_messages || []), msg],
-          }))
-        }
-        // Actualizar lista de chats
-        setChats(prev => prev.map(c =>
-          c.id === msg.chat_id
-            ? { ...c, support_messages: [...(c.support_messages || []), msg], updated_at: msg.created_at }
-            : c
-        ))
-        // Notificación en pantalla solo si el mensaje es del usuario
-        if (msg.sender === 'user') {
-          const chat = await fetch(`/api/chat?chat_id=${msg.chat_id}`).then(r => r.json())
-          const chatData = (await fetch('/api/chat?all=1').then(r => r.json())).chats?.find((c: any) => c.id === msg.chat_id)
-          setChatToast({ nombre: chatData?.user_name || 'Usuario', mensaje: msg.content })
-          setSoporteBadge(b => b + 1)
-          setTimeout(() => setChatToast(null), 5000)
-        }
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_chats' }, payload => {
-        const newChat = { ...payload.new, support_messages: [] }
-        setChats(prev => [newChat, ...prev])
-        setChatToast({ nombre: (payload.new as any).user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
-        setSoporteBadge(b => b + 1)
-        setTimeout(() => setChatToast(null), 5000)
-      })
-      .subscribe()
+    const poll = async () => {
+      const res = await fetch('/api/chat?all=1')
+      if (!res.ok) return
+      const { chats: fresh } = await res.json()
+      if (!fresh) return
 
-    return () => { supabase.removeChannel(channel) }
-  }, [user, selectedChat])
+      setChats(prev => {
+        // Detectar chats nuevos o mensajes nuevos para toast
+        fresh.forEach((fc: any) => {
+          const existing = prev.find((c: any) => c.id === fc.id)
+          const prevMsgCount = existing?.support_messages?.length || 0
+          const newMsgCount = fc.support_messages?.length || 0
+          if (newMsgCount > prevMsgCount) {
+            const lastMsg = fc.support_messages[fc.support_messages.length - 1]
+            if (lastMsg?.sender === 'user') {
+              setChatToast({ nombre: fc.user_name || 'Usuario', mensaje: lastMsg.content })
+              setSoporteBadge(b => b + 1)
+              setTimeout(() => setChatToast(null), 5000)
+            }
+          }
+          if (!existing) {
+            setChatToast({ nombre: fc.user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
+            setSoporteBadge(b => b + 1)
+            setTimeout(() => setChatToast(null), 5000)
+          }
+        })
+        return fresh
+      })
+
+      // Actualizar chat seleccionado con mensajes frescos
+      if (selectedChatRef.current) {
+        const updated = fresh.find((c: any) => c.id === selectedChatRef.current.id)
+        if (updated) setSelectedChat(updated)
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, 4000)
+    return () => clearInterval(interval)
+  }, [user])
 
   const sendAdminReply = async () => {
     if (!selectedChat || !adminReply.trim()) return
