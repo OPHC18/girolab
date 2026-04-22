@@ -28,16 +28,23 @@ export async function GET(req: NextRequest) {
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ])
 
-  const userMap: Record<string, { email: string; nombre: string }> = {}
+  const userByEmail: Record<string, { nombre: string }> = {}
+  const userById: Record<string, { email: string; nombre: string }> = {}
   authRes.data?.users?.forEach((u: any) => {
-    userMap[u.id] = { email: u.email || '', nombre: u.user_metadata?.nombre || '' }
+    if (u.email) userByEmail[u.email.toLowerCase()] = { nombre: u.user_metadata?.nombre || '' }
+    userById[u.id] = { email: u.email || '', nombre: u.user_metadata?.nombre || '' }
   })
 
   const memberships = (membershipsRes.data || []).map((m: any) => ({
     ...m,
-    email: userMap[m.menter_id]?.email || '',
-    nombre: userMap[m.menter_id]?.nombre || '',
+    email: userById[m.menter_id]?.email || '',
+    nombre: userById[m.menter_id]?.nombre || '',
   }))
 
-  return NextResponse.json({ payments: paymentsRes.data || [], memberships })
+  const payments = (paymentsRes.data || []).map((p: any) => ({
+    ...p,
+    payer_nombre: p.payer_email ? (userByEmail[p.payer_email.toLowerCase()]?.nombre || '') : '',
+  }))
+
+  return NextResponse.json({ payments, memberships })
 }

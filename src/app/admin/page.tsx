@@ -2251,7 +2251,7 @@ const confirmarCambioPlan = async () => {
             {(() => {
               const q = filtroPagos.toLowerCase()
               const filtrados = pagos.filter(p =>
-                !q || p.payer_email?.toLowerCase().includes(q)
+                !q || p.payer_email?.toLowerCase().includes(q) || p.payer_nombre?.toLowerCase().includes(q)
               )
               return (
             <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
@@ -2261,7 +2261,7 @@ const confirmarCambioPlan = async () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: '#f8f4ff' }}>
-                        {['Fecha','Tipo','Estado','Detalle','Monto','Moneda','Email pagador','ID pago'].map(h => (
+                        {['Fecha','Tipo','Estado','Detalle','Monto','Moneda','Nombre','Email pagador','ID pago'].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 700, color: '#421869', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -2289,12 +2289,13 @@ const confirmarCambioPlan = async () => {
                             <td style={{ padding: '9px 14px', color: '#999', fontSize: 11 }}>{p.mp_status_detail || '—'}</td>
                             <td style={{ padding: '9px 14px', fontWeight: 700, color: '#333' }}>{p.amount ? `${parseFloat(p.amount).toFixed(2)}` : '—'}</td>
                             <td style={{ padding: '9px 14px', color: '#666' }}>{p.currency || '—'}</td>
+                            <td style={{ padding: '9px 14px', fontWeight: 600, color: '#333' }}>{p.payer_nombre || '—'}</td>
                             <td style={{ padding: '9px 14px', color: '#421869' }}>{p.payer_email || '—'}</td>
                             <td style={{ padding: '9px 14px', color: '#bbb', fontSize: 11 }}>{p.mp_payment_id}</td>
                           </tr>
                         )
                       })}
-                      {filtrados.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin resultados</td></tr>}
+                      {filtrados.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin resultados</td></tr>}
                     </tbody>
                   </table>
                 </div>
