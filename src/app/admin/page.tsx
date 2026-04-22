@@ -65,6 +65,7 @@ export default function AdminPage() {
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const [pagos, setPagos] = useState<any[]>([])
   const [memberships, setMemberships] = useState<any[]>([])
+  const [filtroPagos, setFiltroPagos] = useState('')
   const [staff, setStaff] = useState<any[]>([])
   const [nuevoAsesorEmail, setNuevoAsesorEmail] = useState('')
   const [nuevoAsesorNombre, setNuevoAsesorNombre] = useState('')
@@ -2186,9 +2187,23 @@ const confirmarCambioPlan = async () => {
 
         {activeTab === 'pagos' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Buscador */}
+            <input
+              placeholder="Buscar por nombre o correo..."
+              value={filtroPagos}
+              onChange={e => setFiltroPagos(e.target.value)}
+              style={{ padding: '10px 16px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none', maxWidth: 340, color: '#1a1a1a' }}
+            />
+
             {/* Membresías Menter */}
+            {(() => {
+              const q = filtroPagos.toLowerCase()
+              const filtradas = memberships.filter(m =>
+                !q || m.nombre?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q)
+              )
+              return (
             <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
-              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Membresías activas (Menters)</h3>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Membresías activas (Menters) <span style={{ fontSize: 12, fontWeight: 400, color: '#999' }}>{filtradas.length} resultado{filtradas.length !== 1 ? 's' : ''}</span></h3>
               {loadings.pagos ? <p style={{ color: '#999', fontSize: 13 }}>Cargando...</p> : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -2200,7 +2215,7 @@ const confirmarCambioPlan = async () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {memberships.map((m: any) => (
+                      {filtradas.map((m: any) => (
                         <tr key={m.menter_id} style={{ borderBottom: '1px solid #f5f5f5' }}>
                           <td style={{ padding: '9px 14px', fontWeight: 600 }}>{m.nombre || '—'}</td>
                           <td style={{ padding: '9px 14px', color: '#666' }}>{m.email || '—'}</td>
@@ -2223,16 +2238,24 @@ const confirmarCambioPlan = async () => {
                           <td style={{ padding: '9px 14px', color: '#bbb', fontSize: 11 }}>{m.paypal_subscription_id || m.mp_subscription_id || '—'}</td>
                         </tr>
                       ))}
-                      {memberships.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin membresías</td></tr>}
+                      {filtradas.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin resultados</td></tr>}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
+            )
+            })()}
 
             {/* Historial de pagos */}
+            {(() => {
+              const q = filtroPagos.toLowerCase()
+              const filtrados = pagos.filter(p =>
+                !q || p.payer_email?.toLowerCase().includes(q)
+              )
+              return (
             <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
-              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Historial de transacciones</h3>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Historial de transacciones <span style={{ fontSize: 12, fontWeight: 400, color: '#999' }}>{filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}</span></h3>
               {loadings.pagos ? <p style={{ color: '#999', fontSize: 13 }}>Cargando...</p> : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -2244,7 +2267,7 @@ const confirmarCambioPlan = async () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pagos.map((p: any) => {
+                      {filtrados.map((p: any) => {
                         const statusCfg: Record<string, { label: string; bg: string; color: string }> = {
                           approved:  { label: 'Aprobado',  bg: '#e8f5e9', color: '#1b5e20' },
                           rejected:  { label: 'Rechazado', bg: '#ffebee', color: '#c62828' },
@@ -2271,12 +2294,14 @@ const confirmarCambioPlan = async () => {
                           </tr>
                         )
                       })}
-                      {pagos.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin transacciones registradas</td></tr>}
+                      {filtrados.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin resultados</td></tr>}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
+            )
+            })()}
           </div>
         )}
 
