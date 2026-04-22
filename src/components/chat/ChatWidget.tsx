@@ -266,7 +266,7 @@ export default function ChatWidget() {
                   <div key={i} style={{ display: 'flex', justifyContent: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                     <div style={{
                       maxWidth: '80%', padding: '10px 14px', borderRadius: m.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                      background: m.sender === 'user' ? '#421869' : m.sender === 'admin' ? '#1b5e20' : '#f3e8ff',
+                      background: m.sender === 'user' ? '#421869' : m.sender === 'admin' ? '#7b2fd4' : '#f3e8ff',
                       color: m.sender === 'user' ? 'white' : m.sender === 'admin' ? 'white' : '#2d1b4e',
                       fontSize: 14, lineHeight: 1.5,
                     }}>

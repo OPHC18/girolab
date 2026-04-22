@@ -55,6 +55,9 @@ export default function AdminPage() {
   const [selectedChat, setSelectedChat] = useState<any>(null)
   const [adminReply, setAdminReply] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
+  const [chatToast, setChatToast] = useState<{ nombre: string; mensaje: string } | null>(null)
+  const [soporteBadge, setSoporteBadge] = useState(0)
+  const selectedChatRef = useRef<any>(null)
   const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
@@ -178,7 +181,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'blog')     cargarBlogs()
     else if (activeTab === 'comunidad') cargarComunidad()
     else if (activeTab === 'leads')     cargarLeads()
-    else if (activeTab === 'soporte')   cargarChats()
+    else if (activeTab === 'soporte') { cargarChats(); setSoporteBadge(0) }
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -581,6 +584,49 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('soporte', false)
   }
 
+  // Realtime: escuchar nuevos mensajes y chats de soporte
+  useEffect(() => {
+    if (!user) return
+    selectedChatRef.current = selectedChat
+
+    const channel = supabase
+      .channel('admin_support_realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, async payload => {
+        const msg = payload.new as any
+        // Actualizar chat seleccionado si es el mismo
+        if (selectedChatRef.current?.id === msg.chat_id) {
+          setSelectedChat((prev: any) => ({
+            ...prev,
+            support_messages: [...(prev.support_messages || []), msg],
+          }))
+        }
+        // Actualizar lista de chats
+        setChats(prev => prev.map(c =>
+          c.id === msg.chat_id
+            ? { ...c, support_messages: [...(c.support_messages || []), msg], updated_at: msg.created_at }
+            : c
+        ))
+        // Notificación en pantalla solo si el mensaje es del usuario
+        if (msg.sender === 'user') {
+          const chat = await fetch(`/api/chat?chat_id=${msg.chat_id}`).then(r => r.json())
+          const chatData = (await fetch('/api/chat?all=1').then(r => r.json())).chats?.find((c: any) => c.id === msg.chat_id)
+          setChatToast({ nombre: chatData?.user_name || 'Usuario', mensaje: msg.content })
+          setSoporteBadge(b => b + 1)
+          setTimeout(() => setChatToast(null), 5000)
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_chats' }, payload => {
+        const newChat = { ...payload.new, support_messages: [] }
+        setChats(prev => [newChat, ...prev])
+        setChatToast({ nombre: (payload.new as any).user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
+        setSoporteBadge(b => b + 1)
+        setTimeout(() => setChatToast(null), 5000)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user, selectedChat])
+
   const sendAdminReply = async () => {
     if (!selectedChat || !adminReply.trim()) return
     setSendingReply(true)
@@ -954,9 +1000,22 @@ const confirmarCambioPlan = async () => {
             whiteSpace: 'nowrap' as const, fontFamily: 'DM Sans',
           }}>
             {t.emoji} {t.label}
+            {t.id === 'soporte' && soporteBadge > 0 && (
+              <span style={{ marginLeft: 6, background: '#e53935', color: 'white', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{soporteBadge}</span>
+            )}
           </button>
         ))}
       </div>
+
+      {/* Toast notificación en pantalla */}
+      {chatToast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 99999, background: 'linear-gradient(135deg,#421869,#7b2fd4)', color: 'white', borderRadius: 16, padding: '14px 20px', boxShadow: '0 8px 32px rgba(66,24,105,0.35)', maxWidth: 320, fontFamily: 'DM Sans', animation: 'slideUp 0.3s ease' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Nuevo mensaje — {chatToast.nombre}</div>
+          <div style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.4 }}>{chatToast.mensaje.slice(0, 80)}{chatToast.mensaje.length > 80 ? '…' : ''}</div>
+          <button onClick={() => { setActiveTab('soporte'); setChatToast(null) }} style={{ marginTop: 10, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Ver chat</button>
+          <style>{`@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        </div>
+      )}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px 12px' : '32px' }}>
 
