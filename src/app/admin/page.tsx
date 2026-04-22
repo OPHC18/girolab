@@ -1845,6 +1845,53 @@ const confirmarCambioPlan = async () => {
         )}
 
         {activeTab === 'soporte' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Contactos del chat — para campañas */}
+          <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Contactos del chat</h3>
+              <span style={{ fontSize: 12, color: '#999' }}>{chats.filter(c => c.user_email).length} contactos</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f8f4ff' }}>
+                    {['Nombre', 'Email', 'Estado', 'Mensajes', 'Fecha'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 700, color: '#421869' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {chats.filter(c => c.user_email).map(c => (
+                    <tr key={c.id} style={{ borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fafafa'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}
+                      onClick={() => setSelectedChat(c)}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600, color: '#333' }}>{c.user_name || '—'}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <a href={`mailto:${c.user_email}`} style={{ color: '#421869', textDecoration: 'none' }}>{c.user_email}</a>
+                      </td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 20, fontWeight: 600,
+                          background: c.status === 'needs_human' ? '#fff3e0' : c.status === 'closed' ? '#f5f5f5' : '#e3f2fd',
+                          color: c.status === 'needs_human' ? '#e65100' : c.status === 'closed' ? '#999' : '#1565c0' }}>
+                          {c.status === 'needs_human' ? 'Pide asesor' : c.status === 'closed' ? 'Cerrado' : 'Abierto'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 14px', color: '#666' }}>{c.support_messages?.length || 0}</td>
+                      <td style={{ padding: '9px 14px', color: '#999', whiteSpace: 'nowrap' }}>
+                        {new Date(c.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                    </tr>
+                  ))}
+                  {chats.filter(c => c.user_email).length === 0 && (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin contactos aún</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {/* Chats */}
           <div style={{ display: 'flex', gap: 20, height: 600 }}>
             {/* Lista de chats */}
             <div style={{ width: 280, flexShrink: 0, background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -1920,6 +1967,7 @@ const confirmarCambioPlan = async () => {
                 </>
               )}
             </div>
+          </div>
           </div>
         )}
 

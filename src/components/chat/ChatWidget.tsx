@@ -60,6 +60,7 @@ export default function ChatWidget() {
   const [sending, setSending] = useState(false)
   const [humanRequested, setHumanRequested] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [showFaqs, setShowFaqs] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<any>(null)
 
@@ -277,17 +278,24 @@ export default function ChatWidget() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* FAQs */}
-              <div style={{ padding: '8px 12px', borderTop: '1px solid #f0f0f0' }}>
-                <p style={{ fontSize: 11, color: '#999', margin: '0 0 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Preguntas frecuentes</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {FAQS.map(f => (
-                    <button key={f.question} onClick={() => sendMessage(f.question, true)}
-                      style={{ fontSize: 12, padding: '5px 10px', borderRadius: 20, border: '1px solid #e0d4f7', background: 'white', color: '#6a1b9a', cursor: 'pointer', fontFamily: 'DM Sans' }}>
-                      {f.question}
-                    </button>
-                  ))}
-                </div>
+              {/* FAQs toggle */}
+              <div style={{ padding: '6px 12px', borderTop: '1px solid #f0f0f0' }}>
+                <button onClick={() => setShowFaqs(v => !v)}
+                  style={{ fontSize: 12, color: '#6a1b9a', background: 'none', border: '1px solid #e0d4f7', borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontFamily: 'DM Sans', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6a1b9a" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+                  Preguntas frecuentes
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6a1b9a" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showFaqs ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                {showFaqs && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {FAQS.map(f => (
+                      <button key={f.question} onClick={() => { sendMessage(f.question, true); setShowFaqs(false) }}
+                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 20, border: '1px solid #e0d4f7', background: 'white', color: '#6a1b9a', cursor: 'pointer', fontFamily: 'DM Sans' }}>
+                        {f.question}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Input */}
