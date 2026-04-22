@@ -308,11 +308,8 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
 
  const cargarPersonas = async () => {
   setLoad('personas', true)
-  const { data: usersData } = await supabase
-    .from('user_public_data')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(200)
+  const res = await fetch('/api/admin/users-data?role=persona')
+  const { users: usersData } = await res.json()
 
   // Fetch respuestas from auth.user_metadata via admin API
   const metaRes = await fetch('/api/admin/users-metadata').then(r => r.json()).catch(() => ({ users: [] }))
@@ -382,12 +379,8 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
 
 const cargarEmpresas = async () => {
   setLoad('empresas', true)
-  const { data } = await supabase
-    .from('user_public_data')
-    .select('*')
-    .eq('role', 'empresa')
-    .order('created_at', { ascending: false })
-    .limit(200)
+  const res = await fetch('/api/admin/users-data?role=empresa')
+  const { users: data } = await res.json()
 
   // Fetch respuestas from auth.user_metadata (igual que cargarPersonas)
   const metaRes = await fetch('/api/admin/users-metadata').then(r => r.json()).catch(() => ({ users: [] }))
@@ -465,7 +458,7 @@ const cargarMenters = async () => {
     supabase.from('appointments').select('menter_id, status').in('menter_id', menterIds),
     supabase.from('events').select('menter_id').in('menter_id', menterIds),
     supabase.from('menter_profile').select('menter_id, pais, casos_que_atiende, telefono').in('menter_id', menterIds),
-    supabase.from('user_public_data').select('id, email').in('id', menterIds),
+    fetch(`/api/admin/users-data?ids=${menterIds.join(',')}`).then(r => r.json()).then(d => ({ data: d.users })),
   ])
 
   const mentersCompletos = menterData.map((m: any) => {
@@ -752,10 +745,7 @@ const confirmarCambioPlan = async () => {
         .eq('event_id', id)
       if (regs && regs.length > 0) {
         const userIds = regs.map((r: any) => r.user_id)
-        const { data: usersData } = await supabase
-          .from('user_public_data')
-          .select('id, nombre, email')
-          .in('id', userIds)
+        const { users: usersData } = await fetch(`/api/admin/users-data?ids=${userIds.join(',')}`).then(r => r.json())
         const eventoFecha = new Date(eventoData.date + 'T00:00:00').toLocaleDateString('es-PE', {
           weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         })
