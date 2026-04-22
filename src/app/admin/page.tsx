@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -51,6 +51,10 @@ export default function AdminPage() {
   const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
   const [filtroLeadMenter, setFiltroLeadMenter] = useState('')
+  const [chats, setChats] = useState<any[]>([])
+  const [selectedChat, setSelectedChat] = useState<any>(null)
+  const [adminReply, setAdminReply] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
   const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
@@ -174,6 +178,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'blog')     cargarBlogs()
     else if (activeTab === 'comunidad') cargarComunidad()
     else if (activeTab === 'leads')     cargarLeads()
+    else if (activeTab === 'soporte')   cargarChats()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -568,6 +573,40 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('comunidad', false)
   }
 
+  const cargarChats = async () => {
+    setLoad('soporte', true)
+    const res = await fetch('/api/chat?all=1')
+    const { chats: data } = await res.json()
+    setChats(data || [])
+    setLoad('soporte', false)
+  }
+
+  const sendAdminReply = async () => {
+    if (!selectedChat || !adminReply.trim()) return
+    setSendingReply(true)
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_message', chat_id: selectedChat.id, sender: 'admin', content: adminReply.trim() }),
+    })
+    setAdminReply('')
+    // Refrescar mensajes del chat seleccionado
+    const res = await fetch(`/api/chat?chat_id=${selectedChat.id}`)
+    const { messages } = await res.json()
+    setSelectedChat((prev: any) => ({ ...prev, support_messages: messages }))
+    setSendingReply(false)
+  }
+
+  const closeChat = async (chat_id: string) => {
+    await fetch('/api/chat', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id, status: 'closed' }),
+    })
+    setChats(prev => prev.map(c => c.id === chat_id ? { ...c, status: 'closed' } : c))
+    if (selectedChat?.id === chat_id) setSelectedChat((prev: any) => ({ ...prev, status: 'closed' }))
+  }
+
   const cargarLeads = async () => {
     setLoad('leads', true)
     const { data } = await supabase
@@ -833,6 +872,7 @@ const confirmarCambioPlan = async () => {
     { id: 'blog',         label: 'Blog',         emoji: '📝' },
     { id: 'comunidad',    label: 'Comunidad',    emoji: '💬' },
     { id: 'leads',        label: 'Leads',        emoji: '🎯' },
+    { id: 'soporte',      label: 'Soporte',      emoji: '💬' },
   ]
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -1801,6 +1841,85 @@ const confirmarCambioPlan = async () => {
                 </>
               )
             })()}
+          </div>
+        )}
+
+        {activeTab === 'soporte' && (
+          <div style={{ display: 'flex', gap: 20, height: 600 }}>
+            {/* Lista de chats */}
+            <div style={{ width: 280, flexShrink: 0, background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Chats</h3>
+                <button onClick={cargarChats} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 18 }}>↻</button>
+              </div>
+              {loadings.soporte ? <p style={{ padding: 20, color: '#999', fontSize: 13 }}>Cargando...</p> : (
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {chats.length === 0 && <p style={{ padding: 20, color: '#bbb', fontSize: 13, textAlign: 'center' }}>Sin chats aún</p>}
+                  {chats.map(c => {
+                    const statusColor: Record<string, string> = { open: '#e3f2fd', needs_human: '#fff3e0', closed: '#f5f5f5' }
+                    const statusLabel: Record<string, string> = { open: 'Abierto', needs_human: 'Pide asesor', closed: 'Cerrado' }
+                    const lastMsg = c.support_messages?.[c.support_messages.length - 1]
+                    return (
+                      <div key={c.id} onClick={() => setSelectedChat(c)}
+                        style={{ padding: '14px 16px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', background: selectedChat?.id === c.id ? '#f3e8ff' : 'white' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: '#333' }}>{c.user_name || 'Anónimo'}</div>
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: statusColor[c.status] || '#f5f5f5', color: '#555', whiteSpace: 'nowrap', fontWeight: 600 }}>{statusLabel[c.status] || c.status}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{c.user_email}</div>
+                        {lastMsg && <div style={{ fontSize: 12, color: '#bbb', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg.content}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Panel de mensajes */}
+            <div style={{ flex: 1, background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {!selectedChat ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14 }}>Selecciona un chat</div>
+              ) : (
+                <>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#333' }}>{selectedChat.user_name}</div>
+                      <div style={{ fontSize: 12, color: '#999' }}>{selectedChat.user_email}</div>
+                    </div>
+                    {selectedChat.status !== 'closed' && (
+                      <button onClick={() => closeChat(selectedChat.id)} style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #ddd', background: 'white', fontSize: 12, cursor: 'pointer', color: '#666' }}>Cerrar chat</button>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(selectedChat.support_messages || []).map((m: any) => (
+                      <div key={m.id} style={{ display: 'flex', justifyContent: m.sender === 'user' ? 'flex-start' : 'flex-end' }}>
+                        <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: 14, fontSize: 13, lineHeight: 1.5,
+                          background: m.sender === 'user' ? '#f3e8ff' : m.sender === 'admin' ? '#421869' : '#e8f5e9',
+                          color: m.sender === 'admin' ? 'white' : '#333' }}>
+                          {m.sender === 'bot' && <div style={{ fontSize: 10, fontWeight: 700, color: '#6a1b9a', marginBottom: 3 }}>BOT</div>}
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedChat.status !== 'closed' && (
+                    <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 10 }}>
+                      <input
+                        placeholder="Responder..."
+                        value={adminReply}
+                        onChange={e => setAdminReply(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendAdminReply()}
+                        style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none' }}
+                      />
+                      <button onClick={sendAdminReply} disabled={!adminReply.trim() || sendingReply}
+                        style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: adminReply.trim() ? '#421869' : '#e0e0e0', color: 'white', fontWeight: 700, fontSize: 13, cursor: adminReply.trim() ? 'pointer' : 'not-allowed', fontFamily: 'Raleway' }}>
+                        {sendingReply ? '...' : 'Enviar'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 
