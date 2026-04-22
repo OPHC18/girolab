@@ -15,12 +15,14 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos' | 'equipo'
+type UserRole = 'admin' | 'asesor'
 
 export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<UserRole>('admin')
   const [activeTab, setActiveTab] = useState<AdminTab>('metricas')
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -63,6 +65,10 @@ export default function AdminPage() {
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const [pagos, setPagos] = useState<any[]>([])
   const [memberships, setMemberships] = useState<any[]>([])
+  const [staff, setStaff] = useState<any[]>([])
+  const [nuevoAsesorEmail, setNuevoAsesorEmail] = useState('')
+  const [nuevoAsesorNombre, setNuevoAsesorNombre] = useState('')
+  const [addingAsesor, setAddingAsesor] = useState(false)
   const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
@@ -167,10 +173,30 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/'); return }
-      if (!ADMIN_EMAILS.includes(session.user.email!)) { router.push('/dashboard'); return }
-      setUser(session.user)
-      setLoading(false)
-      cargarMetricas()
+
+      if (ADMIN_EMAILS.includes(session.user.email!)) {
+        setUserRole('admin')
+        setUser(session.user)
+        setLoading(false)
+        cargarMetricas()
+        return
+      }
+
+      // Check if staff (asesor)
+      const res = await fetch('/api/admin/staff')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.role === 'asesor') {
+          setUserRole('asesor')
+          setUser(session.user)
+          setActiveTab('soporte')
+          setLoading(false)
+          cargarChats()
+          return
+        }
+      }
+
+      router.push('/dashboard')
     }
     init()
   }, [])
@@ -188,6 +214,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'leads')     cargarLeads()
     else if (activeTab === 'soporte') { cargarChats(); setSoporteBadge(0) }
     else if (activeTab === 'pagos')     cargarPagos()
+    else if (activeTab === 'equipo')    cargarEquipo()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -668,6 +695,42 @@ const especialidades = Object.entries(especialidadesMap)
     if (selectedChat?.id === chat_id) setSelectedChat((prev: any) => ({ ...prev, status: 'closed' }))
   }
 
+  const cargarEquipo = async () => {
+    setLoad('equipo', true)
+    const res = await fetch('/api/admin/staff')
+    if (res.ok) { const { staff: data } = await res.json(); setStaff(data || []) }
+    setLoad('equipo', false)
+  }
+
+  const agregarAsesor = async () => {
+    if (!nuevoAsesorEmail.trim()) return
+    setAddingAsesor(true)
+    const res = await fetch('/api/admin/staff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: nuevoAsesorEmail.trim(), nombre: nuevoAsesorNombre.trim() }),
+    })
+    const data = await res.json()
+    setAddingAsesor(false)
+    if (data.ok) {
+      toast('Asesor agregado')
+      setNuevoAsesorEmail(''); setNuevoAsesorNombre('')
+      cargarEquipo()
+    } else {
+      toast(data.error || 'Error al agregar')
+    }
+  }
+
+  const eliminarAsesor = async (user_id: string) => {
+    await fetch('/api/admin/staff', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id }),
+    })
+    setStaff(prev => prev.filter(s => s.user_id !== user_id))
+    toast('Asesor eliminado')
+  }
+
   const cargarPagos = async () => {
     setLoad('pagos', true)
     const res = await fetch('/api/admin/payments')
@@ -946,7 +1009,12 @@ const confirmarCambioPlan = async () => {
     { id: 'leads',        label: 'Leads',        emoji: '🎯' },
     { id: 'soporte',      label: 'Soporte',      emoji: '💬' },
     { id: 'pagos',        label: 'Pagos',        emoji: '💳' },
+    { id: 'equipo',       label: 'Equipo',       emoji: '👥' },
   ]
+
+  const visibleTabs = userRole === 'asesor'
+    ? tabs.filter(t => t.id === 'soporte')
+    : tabs
 
   const StatusBadge = ({ status }: { status: string }) => {
     const cfg: Record<string, { label: string; color: string; bg: string }> = {
@@ -1018,7 +1086,7 @@ const confirmarCambioPlan = async () => {
 
       {/* Tabs */}
       <div style={{ background: 'white', borderBottom: '1px solid #e0e0e0', padding: '0 32px', display: 'flex', gap: 0, overflowX: 'auto' }}>
-        {tabs.map(t => (
+        {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
             padding: '14px 18px', border: 'none', background: 'none', cursor: 'pointer',
             fontSize: 13, fontWeight: activeTab === t.id ? 700 : 400,
@@ -2207,6 +2275,65 @@ const confirmarCambioPlan = async () => {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'equipo' && (
+          <div style={{ maxWidth: 700 }}>
+            <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 24px', fontSize: 22 }}>Equipo — Asesores de soporte</h2>
+
+            {/* Agregar asesor */}
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#333', fontSize: 15 }}>Agregar asesor</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+                El colaborador debe tener una cuenta registrada en Giro Lab. Solo podrá acceder al tab <strong>Soporte</strong> del panel admin — sin posibilidad de modificar planes, usuarios ni contenido.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <input
+                  placeholder="Correo electrónico del colaborador"
+                  value={nuevoAsesorEmail}
+                  onChange={e => setNuevoAsesorEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && agregarAsesor()}
+                  style={{ padding: '11px 14px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none', color: '#1a1a1a' }}
+                />
+                <input
+                  placeholder="Nombre (opcional)"
+                  value={nuevoAsesorNombre}
+                  onChange={e => setNuevoAsesorNombre(e.target.value)}
+                  style={{ padding: '11px 14px', borderRadius: 12, border: '1.5px solid #e0e0e0', fontSize: 14, fontFamily: 'DM Sans', outline: 'none', color: '#1a1a1a' }}
+                />
+                <button onClick={agregarAsesor} disabled={addingAsesor || !nuevoAsesorEmail.trim()}
+                  style={{ padding: '11px 24px', borderRadius: 30, border: 'none', background: nuevoAsesorEmail.trim() ? '#421869' : '#ccc', color: 'white', fontWeight: 700, fontSize: 14, cursor: nuevoAsesorEmail.trim() ? 'pointer' : 'not-allowed', fontFamily: 'Raleway', alignSelf: 'flex-start' }}>
+                  {addingAsesor ? 'Agregando...' : 'Agregar asesor'}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de asesores */}
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24 }}>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#333', fontSize: 15 }}>Asesores activos</h3>
+              {loadings.equipo ? <p style={{ color: '#999', fontSize: 13 }}>Cargando...</p> : (
+                staff.length === 0 ? (
+                  <p style={{ color: '#bbb', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin asesores configurados aún</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {staff.map(s => (
+                      <div key={s.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8f4ff', borderRadius: 12 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#333', fontSize: 14 }}>{s.nombre || s.email}</div>
+                          <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{s.email} · <span style={{ color: '#7b2fd4', fontWeight: 600 }}>Asesor de soporte</span></div>
+                          <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>Desde {new Date(s.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        </div>
+                        <button onClick={() => eliminarAsesor(s.user_id)}
+                          style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: '#ffebee', color: '#c62828', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          Revocar acceso
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           </div>
