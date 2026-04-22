@@ -223,6 +223,7 @@ function ClienteSelectorRoadmap({ clientes, loading, clienteActivo, onSelect }: 
 export default function Dashboard() {
   const [user, setUser]         = useState<{ email: string; id: string } | null>(null)
   const [meta, setMeta]         = useState<UserMeta | null>(null)
+  const [isStaff, setIsStaff]   = useState(false)
   const router = useRouter()
   const [loading, setLoading]   = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>('perfil')
@@ -1222,6 +1223,11 @@ const cargarRutaEmpresas = async () => {
   const googleAvatar = m.avatar_url || m.picture || null
 
   setUser({ email: u.email!, id: u.id })
+
+  // Verificar si es colaborador (asesor de soporte)
+  fetch('/api/admin/staff').then(r => r.ok ? r.json() : null).then(d => {
+    if (d?.role === 'asesor') setIsStaff(true)
+  }).catch(() => {})
 
   // Detectar si es usuario de Google OAuth
   const isGoogleUser = u.app_metadata?.provider === 'google' ||
@@ -7006,17 +7012,19 @@ const renderDestacados = () => (
       </button>
     </div>
 
-    {/* Botón Panel Admin — solo visible para admins */}
-    {ADMIN_EMAILS.includes(user?.email || '') && (
+    {/* Botón Panel — visible para admins y asesores */}
+    {(ADMIN_EMAILS.includes(user?.email || '') || isStaff) && (
       <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #f0f0f0' }}>
-        <p style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>Acceso administrativo</p>
+        <p style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+          {isStaff && !ADMIN_EMAILS.includes(user?.email || '') ? 'Acceso de asesor de soporte' : 'Acceso administrativo'}
+        </p>
         <a href="/admin" style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           padding: '10px 20px', borderRadius: 20,
           background: '#421869', color: 'white',
           fontSize: 13, fontWeight: 700, textDecoration: 'none'
         }}>
-          Panel Admin
+          {isStaff && !ADMIN_EMAILS.includes(user?.email || '') ? 'Panel de Soporte' : 'Panel Admin'}
         </a>
       </div>
     )}

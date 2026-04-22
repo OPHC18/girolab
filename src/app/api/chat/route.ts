@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   const all = searchParams.get('all') // solo admins
 
   if (all) {
-    // Verificar que es admin
+    // Verificar que es admin o asesor
     const cookieStore = await cookies()
     const supabaseUser = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,8 +76,10 @@ export async function GET(req: NextRequest) {
       { cookies: { getAll: () => cookieStore.getAll() } }
     )
     const { data: { user } } = await supabaseUser.auth.getUser()
-    if (!user || !ADMIN_EMAILS.includes(user.email!)) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (!ADMIN_EMAILS.includes(user.email!)) {
+      const { data: staffRow } = await admin.from('staff_roles').select('role').eq('user_id', user.id).maybeSingle()
+      if (!staffRow) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
     const { data: chatsData } = await admin
       .from('support_chats')
@@ -124,8 +126,10 @@ export async function PATCH(req: NextRequest) {
     { cookies: { getAll: () => cookieStore.getAll() } }
   )
   const { data: { user } } = await supabaseUser.auth.getUser()
-  if (!user || !ADMIN_EMAILS.includes(user.email!)) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!ADMIN_EMAILS.includes(user.email!)) {
+    const { data: staffRow } = await admin.from('staff_roles').select('role').eq('user_id', user.id).maybeSingle()
+    if (!staffRow) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const body = await req.json()
