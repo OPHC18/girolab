@@ -43,6 +43,22 @@ const FAQS: { question: string; answer: string }[] = [
     question: '¿Cómo funcionan los Tests?',
     answer: 'En la sección "Tests" puedes tomar evaluaciones psicológicas validadas científicamente (ansiedad, depresión, personalidad, etc.). Los resultados son confidenciales y puedes compartirlos con tu Menter.',
   },
+  {
+    question: '¿Necesito cuenta PayPal para pagar?',
+    answer: 'No es necesario tener cuenta PayPal. Puedes pagar directamente con tu tarjeta de crédito o débito desde la ventana de pago. Si quieres, también puedes registrarte en PayPal de forma gratuita para mayor comodidad.',
+  },
+  {
+    question: '¿El cobro de la suscripción es automático?',
+    answer: 'Sí, las suscripciones (Starter y Premium) tienen cobro automático mensual o anual según el plan que elijas. Recibirás un correo de confirmación cada vez que se procese un pago. Puedes cancelar en cualquier momento desde tu panel.',
+  },
+  {
+    question: '¿Cómo cancelo mi suscripción?',
+    answer: 'Puedes cancelar tu suscripción en cualquier momento desde la sección "Membresía" en tu dashboard. Al cancelar, seguirás teniendo acceso hasta el final del período pagado y no se realizarán cobros adicionales.',
+  },
+  {
+    question: '¿Qué hago si mi pago fue rechazado?',
+    answer: 'Verifica que los datos de tu tarjeta sean correctos y que tenga fondos suficientes. También puedes intentar con otra tarjeta o usar PayPal. Si el problema persiste, escríbenos por este chat y te ayudamos.',
+  },
 ]
 
 type Message = { sender: 'user' | 'bot' | 'admin'; content: string; created_at?: string }

@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -60,6 +60,9 @@ export default function AdminPage() {
   const [filtroMes, setFiltroMes] = useState('')
   const [syncingBrevo, setSyncingBrevo] = useState(false)
   const selectedChatRef = useRef<any>(null)
+  const chatBottomRef = useRef<HTMLDivElement>(null)
+  const [pagos, setPagos] = useState<any[]>([])
+  const [memberships, setMemberships] = useState<any[]>([])
   const [seedLoading, setSeedLoading] = useState(false)
 
   // ── Stats agregados ────────────────────────────────────────────────────────
@@ -184,6 +187,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'comunidad') cargarComunidad()
     else if (activeTab === 'leads')     cargarLeads()
     else if (activeTab === 'soporte') { cargarChats(); setSoporteBadge(0) }
+    else if (activeTab === 'pagos')     cargarPagos()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -588,9 +592,15 @@ const especialidades = Object.entries(especialidadesMap)
 
   // Polling soporte: actualiza chats y mensajes cada 4s cuando hay usuario admin
   useEffect(() => {
-    if (!user) return
     selectedChatRef.current = selectedChat
+  }, [selectedChat])
 
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [selectedChat?.support_messages?.length])
+
+  useEffect(() => {
+    if (!user) return
     const poll = async () => {
       const res = await fetch('/api/chat?all=1')
       if (!res.ok) return
@@ -656,6 +666,17 @@ const especialidades = Object.entries(especialidadesMap)
     })
     setChats(prev => prev.map(c => c.id === chat_id ? { ...c, status: 'closed' } : c))
     if (selectedChat?.id === chat_id) setSelectedChat((prev: any) => ({ ...prev, status: 'closed' }))
+  }
+
+  const cargarPagos = async () => {
+    setLoad('pagos', true)
+    const res = await fetch('/api/admin/payments')
+    if (res.ok) {
+      const data = await res.json()
+      setPagos(data.payments || [])
+      setMemberships(data.memberships || [])
+    }
+    setLoad('pagos', false)
   }
 
   const cargarLeads = async () => {
@@ -924,6 +945,7 @@ const confirmarCambioPlan = async () => {
     { id: 'comunidad',    label: 'Comunidad',    emoji: '💬' },
     { id: 'leads',        label: 'Leads',        emoji: '🎯' },
     { id: 'soporte',      label: 'Soporte',      emoji: '💬' },
+    { id: 'pagos',        label: 'Pagos',        emoji: '💳' },
   ]
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -2070,6 +2092,7 @@ const confirmarCambioPlan = async () => {
                         </div>
                       </div>
                     ))}
+                    <div ref={chatBottomRef} />
                   </div>
                   {selectedChat.status !== 'closed' && (
                     <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 10 }}>
@@ -2090,6 +2113,102 @@ const confirmarCambioPlan = async () => {
               )}
             </div>
           </div>
+          </div>
+        )}
+
+        {activeTab === 'pagos' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Membresías Menter */}
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Membresías activas (Menters)</h3>
+              {loadings.pagos ? <p style={{ color: '#999', fontSize: 13 }}>Cargando...</p> : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#f8f4ff' }}>
+                        {['Menter','Email','Plan','Ciclo','Estado','Trial hasta','Inicio','Suscripción ID'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 700, color: '#421869', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberships.map((m: any) => (
+                        <tr key={m.menter_id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                          <td style={{ padding: '9px 14px', fontWeight: 600 }}>{m.nombre || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#666' }}>{m.email || '—'}</td>
+                          <td style={{ padding: '9px 14px' }}>
+                            <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                              background: m.plan === 'premium' ? '#ede7f6' : m.plan === 'starter' ? '#e3f2fd' : '#f5f5f5',
+                              color: m.plan === 'premium' ? '#4a148c' : m.plan === 'starter' ? '#0d47a1' : '#999' }}>
+                              {m.plan?.toUpperCase() || 'FREE'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '9px 14px', color: '#666', textTransform: 'capitalize' }}>{m.billing_cycle || '—'}</td>
+                          <td style={{ padding: '9px 14px' }}>
+                            <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                              background: m.is_active ? '#e8f5e9' : '#ffebee', color: m.is_active ? '#1b5e20' : '#c62828' }}>
+                              {m.is_active ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '9px 14px', color: '#999', whiteSpace: 'nowrap' }}>{m.trial_ends_at ? new Date(m.trial_ends_at).toLocaleDateString('es-PE') : '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#999', whiteSpace: 'nowrap' }}>{m.starts_at ? new Date(m.starts_at).toLocaleDateString('es-PE') : '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#bbb', fontSize: 11 }}>{m.paypal_subscription_id || m.mp_subscription_id || '—'}</td>
+                        </tr>
+                      ))}
+                      {memberships.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin membresías</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Historial de pagos */}
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20 }}>
+              <h3 style={{ margin: '0 0 16px', fontFamily: 'Raleway', color: '#421869', fontSize: 16 }}>Historial de transacciones</h3>
+              {loadings.pagos ? <p style={{ color: '#999', fontSize: 13 }}>Cargando...</p> : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#f8f4ff' }}>
+                        {['Fecha','Tipo','Estado','Detalle','Monto','Moneda','Email pagador','ID pago'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 700, color: '#421869', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagos.map((p: any) => {
+                        const statusCfg: Record<string, { label: string; bg: string; color: string }> = {
+                          approved:  { label: 'Aprobado',  bg: '#e8f5e9', color: '#1b5e20' },
+                          rejected:  { label: 'Rechazado', bg: '#ffebee', color: '#c62828' },
+                          pending:   { label: 'Pendiente', bg: '#fff8e1', color: '#f57f17' },
+                          cancelled: { label: 'Cancelado', bg: '#f5f5f5', color: '#999' },
+                          in_process:{ label: 'En proceso',bg: '#e3f2fd', color: '#0d47a1' },
+                        }
+                        const typeCfg: Record<string, string> = { appointment: 'Cita', event_reg: 'Evento', subscription: 'Suscripción' }
+                        const cfg = statusCfg[p.mp_status] || { label: p.mp_status, bg: '#f5f5f5', color: '#666' }
+                        return (
+                          <tr key={p.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                            <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#999' }}>
+                              {new Date(p.created_at).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={{ padding: '9px 14px', color: '#555' }}>{typeCfg[p.type] || p.type || '—'}</td>
+                            <td style={{ padding: '9px 14px' }}>
+                              <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                            </td>
+                            <td style={{ padding: '9px 14px', color: '#999', fontSize: 11 }}>{p.mp_status_detail || '—'}</td>
+                            <td style={{ padding: '9px 14px', fontWeight: 700, color: '#333' }}>{p.amount ? `${parseFloat(p.amount).toFixed(2)}` : '—'}</td>
+                            <td style={{ padding: '9px 14px', color: '#666' }}>{p.currency || '—'}</td>
+                            <td style={{ padding: '9px 14px', color: '#421869' }}>{p.payer_email || '—'}</td>
+                            <td style={{ padding: '9px 14px', color: '#bbb', fontSize: 11 }}>{p.mp_payment_id}</td>
+                          </tr>
+                        )
+                      })}
+                      {pagos.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 30, color: '#bbb' }}>Sin transacciones registradas</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
