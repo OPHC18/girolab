@@ -234,13 +234,13 @@ export default function ChatWidget() {
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <p style={{ margin: 0, fontSize: 14, color: '#555' }}>Antes de comenzar, dinos quién eres:</p>
               <input
-                placeholder="Tu nombre"
+                placeholder="Nombre"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 style={inputStyle}
               />
               <input
-                placeholder="Tu correo electrónico"
+                placeholder="Correo electrónico"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -333,4 +333,5 @@ const inputStyle: React.CSSProperties = {
   border: '1.5px solid #e0e0e0', fontSize: 14,
   fontFamily: 'DM Sans, system-ui', outline: 'none',
   width: '100%', boxSizing: 'border-box',
+  color: '#1a1a1a', background: 'white',
 }
