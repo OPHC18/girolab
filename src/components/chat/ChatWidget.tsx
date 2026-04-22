@@ -61,6 +61,13 @@ export default function ChatWidget() {
   const [humanRequested, setHumanRequested] = useState(false)
   const [unread, setUnread] = useState(0)
   const [showFaqs, setShowFaqs] = useState(false)
+  const [emailConsent, setEmailConsent] = useState(false)
+
+  const isBusinessHours = (() => {
+    const now = new Date()
+    const peruHour = (now.getUTCHours() - 5 + 24) % 24
+    return peruHour >= 8 && peruHour < 22
+  })()
   const bottomRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<any>(null)
 
@@ -123,7 +130,7 @@ export default function ChatWidget() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create_chat', user_name: name.trim(), user_email: email.trim(), user_id: user?.id || null }),
+      body: JSON.stringify({ action: 'create_chat', user_name: name.trim(), user_email: email.trim(), user_id: user?.id || null, email_consent: emailConsent }),
     })
     const { chat_id } = await res.json()
     setChatId(chat_id)
@@ -216,7 +223,11 @@ export default function ChatWidget() {
             </div>
             <div>
               <div style={{ color: 'white', fontWeight: 700, fontSize: 15, fontFamily: 'Raleway, sans-serif' }}>Soporte Giro Lab</div>
-              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>Respuesta en minutos</div>
+              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: isBusinessHours ? '#69f0ae' : '#ff7043', display: 'inline-block' }} />
+                {isBusinessHours ? 'En línea · Respuesta en minutos' : 'Fuera de horario · Respondemos mañana'}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 2 }}>Lun–Dom 8:00am–10:00pm (Perú)</div>
             </div>
           </div>
 
@@ -245,10 +256,19 @@ export default function ChatWidget() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && validForm && startChat()}
+                onKeyDown={e => e.key === 'Enter' && validForm && emailConsent && startChat()}
                 style={inputStyle}
               />
-              <button onClick={startChat} disabled={!validForm} style={btnStyle(validForm ? '#421869' : '#ccc')}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+                <input
+                  type="checkbox"
+                  checked={emailConsent}
+                  onChange={e => setEmailConsent(e.target.checked)}
+                  style={{ marginTop: 2, accentColor: '#421869', flexShrink: 0 }}
+                />
+                Si no hay respuesta inmediata, nos permites escribirte a tu correo para darte seguimiento.
+              </label>
+              <button onClick={startChat} disabled={!validForm || !emailConsent} style={btnStyle(validForm && emailConsent ? '#421869' : '#ccc')}>
                 Comenzar
               </button>
             </div>

@@ -16,10 +16,10 @@ export async function POST(req: NextRequest) {
   const { action } = body
 
   if (action === 'create_chat') {
-    const { user_name, user_email, user_id } = body
+    const { user_name, user_email, user_id, email_consent } = body
     const { data, error } = await admin
       .from('support_chats')
-      .insert({ user_name, user_email, user_id: user_id || null, status: 'open' })
+      .insert({ user_name, user_email, user_id: user_id || null, status: 'open', email_consent: !!email_consent })
       .select('id')
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -79,12 +79,28 @@ export async function GET(req: NextRequest) {
     if (!user || !ADMIN_EMAILS.includes(user.email!)) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
-    const { data } = await admin
+    const { data: chatsData } = await admin
       .from('support_chats')
       .select('*, support_messages(id, sender, content, created_at)')
       .order('updated_at', { ascending: false })
-      .limit(100)
-    return NextResponse.json({ chats: data || [] })
+      .limit(500)
+
+    // Enriquecer con is_registered
+    const emails = (chatsData || []).map((c: any) => c.user_email).filter(Boolean)
+    const { data: registrados } = emails.length
+      ? await admin.from('user_profiles').select('user_id').limit(1000)
+      : { data: [] }
+    // Buscar por email en auth.users
+    const registradosEmails = new Set<string>()
+    if (emails.length) {
+      const { data: authUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      authUsers?.users?.forEach((u: any) => { if (u.email) registradosEmails.add(u.email.toLowerCase()) })
+    }
+    const chats = (chatsData || []).map((c: any) => ({
+      ...c,
+      is_registered: c.user_email ? registradosEmails.has(c.user_email.toLowerCase()) : false,
+    }))
+    return NextResponse.json({ chats })
   }
 
   if (chat_id) {
