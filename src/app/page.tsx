@@ -315,6 +315,9 @@ const toggleOpcion = (opcion: string) => {
         }),
       })
     }
+    if (typeof window !== 'undefined' && (window as any).ttq) {
+      (window as any).ttq.track('CompleteRegistration', { content_name: role })
+    }
     // Notificar a admins si se registró un Menter
     if (role === 'menter') {
       fetch('/api/push/notify-admins', {

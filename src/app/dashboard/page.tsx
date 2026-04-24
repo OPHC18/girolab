@@ -1374,6 +1374,9 @@ const cargarRutaEmpresas = async () => {
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'suscripcion_completada')
       }
+      if (typeof window !== 'undefined' && (window as any).ttq) {
+        (window as any).ttq.track('Subscribe')
+      }
       setTimeout(() => setPpModal({ type: 'success', msg: '¡Suscripción iniciada! PayPal activará tu plan en los próximos minutos. Recarga la página para ver tu nuevo plan.' }), 400)
       window.history.replaceState({}, '', window.location.pathname + (tabParam ? `?tab=${tabParam}` : ''))
     }
@@ -4521,6 +4524,9 @@ const renderIngresos = () => {
                           if (data.approve_url) {
                             if (typeof window !== 'undefined' && (window as any).gtag) {
                               (window as any).gtag('event', 'suscripcion_iniciada', { plan: p, billing_cycle: billingCycle })
+                            }
+                            if (typeof window !== 'undefined' && (window as any).ttq) {
+                              (window as any).ttq.track('InitiateCheckout', { content_name: p })
                             }
                             window.location.href = data.approve_url
                           } else {
