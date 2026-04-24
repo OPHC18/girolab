@@ -444,7 +444,7 @@ const handleGoogleAuth = async () => {
         <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, backdropFilter: navScrolled ? 'blur(16px)' : 'none', background: navScrolled ? 'rgba(13,6,24,0.88)' : 'transparent', borderBottom: navScrolled ? '1px solid rgba(255,255,255,0.08)' : 'none', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.35s ease, backdrop-filter 0.35s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Logo: solo lottie centrado */}
-            <div style={{ background: 'white', borderRadius: 14, width: 130, height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
+            <div style={{ background: 'white', borderRadius: 14, width: 130, height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: navScrolled ? '0 2px 12px rgba(0,0,0,0.2)' : 'none', overflow: 'hidden' }}>
               <DotLottieReact src="https://lottie.host/321372e0-85e2-4f73-b0f6-8d625c53da52/iW77hiuv8h.lottie" loop autoplay style={{ width: 100, height: 100, marginTop: 15, }} />
             </div>
           </div>
