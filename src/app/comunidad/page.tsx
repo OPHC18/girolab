@@ -98,30 +98,34 @@ supabase.from('events')
   const cargarFeed = async (offsetVal: number) => {
     setFeedLoading(true)
 
-    const promises: Promise<any>[] = [
-      supabase.rpc('get_community_feed', { p_limit: 20, p_offset: offsetVal }),
-    ]
+    const rpcPromise: Promise<any> = Promise.resolve(supabase.rpc('get_community_feed', { p_limit: 20, p_offset: offsetVal }))
+
+    let blogPromise: Promise<any> = Promise.resolve({ data: null })
+    let eventPromise: Promise<any> = Promise.resolve({ data: null })
 
     // On first load, also pull blog + event items to ensure menters' content appears
     if (offsetVal === 0) {
-      promises.push(
+      blogPromise = Promise.resolve(
         supabase
           .from('blog_posts')
           .select('id, title, cover_image, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
           .eq('status', 'publicado')
           .order('created_at', { ascending: false })
-          .limit(10),
+          .limit(10)
+      )
+
+      eventPromise = Promise.resolve(
         supabase
           .from('events')
           .select('id, title, cover_image, date, start_time, modality, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
           .eq('status', 'publicado')
           .gte('date', new Date().toISOString().split('T')[0])
           .order('date', { ascending: true })
-          .limit(10),
+          .limit(10)
       )
     }
 
-    const [rpcResult, blogResult, eventResult] = await Promise.all(promises)
+    const [rpcResult, blogResult, eventResult] = await Promise.all([rpcPromise, blogPromise, eventPromise])
     const rpcPosts: any[] = rpcResult.data || []
 
     // Build virtual feed items from blog/events not already in RPC feed
