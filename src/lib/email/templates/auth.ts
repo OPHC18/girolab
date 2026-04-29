@@ -3,6 +3,27 @@ import { sendEmail } from '../brevo'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
+export async function emailVerificacionCodigo(data: {
+  email: string
+  nombre: string
+  code: string
+}) {
+  const html = emailLayout(`
+    ${h1('Verifica tu correo')}
+    ${p(`Hola <strong>${data.nombre}</strong>, usa el siguiente código para verificar tu cuenta en Giro Lab.`)}
+    <div style="text-align:center;margin:32px 0">
+      <div style="display:inline-block;background:#421869;color:white;font-size:36px;font-weight:800;letter-spacing:10px;padding:20px 36px;border-radius:16px;font-family:monospace">${data.code}</div>
+    </div>
+    ${p('Este código es válido por <strong>30 minutos</strong>. Si no creaste una cuenta en Giro Lab, puedes ignorar este correo.')}
+  `, 'Verifica tu cuenta en Giro Lab')
+
+  return sendEmail({
+    to: [{ email: data.email, name: data.nombre }],
+    subject: `${data.code} — Tu código de verificación Giro Lab`,
+    htmlContent: html,
+  })
+}
+
 export async function emailResetPassword(data: {
   userEmail: string
   userName: string

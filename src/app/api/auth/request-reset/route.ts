@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'recovery',
     email: email.trim().toLowerCase(),
-    options: { redirectTo: `${APP_URL}/dashboard` },
+    options: { redirectTo: `${APP_URL}/reset-password` },
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

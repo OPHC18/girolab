@@ -20,6 +20,7 @@ import {
   emailCitaCanceladaAuto,
   emailResultadoTestMenter,
   emailCheckoutAbandonado,
+  emailVerificacionCodigo,
 } from '@/lib/email'
 
 // ── Rate limiting en memoria (10 emails por usuario por minuto) ──────────────
@@ -122,6 +123,8 @@ export async function POST(req: NextRequest) {
       result = await emailCitaCanceladaAuto(data); break
     case 'checkout_abandonado':
       result = await emailCheckoutAbandonado(data); break
+    case 'verificacion_codigo':
+      result = await emailVerificacionCodigo(data); break
     case 'resultado_test_menter': {
       // Look up menter email via service role
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

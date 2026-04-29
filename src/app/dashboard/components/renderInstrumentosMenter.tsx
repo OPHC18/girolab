@@ -12,6 +12,8 @@ import type { AssessmentResult } from '@/lib/assessments/instruments';
 interface ShareLink { token: string; url: string; copied: boolean; }
 interface PersonaResult {
   id: string;
+  candidato_nombre: string | null;
+  candidato_email: string | null;
   persona_nombre: string | null;
   persona_email: string | null;
   persona_id: string | null;
@@ -249,8 +251,8 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                     <div style={s.resultHeader}>
                       <span style={{ fontSize: 22 }}>{inst?.icono || '📋'}</span>
                       <div style={{ flex: 1 }}>
-                        <p style={s.resultName}>{res.persona_nombre || 'Anónimo'}</p>
-                        {res.persona_email && <p style={s.resultEmail}>{res.persona_email}</p>}
+                        <p style={s.resultName}>{res.candidato_nombre || res.persona_nombre || 'Anónimo'}</p>
+                        {(res.candidato_email || res.persona_email) && <p style={s.resultEmail}>{res.candidato_email || res.persona_email}</p>}
                         <p style={s.resultInst}>{inst?.nombre || res.instrument_id}</p>
                         <p style={s.resultDate}>{new Date(res.created_at).toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' })}</p>
                       </div>
@@ -305,7 +307,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <h3 style={s.modalTitle}>{selectedResult.roadmap_objetivo_id ? 'Cambiar objetivo vinculado' : 'Vincular resultado al Roadmap'}</h3>
             <p style={s.modalSub}>
-              Resultado de <strong>{selectedResult.persona_nombre}</strong> en <em>{INSTRUMENTS[selectedResult.instrument_id]?.nombre}</em>.
+              Resultado de <strong>{selectedResult.candidato_nombre || selectedResult.persona_nombre || 'Anónimo'}</strong> en <em>{INSTRUMENTS[selectedResult.instrument_id]?.nombre}</em>.
             </p>
             {objetivos.length === 0 ? (
               <p style={{ color: '#888', fontSize: 14 }}>No hay objetivos en el Roadmap de esta persona aún.</p>

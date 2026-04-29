@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase
     .from('assessment_sessions')
     .update({
-      ...(nombre ? { persona_nombre: nombre } : {}),
-      ...(email  ? { persona_email:  email  } : {}),
+      ...(nombre ? { candidato_nombre: nombre } : {}),
+      ...(email  ? { candidato_email:  email  } : {}),
     })
     .eq('session_token', token)
 

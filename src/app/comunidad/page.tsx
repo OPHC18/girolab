@@ -97,25 +97,85 @@ supabase.from('events')
 
   const cargarFeed = async (offsetVal: number) => {
     setFeedLoading(true)
-    const { data } = await supabase.rpc('get_community_feed', {
-      p_limit: 20, p_offset: offsetVal
-    })
-    if (data && data.length > 0) {
-      // Fusionar campos de reseña que el RPC no retorna
-      const ids = data.map((p: any) => p.id)
-      const { data: extra } = await supabase
-        .from('community_posts')
-        .select('id, menter_name, menter_avatar, estrellas, resena_comentario')
-        .in('id', ids)
-      const extraMap: Record<string, any> = {}
-      extra?.forEach((p: any) => { extraMap[p.id] = p })
-      const merged = data.map((p: any) => ({ ...p, ...(extraMap[p.id] || {}) }))
-      if (offsetVal === 0) setFeed(merged)
-      else setFeed(prev => [...prev, ...merged])
-      setHasMore(data.length === 20)
-    } else if (data) {
-      if (offsetVal === 0) setFeed([])
+
+    const promises: Promise<any>[] = [
+      supabase.rpc('get_community_feed', { p_limit: 20, p_offset: offsetVal }),
+    ]
+
+    // On first load, also pull blog + event items to ensure menters' content appears
+    if (offsetVal === 0) {
+      promises.push(
+        supabase
+          .from('blog_posts')
+          .select('id, title, cover_image, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
+          .eq('status', 'publicado')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('events')
+          .select('id, title, cover_image, date, start_time, modality, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
+          .eq('status', 'publicado')
+          .gte('date', new Date().toISOString().split('T')[0])
+          .order('date', { ascending: true })
+          .limit(10),
+      )
     }
+
+    const [rpcResult, blogResult, eventResult] = await Promise.all(promises)
+    const rpcPosts: any[] = rpcResult.data || []
+
+    // Build virtual feed items from blog/events not already in RPC feed
+    const rpcContentIds = new Set(rpcPosts.map((p: any) => p.source_id || ''))
+    const virtualItems: any[] = []
+
+    if (offsetVal === 0) {
+      for (const b of (blogResult?.data || [])) {
+        const key = `blog_${b.id}`
+        if (rpcContentIds.has(key)) continue
+        virtualItems.push({
+          id: key,
+          user_id: b.menter_id,
+          nombre: b.menter?.nombre || 'Menter',
+          apellidos: b.menter?.apellidos || '',
+          avatar_url: b.menter?.avatar_url || null,
+          role: 'menter',
+          tipo: 'blog',
+          contenido: `Nuevo artículo: ${b.title}`,
+          media_url: b.cover_image || null,
+          created_at: b.created_at,
+          blog_id: b.id,
+          likes_count: 0, comments_count: 0, user_liked: false,
+        })
+      }
+      for (const e of (eventResult?.data || [])) {
+        const key = `event_${e.id}`
+        if (rpcContentIds.has(key)) continue
+        virtualItems.push({
+          id: key,
+          user_id: e.menter_id,
+          nombre: e.menter?.nombre || 'Menter',
+          apellidos: e.menter?.apellidos || '',
+          avatar_url: e.menter?.avatar_url || null,
+          role: 'menter',
+          tipo: 'evento',
+          contenido: `Nuevo evento: ${e.title}`,
+          media_url: e.cover_image || null,
+          created_at: e.created_at,
+          event_id: e.id,
+          event_date: e.date,
+          event_time: e.start_time,
+          event_modality: e.modality,
+          likes_count: 0, comments_count: 0, user_liked: false,
+        })
+      }
+    }
+
+    const allPosts = [...rpcPosts, ...virtualItems]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    if (offsetVal === 0) setFeed(allPosts)
+    else setFeed(prev => [...prev, ...rpcPosts])
+    setHasMore(rpcPosts.length === 20)
     setOffset(offsetVal + 20)
     setFeedLoading(false)
   }
@@ -619,7 +679,7 @@ supabase.from('events')
                         <span style={{ fontSize: 11, color: '#999' }}>{fmtFecha(post.created_at)}</span>
                       </div>
                     </div>
-                    {(post.user_id === user?.id || ADMIN_EMAILS.includes(user?.email || '')) && (
+                    {!post.blog_id && !post.event_id && (post.user_id === user?.id || ADMIN_EMAILS.includes(user?.email || '')) && (
                       <button onClick={() => eliminarPost(post.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 16, padding: '4px 8px' }}>🗑️</button>
                     )}
                   </div>
@@ -651,8 +711,47 @@ supabase.from('events')
                     <div style={{ padding: '0 20px 12px', fontSize: 15, color: '#333', lineHeight: 1.6 }}>{post.contenido}</div>
                   )}
 
+                  {/* Card de blog virtual */}
+                  {post.tipo === 'blog' && post.blog_id && (
+                    <div style={{ margin: '0 20px 12px' }}>
+                      <a href={`/blog/${post.blog_id}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block', padding: '14px 16px', background: '#f8f4ff', border: '1px solid #e9d5ff', borderRadius: 14 }}>
+                        {post.media_url && (
+                          <img src={post.media_url} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
+                        )}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#995bd5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Artículo del blog</div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#421869', fontFamily: 'Raleway, sans-serif' }}>
+                          {post.contenido?.replace('Nuevo artículo: ', '') || ''}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#995bd5', marginTop: 8, fontWeight: 600 }}>Leer artículo →</div>
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Card de evento virtual */}
+                  {post.tipo === 'evento' && post.event_id && (
+                    <div style={{ margin: '0 20px 12px' }}>
+                      <div style={{ padding: '14px 16px', background: '#fff8e1', border: '1px solid #ffd54f', borderRadius: 14 }}>
+                        {post.media_url && (
+                          <img src={post.media_url} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
+                        )}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#e65100', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Nuevo evento</div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2926', fontFamily: 'Raleway, sans-serif' }}>
+                          {post.contenido?.replace('Nuevo evento: ', '') || ''}
+                        </div>
+                        {post.event_date && (
+                          <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>
+                            📅 {new Date(post.event_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {post.event_time && ` · ${post.event_time.slice(0, 5)}`}
+                            {post.event_modality && ` · ${post.event_modality === 'virtual' ? 'Virtual' : post.event_modality === 'presencial' ? 'Presencial' : 'Mixto'}`}
+                          </div>
+                        )}
+                        <a href="/dashboard?tab=eventos" style={{ fontSize: 12, color: '#e65100', marginTop: 8, fontWeight: 600, display: 'block', textDecoration: 'none' }}>Ver detalles →</a>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Media */}
-                  {post.media_url && (
+                  {post.media_url && !post.blog_id && !post.event_id && (
                     post.tipo === 'foto'
                       ? <img src={post.media_url} style={{ width: '100%', maxHeight: 400, objectFit: 'cover' }} />
                       : post.tipo === 'video'
@@ -688,6 +787,7 @@ supabase.from('events')
                   )}
 
                   {/* Acciones */}
+                  {!post.blog_id && !post.event_id && (
                   <div style={{ padding: '10px 20px', borderTop: '0.5px solid #f0f0f0', display: 'flex', gap: 16 }}>
                     <button onClick={() => toggleLike(post.id, post.user_liked)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: post.user_liked ? '#e53935' : '#666', fontWeight: post.user_liked ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -702,6 +802,7 @@ supabase.from('events')
                       🔗 Compartir
                     </button>
                   </div>
+                  )}
 
                   {/* Comentarios */}
                   {postExpandido === post.id && (

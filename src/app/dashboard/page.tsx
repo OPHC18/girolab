@@ -241,6 +241,11 @@ export default function Dashboard() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [showCompleteProfile, setShowCompleteProfile] = useState(false)
+  const [showVerification, setShowVerification]       = useState(false)
+  const [verifyCode, setVerifyCode]                   = useState('')
+  const [verifySending, setVerifySending]             = useState(false)
+  const [verifyError, setVerifyError]                 = useState('')
+  const [verifyResent, setVerifyResent]               = useState(false)
   const [completeForm, setCompleteForm] = useState({ nombre: '', apellidos: '', telefono: '', pais: '', cumpleanos: '' })
   const [completeSaving, setCompleteSaving] = useState(false)
   const [editForm, setEditForm] = useState({ nombre: '', apellidos: '', telefono: '', pais: '', empresa: '', cargo: '', cumpleanos: '' })
@@ -1204,7 +1209,17 @@ const cargarRutaEmpresas = async () => {
 
   useEffect(() => {
     const init = async () => {
-  const { data: { session } } = await supabase.auth.getSession()
+  // Esperar hasta 3s para que el cliente de Supabase procese el hash OAuth
+  let { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    session = await new Promise(resolve => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+        subscription.unsubscribe()
+        resolve(s)
+      })
+      setTimeout(() => resolve(null as any), 3000)
+    })
+  }
   if (!session) { window.location.href = '/'; return }
 
   // Validar que el usuario sigue activo en el servidor (detecta cuentas eliminadas/baneadas)
@@ -1232,6 +1247,15 @@ const cargarRutaEmpresas = async () => {
   // Detectar si es usuario de Google OAuth
   const isGoogleUser = u.app_metadata?.provider === 'google' ||
     (u.app_metadata?.providers as string[] | undefined)?.includes('google') || false
+
+  // Verificación de email por código (solo usuarios email/password, no Google)
+  if (!isGoogleUser) {
+    const verRes = await fetch('/api/auth/send-verification', { method: 'POST' })
+    const verData = await verRes.json()
+    if (!verData.already_verified && verData.ok) {
+      setShowVerification(true)
+    }
+  }
 
   // Consumir pendingRole para usuarios Google que aún no tienen role asignado
   if (!m.role && isGoogleUser && typeof window !== 'undefined') {
@@ -1511,6 +1535,32 @@ const handleCompleteProfile = async () => {
 }
 
 
+  const handleVerifyCode = async () => {
+    if (!verifyCode.trim() || verifyCode.trim().length !== 6) {
+      setVerifyError('Ingresa el código de 6 dígitos'); return
+    }
+    setVerifySending(true); setVerifyError('')
+    const res = await fetch('/api/auth/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: verifyCode.trim() }),
+    })
+    const data = await res.json()
+    setVerifySending(false)
+    if (data.ok) {
+      setShowVerification(false)
+    } else {
+      setVerifyError(data.error || 'Código incorrecto')
+    }
+  }
+
+  const handleResendCode = async () => {
+    setVerifyResent(false); setVerifyError('')
+    await fetch('/api/auth/send-verification', { method: 'POST' })
+    setVerifyResent(true)
+    setTimeout(() => setVerifyResent(false), 5000)
+  }
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file || !user) return
     setAvatarUploading(true)
@@ -1735,6 +1785,7 @@ const fetchFeaturedMenters = async () => {
     { id: 'mis-citas', icon: 'citas',       label: 'Mis Citas' },
     { id: 'roadmap',        icon: 'roadmap',  label: 'Roadmap'        },
     { id: 'instrumentos' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrumentos' },
+    ...(plan === 'master' ? [{ id: 'instrumentos_empresa' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrum. Empresa' }] : []),
     { id: 'ingresos',       icon: 'ingresos', label: 'Ingresos'       },
     { id: 'escribir',   icon: 'escribir',   label: 'Blog'        },
     { id: 'eventos',    icon: 'eventos',    label: 'Eventos'     },
@@ -7128,7 +7179,7 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
           </div>
         : renderProximamente('Instrumentos', '') },
     resultados_tests:     { title: 'Mis Resultados', content: !isMenter && user?.id ? <RenderResultadosTests userId={user.id} /> : renderProximamente('Mis Resultados', '') },
-    instrumentos_empresa: { title: 'Instrumentos', content: meta?.role === 'empresa' && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} /> : renderProximamente('Instrumentos', '') },
+    instrumentos_empresa: { title: 'Instrumentos', content: (meta?.role === 'empresa' || (isMenter && plan === 'master')) && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} /> : renderProximamente('Instrumentos', '') },
      compras:      { title: 'Historial de Compras',                                         content: user?.id ? <RenderCompras userId={user.id} isMenter={isMenter} /> : null },
      certificados: { title: 'Mis Certificados',                                             content: renderMisCertificados() },
    comunidad: {
@@ -7315,6 +7366,50 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
               {completeSaving ? 'Guardando...' : 'Completar mi perfil →'}
             </button>
           </div>          
+        </div>
+      )}
+
+      {showVerification && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 40, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
+              <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: '0 0 8px 0', fontSize: 22, fontWeight: 900 }}>Verifica tu correo</h2>
+              <p style={{ color: '#666', fontSize: 14, margin: 0 }}>
+                Te enviamos un código de 6 dígitos a <strong>{user?.email}</strong>.<br />Ingrésalo para continuar.
+              </p>
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="_ _ _ _ _ _"
+              value={verifyCode}
+              onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '')); setVerifyError('') }}
+              onKeyDown={e => { if (e.key === 'Enter') handleVerifyCode() }}
+              style={{
+                width: '100%', padding: '16px', textAlign: 'center', fontSize: 28, fontWeight: 800,
+                letterSpacing: 12, border: '2px solid #421869', borderRadius: 12, fontFamily: 'monospace',
+                boxSizing: 'border-box', outline: 'none', color: '#421869',
+              }}
+              autoFocus
+            />
+            {verifyError && <p style={{ color: '#c62828', fontSize: 13, textAlign: 'center', marginTop: 8, marginBottom: 0 }}>{verifyError}</p>}
+            {verifyResent && <p style={{ color: '#2e7d32', fontSize: 13, textAlign: 'center', marginTop: 8, marginBottom: 0 }}>Código reenviado. Revisa tu bandeja de entrada.</p>}
+            <button
+              onClick={handleVerifyCode}
+              disabled={verifySending || verifyCode.length !== 6}
+              style={{ width: '100%', marginTop: 20, padding: '14px', background: verifyCode.length === 6 ? '#ffa719' : '#e0e0e0', color: verifyCode.length === 6 ? '#2d2926' : '#999', border: 'none', borderRadius: 30, fontWeight: 700, fontSize: 15, cursor: verifyCode.length === 6 ? 'pointer' : 'not-allowed', fontFamily: 'Raleway, sans-serif', textTransform: 'uppercase' }}
+            >
+              {verifySending ? 'Verificando...' : 'Verificar →'}
+            </button>
+            <button
+              onClick={handleResendCode}
+              style={{ width: '100%', marginTop: 12, padding: '10px', background: 'none', border: 'none', color: '#421869', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              No recibí el código — Reenviar
+            </button>
+          </div>
         </div>
       )}
 

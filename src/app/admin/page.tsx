@@ -1403,19 +1403,35 @@ const confirmarCambioPlan = async () => {
                       <div style={{ color: '#555' }}>{u.email} · {u.role} · {u.confirmed ? 'Confirmado' : 'Sin confirmar email'}</div>
                       <div style={{ color: '#999', fontSize: 11 }}>Registro: {new Date(u.created_at).toLocaleDateString('es-PE')} · Último login: {u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString('es-PE') : 'Nunca'}</div>
                       <div style={{ color: '#bbb', fontSize: 10, fontFamily: 'monospace', marginBottom: 8 }}>{u.id}</div>
-                      <button
-                        onClick={async () => {
-                          const res = await fetch('/api/auth/request-reset', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: u.email }),
-                          })
-                          toast(res.ok ? `Email de reset enviado a ${u.email}` : 'Error al enviar el email')
-                        }}
-                        style={{ padding: '4px 14px', borderRadius: 20, background: '#421869', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
-                      >
-                        Enviar reset de contraseña
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={async () => {
+                            const res = await fetch('/api/auth/request-reset', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email: u.email }),
+                            })
+                            toast(res.ok ? `Email de reset enviado a ${u.email}` : 'Error al enviar el email')
+                          }}
+                          style={{ padding: '4px 14px', borderRadius: 20, background: '#421869', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
+                        >
+                          Enviar reset de contraseña
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`¿Desbloquear la cuenta de ${u.email}?`)) return
+                            const res = await fetch('/api/admin/unlock-user', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ userId: u.id }),
+                            })
+                            toast(res.ok ? `Cuenta desbloqueada: ${u.email}` : 'Error al desbloquear')
+                          }}
+                          style={{ padding: '4px 14px', borderRadius: 20, background: '#16a34a', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
+                        >
+                          Desbloquear cuenta
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
