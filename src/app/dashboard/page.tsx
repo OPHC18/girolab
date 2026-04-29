@@ -1377,6 +1377,7 @@ const cargarRutaEmpresas = async () => {
       if (typeof window !== 'undefined' && (window as any).ttq) {
         (window as any).ttq.track('Subscribe')
       }
+      fetch('/api/checkout/attempt', { method: 'PUT' }).catch(() => {})
       setTimeout(() => setPpModal({ type: 'success', msg: '¡Suscripción iniciada! PayPal activará tu plan en los próximos minutos. Recarga la página para ver tu nuevo plan.' }), 400)
       window.history.replaceState({}, '', window.location.pathname + (tabParam ? `?tab=${tabParam}` : ''))
     }
@@ -4528,6 +4529,11 @@ const renderIngresos = () => {
                             if (typeof window !== 'undefined' && (window as any).ttq) {
                               (window as any).ttq.track('InitiateCheckout', { content_name: p })
                             }
+                            fetch('/api/checkout/attempt', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ plan: p, billing_cycle: billingCycle }),
+                            }).catch(() => {})
                             window.location.href = data.approve_url
                           } else {
                             setPpModal({ type: 'error', msg: data.error || 'Error al iniciar suscripción' })

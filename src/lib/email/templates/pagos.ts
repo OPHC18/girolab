@@ -69,7 +69,32 @@ export async function emailPlanRebajado(data: {
   return sendEmail({ to: [{ email: data.menterEmail, name: data.menterName }], subject: 'Cambio en tu membresía Giro Lab', htmlContent })
 }
 
-// ── 4. Trial termina pronto → Menter (enviar 3 días antes) ───────────────────
+// ── 4. Checkout abandonado → recuperación ────────────────────────────────────
+export async function emailCheckoutAbandonado(data: {
+  email:         string
+  nombre:        string
+  plan:          string
+  billing_cycle: string
+  dashboardUrl:  string
+}) {
+  const planLabel = data.plan === 'starter' ? 'Starter' : data.plan === 'premium' ? 'Premium' : data.plan
+  const ciclo = data.billing_cycle === 'yearly' ? 'anual' : 'mensual'
+  const htmlContent = emailLayout(`
+    ${h1('¿Te quedaste a medias?')}
+    ${p(`Hola <strong>${data.nombre}</strong>, vimos que empezaste a activar tu plan <strong>${planLabel} (${ciclo})</strong> en Giro Lab pero no lo completaste.`)}
+    ${p('Sabemos que a veces surgen dudas o imprevistos. Si tienes alguna pregunta sobre el plan o necesitas ayuda con el pago, estamos aquí.')}
+    ${p('<strong>Tu plan te espera</strong> — puedes retomar el proceso en cualquier momento desde tu dashboard.')}
+    ${btn('Activar mi plan', data.dashboardUrl)}
+    ${p('Si tuviste algún problema técnico con el pago, escríbenos a <a href="mailto:soporte@girolab.net" style="color:#a855f7">soporte@girolab.net</a> y lo resolvemos juntos.')}
+  `)
+  return sendEmail({
+    to: [{ email: data.email, name: data.nombre }],
+    subject: `¿Seguimos? Tu plan ${planLabel} te espera — Giro Lab`,
+    htmlContent,
+  })
+}
+
+// ── 5. Trial termina pronto → Menter (enviar 3 días antes) ───────────────────
 export async function emailTrialTermina(data: {
   menterEmail: string
   menterName:  string
