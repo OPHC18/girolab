@@ -24,8 +24,8 @@ export default function ComunidadPage() {
   const [feed, setFeed]       = useState<any[]>([])
   const [feedLoading, setFeedLoading] = useState(false)
   const [featuredMenters, setFeaturedMenters] = useState<any[]>([])
-const [blogRecientes, setBlogRecientes]     = useState<any[]>([])
-const [eventosProximos, setEventosProximos] = useState<any[]>([])
+  const [blogRecientes, setBlogRecientes]     = useState<any[]>([])
+  const [eventosProximos, setEventosProximos] = useState<any[]>([])
   const [offset, setOffset]   = useState(0)
   const [alertMsg, setAlertMsg] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
@@ -39,6 +39,14 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
   const [misPostsMode, setMisPostsMode] = useState(false)
   const [misPosts, setMisPosts] = useState<any[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Perfil incompleto
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false)
+  const [missingFields, setMissingFields] = useState({ nombre: false, apellidos: false, telefono: false, pais: false, cumpleanos: false })
+  const [completeForm, setCompleteForm] = useState({ nombre: '', apellidos: '', telefono: '', pais: '', cumpleanos: '' })
+  const [completeSaving, setCompleteSaving] = useState(false)
+  // Tour
+  const [tourStep, setTourStep] = useState(-1)
+  const [tourActive, setTourActive] = useState(false)
 
   const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
 
@@ -56,12 +64,40 @@ const [eventosProximos, setEventosProximos] = useState<any[]>([])
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      let { data: { session } } = await supabase.auth.getSession()
+      // OAuth race condition: wait up to 3s for session after redirect
+      if (!session) {
+        session = await new Promise(resolve => {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+            subscription.unsubscribe(); resolve(s)
+          })
+          setTimeout(() => resolve(null as any), 3000)
+        })
+      }
       if (!session) { router.push('/'); return }
-      setUser({ id: session.user.id, email: session.user.email! })
-      setMeta(session.user.user_metadata)
+      const u = session.user
+      setUser({ id: u.id, email: u.email! })
+      setMeta(u.user_metadata)
       setLoading(false)
       cargarFeed(0)
+
+      // Perfil incompleto: pedir datos faltantes
+      const { data: perfil } = await supabase.from('user_profiles').select('telefono, pais, cumpleanos').eq('user_id', u.id).maybeSingle()
+      const m = u.user_metadata || {}
+      const missing = {
+        nombre:     !m.nombre,
+        apellidos:  !m.apellidos,
+        telefono:   !perfil?.telefono,
+        pais:       !perfil?.pais,
+        cumpleanos: !perfil?.cumpleanos,
+      }
+      if (Object.values(missing).some(Boolean)) {
+        setMissingFields(missing)
+        setCompleteForm({ nombre: m.nombre || '', apellidos: m.apellidos || '', telefono: perfil?.telefono || '', pais: perfil?.pais || '', cumpleanos: perfil?.cumpleanos || '' })
+        setShowCompleteProfile(true)
+      } else if (typeof window !== 'undefined' && !localStorage.getItem('giro_comunidad_tour_done')) {
+        setTimeout(() => { setTourStep(0); setTourActive(true) }, 800)
+      }
       // Cargar mis posts al inicio para que siempre estén disponibles
       const userMeta = session.user.user_metadata
       fetch('/api/community/my-posts', {
@@ -108,7 +144,7 @@ supabase.from('events')
       blogPromise = Promise.resolve(
         supabase
           .from('blog_posts')
-          .select('id, title, cover_image, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
+          .select('id, title, content, cover_image, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
           .eq('status', 'publicado')
           .order('created_at', { ascending: false })
           .limit(10)
@@ -117,7 +153,7 @@ supabase.from('events')
       eventPromise = Promise.resolve(
         supabase
           .from('events')
-          .select('id, title, cover_image, date, start_time, modality, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
+          .select('id, title, description, cover_image, date, start_time, modality, created_at, menter_id, menter:menter_public_profiles(nombre, apellidos, avatar_url)')
           .eq('status', 'publicado')
           .gte('date', new Date().toISOString().split('T')[0])
           .order('date', { ascending: true })
@@ -136,6 +172,7 @@ supabase.from('events')
       for (const b of (blogResult?.data || [])) {
         const key = `blog_${b.id}`
         if (rpcContentIds.has(key)) continue
+        const excerpt = b.content ? b.content.replace(/<[^>]+>/g, '').slice(0, 180).trim() : ''
         virtualItems.push({
           id: key,
           user_id: b.menter_id,
@@ -144,16 +181,19 @@ supabase.from('events')
           avatar_url: b.menter?.avatar_url || null,
           role: 'menter',
           tipo: 'blog',
-          contenido: `Nuevo artículo: ${b.title}`,
+          contenido: null,
           media_url: b.cover_image || null,
           created_at: b.created_at,
           blog_id: b.id,
+          blog_title: b.title,
+          blog_excerpt: excerpt,
           likes_count: 0, comments_count: 0, user_liked: false,
         })
       }
       for (const e of (eventResult?.data || [])) {
         const key = `event_${e.id}`
         if (rpcContentIds.has(key)) continue
+        const excerpt = e.description ? e.description.slice(0, 180).trim() : ''
         virtualItems.push({
           id: key,
           user_id: e.menter_id,
@@ -162,10 +202,12 @@ supabase.from('events')
           avatar_url: e.menter?.avatar_url || null,
           role: 'menter',
           tipo: 'evento',
-          contenido: `Nuevo evento: ${e.title}`,
+          contenido: null,
           media_url: e.cover_image || null,
           created_at: e.created_at,
           event_id: e.id,
+          event_title: e.title,
+          event_excerpt: excerpt,
           event_date: e.date,
           event_time: e.start_time,
           event_modality: e.modality,
@@ -309,6 +351,27 @@ supabase.from('events')
     })))
   }
 
+  const handleCompleteProfile = async () => {
+    setCompleteSaving(true)
+    if (missingFields.nombre || missingFields.apellidos) {
+      await supabase.auth.updateUser({ data: { ...meta, nombre: completeForm.nombre.trim(), apellidos: completeForm.apellidos.trim() } })
+    }
+    await supabase.from('user_profiles').upsert({
+      user_id: user!.id,
+      ...(completeForm.telefono && { telefono: completeForm.telefono }),
+      ...(completeForm.pais     && { pais: completeForm.pais }),
+      ...(completeForm.cumpleanos && { cumpleanos: completeForm.cumpleanos }),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' })
+    setMeta((prev: any) => ({ ...prev, nombre: completeForm.nombre, apellidos: completeForm.apellidos }))
+    setCompleteSaving(false)
+    setShowCompleteProfile(false)
+    // Lanzar tour después de completar perfil
+    if (typeof window !== 'undefined' && !localStorage.getItem('giro_comunidad_tour_done')) {
+      setTimeout(() => { setTourStep(0); setTourActive(true) }, 400)
+    }
+  }
+
   const eliminarPost = async (postId: string) => {
     if (!confirm('¿Eliminar esta publicación?')) return
     const token = await getToken()
@@ -339,9 +402,110 @@ supabase.from('events')
 
   const isMenter = meta?.role === 'menter'
   const planInfo = PLANES[meta?.plan || 'free']
+  const allFilled = (!missingFields.nombre || completeForm.nombre.trim()) &&
+    (!missingFields.apellidos || completeForm.apellidos.trim()) &&
+    (!missingFields.telefono || completeForm.telefono.trim()) &&
+    (!missingFields.pais || completeForm.pais) &&
+    (!missingFields.cumpleanos || completeForm.cumpleanos)
+
+  const PAISES = ['Argentina','Bolivia','Brasil','Chile','Colombia','Costa Rica','Cuba','Ecuador','El Salvador','Guatemala','Honduras','México','Nicaragua','Panamá','Paraguay','Perú','Puerto Rico','República Dominicana','Uruguay','Venezuela','España','─────────────','Alemania','Australia','Bélgica','Canadá','China','Corea del Sur','Estados Unidos','Francia','India','Italia','Japón','Países Bajos','Portugal','Reino Unido','Suecia','Suiza','Otros']
+
+  const tourSteps = [
+    { emoji: '🎉', title: '¡Bienvenido a la Comunidad!', desc: 'Este es el corazón de Giro Lab. Conecta con miembros, descubre contenido de bienestar, y mucho más.', hint: '' },
+    { emoji: '📝', title: 'El Feed Principal', desc: 'Comparte lo que piensas, sube fotos, videos o deja una reseña de tu Menter. Ve las publicaciones de toda la comunidad en tiempo real.', hint: '👉 El compositor de posts está justo debajo del menú' },
+    { emoji: '⭐', title: 'Menters Destacados', desc: 'En la columna izquierda encuentras los Menters mejor valorados por la comunidad. Haz clic en cualquiera para ir a su perfil y agendar.', hint: '👈 Columna izquierda — visible en escritorio' },
+    { emoji: '📅', title: 'Eventos y Blog', desc: 'En la columna derecha aparecen los próximos eventos de Menters y artículos del blog. Las tarjetas en el feed muestran la imagen y un resumen completo.', hint: '👉 Columna derecha — visible en escritorio' },
+    { emoji: '☰', title: 'Tu menú de opciones', desc: 'Con el botón ≡ (arriba a la derecha) accedes a tu Dashboard, donde puedes gestionar tus citas, inscribirte en eventos, ver tus resultados de tests, compras y mucho más.', hint: '↗ Botón ≡ en la esquina superior derecha' },
+  ]
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'DM Sans, sans-serif' }}>
+
+      {/* ── Tour overlay ── */}
+      {tourActive && tourStep >= 0 && tourStep < tourSteps.length && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 24, padding: '36px 32px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', textAlign: 'center', position: 'relative' }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>{tourSteps[tourStep].emoji}</div>
+            <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: '0 0 10px', fontSize: 22, fontWeight: 900 }}>{tourSteps[tourStep].title}</h2>
+            <p style={{ color: '#555', fontSize: 15, lineHeight: 1.6, margin: '0 0 14px' }}>{tourSteps[tourStep].desc}</p>
+            {tourSteps[tourStep].hint && (
+              <div style={{ background: '#f8f4ff', borderRadius: 12, padding: '8px 14px', marginBottom: 20, fontSize: 13, color: '#421869', fontWeight: 600 }}>{tourSteps[tourStep].hint}</div>
+            )}
+            {/* Steps dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
+              {tourSteps.map((_, i) => (
+                <div key={i} style={{ width: i === tourStep ? 20 : 8, height: 8, borderRadius: 4, background: i === tourStep ? '#ffa719' : '#e0e0e0', transition: 'width 0.3s, background 0.3s' }} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              {tourStep > 0 && (
+                <button onClick={() => setTourStep(s => s - 1)} style={{ padding: '10px 22px', borderRadius: 30, border: '1.5px solid #ddd', background: 'white', color: '#666', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>← Anterior</button>
+              )}
+              {tourStep < tourSteps.length - 1 ? (
+                <button onClick={() => setTourStep(s => s + 1)} style={{ padding: '10px 28px', borderRadius: 30, border: 'none', background: '#ffa719', color: '#2d2926', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>Siguiente →</button>
+              ) : (
+                <button onClick={() => { setTourActive(false); setTourStep(-1); localStorage.setItem('giro_comunidad_tour_done', '1') }} style={{ padding: '10px 28px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>¡Empezar!</button>
+              )}
+            </div>
+            <button onClick={() => { setTourActive(false); setTourStep(-1); localStorage.setItem('giro_comunidad_tour_done', '1') }} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: 20, color: '#bbb', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal perfil incompleto ── */}
+      {showCompleteProfile && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 36, maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 44, marginBottom: 10 }}>👋</div>
+              <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: '0 0 6px', fontSize: 22, fontWeight: 900 }}>Un último paso</h2>
+              <p style={{ color: '#666', fontSize: 14, margin: 0 }}>Completa estos datos para disfrutar la comunidad</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {(missingFields.nombre || missingFields.apellidos) && (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {missingFields.nombre && (
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 6, fontSize: 13 }}>Nombre *</label>
+                      <input type="text" placeholder="Tu nombre" value={completeForm.nombre} onChange={e => setCompleteForm(p => ({ ...p, nombre: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+                    </div>
+                  )}
+                  {missingFields.apellidos && (
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 6, fontSize: 13 }}>Apellidos *</label>
+                      <input type="text" placeholder="Tus apellidos" value={completeForm.apellidos} onChange={e => setCompleteForm(p => ({ ...p, apellidos: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+                    </div>
+                  )}
+                </div>
+              )}
+              {missingFields.telefono && (
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 6, fontSize: 13 }}>Teléfono *</label>
+                  <input type="tel" placeholder="+51 987 654 321" value={completeForm.telefono} onChange={e => setCompleteForm(p => ({ ...p, telefono: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+                </div>
+              )}
+              {missingFields.pais && (
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 6, fontSize: 13 }}>País *</label>
+                  <select value={completeForm.pais} onChange={e => setCompleteForm(p => ({ ...p, pais: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }}>
+                    <option value="">Selecciona tu país</option>
+                    {PAISES.map(p => <option key={p} value={p} disabled={p.startsWith('─')}>{p}</option>)}
+                  </select>
+                </div>
+              )}
+              {missingFields.cumpleanos && (
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600, color: '#421869', marginBottom: 6, fontSize: 13 }}>Fecha de nacimiento *</label>
+                  <input type="date" value={completeForm.cumpleanos} onChange={e => setCompleteForm(p => ({ ...p, cumpleanos: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '2px solid #e0e0e0', borderRadius: 10, fontSize: 14, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+                </div>
+              )}
+            </div>
+            <button onClick={handleCompleteProfile} disabled={completeSaving || !allFilled} style={{ width: '100%', marginTop: 20, padding: '13px', background: allFilled ? '#ffa719' : '#e0e0e0', color: allFilled ? '#2d2926' : '#999', border: 'none', borderRadius: 30, fontWeight: 700, fontSize: 15, cursor: allFilled ? 'pointer' : 'not-allowed', fontFamily: 'Raleway, sans-serif', textTransform: 'uppercase' as const }}>
+              {completeSaving ? 'Guardando...' : 'Continuar →'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ background: '#421869', padding: '12px 20px', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,0.2)' }}>
@@ -380,11 +544,15 @@ supabase.from('events')
             {headerMenuOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: '#421869', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)', minWidth: 230, zIndex: 200, boxShadow: '0 8px 28px rgba(0,0,0,0.35)' }}>
                 {[
-                  { label: '← Volver al Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
-                  { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => { setHeaderMenuOpen(false); setMisPostsMode(m => !m) } },
-                  { label: 'Editar perfil',       action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=perfil') } },
-                  { label: 'Resultados de Tests', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=instrumentos') } },
-                  { label: 'Cerrar sesión',       action: async () => { await supabase.auth.signOut(); router.push('/') } },
+                  { label: '📊 Mi Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
+                  { label: '🗓 Mis Citas', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=mis-citas') } },
+                  { label: '🎪 Eventos', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=eventos') } },
+                  { label: '🧪 Resultados de Tests', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=resultados_tests') } },
+                  { label: '🛒 Mis Compras', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=compras') } },
+                  { label: misPostsMode ? '📰 Ver todo el feed' : '📝 Mis Posts', action: () => { setHeaderMenuOpen(false); setMisPostsMode(m => !m) } },
+                  { label: '✏️ Editar perfil', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=editar') } },
+                  { label: '🗺 Ver tour de la comunidad', action: () => { setHeaderMenuOpen(false); localStorage.removeItem('giro_comunidad_tour_done'); setTourStep(0); setTourActive(true) } },
+                  { label: '🚪 Cerrar sesión', action: async () => { await supabase.auth.signOut(); router.push('/') } },
                 ].map(({ label, action }) => (
                   <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     {label}
@@ -717,39 +885,51 @@ supabase.from('events')
 
                   {/* Card de blog virtual */}
                   {post.tipo === 'blog' && post.blog_id && (
-                    <div style={{ margin: '0 20px 12px' }}>
-                      <a href={`/blog/${post.blog_id}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block', padding: '14px 16px', background: '#f8f4ff', border: '1px solid #e9d5ff', borderRadius: 14 }}>
+                    <div style={{ margin: '0 0 12px' }}>
+                      <a href={`/blog/${post.blog_id}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                         {post.media_url && (
-                          <img src={post.media_url} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
+                          <img src={post.media_url} style={{ width: '100%', maxHeight: 260, objectFit: 'cover' }} />
                         )}
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#995bd5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Artículo del blog</div>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: '#421869', fontFamily: 'Raleway, sans-serif' }}>
-                          {post.contenido?.replace('Nuevo artículo: ', '') || ''}
+                        <div style={{ padding: '14px 20px 4px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: '#995bd5', textTransform: 'uppercase', letterSpacing: '0.08em', background: '#f3e8ff', padding: '3px 10px', borderRadius: 20 }}>Artículo del blog</span>
+                          <div style={{ fontWeight: 800, fontSize: 17, color: '#421869', fontFamily: 'Raleway, sans-serif', margin: '8px 0 6px', lineHeight: 1.3 }}>
+                            {post.blog_title || post.contenido}
+                          </div>
+                          {post.blog_excerpt && (
+                            <div style={{ fontSize: 13, color: '#555', lineHeight: 1.55, marginBottom: 8 }}>
+                              {post.blog_excerpt}{post.blog_excerpt.length >= 180 ? '…' : ''}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 12, color: '#995bd5', fontWeight: 700 }}>Leer artículo →</div>
                         </div>
-                        <div style={{ fontSize: 12, color: '#995bd5', marginTop: 8, fontWeight: 600 }}>Leer artículo →</div>
                       </a>
                     </div>
                   )}
 
                   {/* Card de evento virtual */}
                   {post.tipo === 'evento' && post.event_id && (
-                    <div style={{ margin: '0 20px 12px' }}>
-                      <div style={{ padding: '14px 16px', background: '#fff8e1', border: '1px solid #ffd54f', borderRadius: 14 }}>
-                        {post.media_url && (
-                          <img src={post.media_url} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
-                        )}
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#e65100', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Nuevo evento</div>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2926', fontFamily: 'Raleway, sans-serif' }}>
-                          {post.contenido?.replace('Nuevo evento: ', '') || ''}
+                    <div style={{ margin: '0 0 12px' }}>
+                      {post.media_url && (
+                        <img src={post.media_url} style={{ width: '100%', maxHeight: 260, objectFit: 'cover' }} />
+                      )}
+                      <div style={{ padding: '14px 20px 4px' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#e65100', textTransform: 'uppercase', letterSpacing: '0.08em', background: '#fff3e0', padding: '3px 10px', borderRadius: 20 }}>Nuevo evento</span>
+                        <div style={{ fontWeight: 800, fontSize: 17, color: '#2d2926', fontFamily: 'Raleway, sans-serif', margin: '8px 0 6px', lineHeight: 1.3 }}>
+                          {post.event_title || post.contenido}
                         </div>
-                        {post.event_date && (
-                          <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>
-                            📅 {new Date(post.event_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            {post.event_time && ` · ${post.event_time.slice(0, 5)}`}
-                            {post.event_modality && ` · ${post.event_modality === 'virtual' ? 'Virtual' : post.event_modality === 'presencial' ? 'Presencial' : 'Mixto'}`}
+                        {post.event_excerpt && (
+                          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.55, marginBottom: 8 }}>
+                            {post.event_excerpt}{post.event_excerpt.length >= 180 ? '…' : ''}
                           </div>
                         )}
-                        <a href="/dashboard?tab=eventos" style={{ fontSize: 12, color: '#e65100', marginTop: 8, fontWeight: 600, display: 'block', textDecoration: 'none' }}>Ver detalles →</a>
+                        {post.event_date && (
+                          <div style={{ fontSize: 13, color: '#e65100', fontWeight: 600, marginBottom: 10 }}>
+                            📅 {new Date(post.event_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {post.event_time && ` · ${post.event_time.slice(0, 5)}`}
+                            {post.event_modality && ` · ${post.event_modality === 'virtual' ? 'Virtual' : 'Presencial'}`}
+                          </div>
+                        )}
+                        <a href="/dashboard?tab=eventos" style={{ fontSize: 12, color: '#e65100', fontWeight: 700, textDecoration: 'none' }}>Ver detalles e inscribirse →</a>
                       </div>
                     </div>
                   )}

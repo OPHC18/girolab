@@ -1419,6 +1419,15 @@ const cargarRutaEmpresas = async () => {
         setTimeout(() => { setTourStep(0); setTourActive(true) }, 800)
       }
     }
+
+    // Después de Google OAuth, redirigir a comunidad
+    if (typeof window !== 'undefined' && sessionStorage.getItem('giro_redirect_comunidad')) {
+      sessionStorage.removeItem('giro_redirect_comunidad')
+      const returnUrl = localStorage.getItem('returnUrl')
+      if (returnUrl) { localStorage.removeItem('returnUrl'); window.location.href = returnUrl; return }
+      window.location.href = '/comunidad'
+      return
+    }
     }
     init()
   }, [])

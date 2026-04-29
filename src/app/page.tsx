@@ -368,7 +368,7 @@ const toggleOpcion = (opcion: string) => {
     console.log('Login exitoso ✓')
     const params = new URLSearchParams(window.location.search)
 const returnUrl = params.get('returnUrl')
-window.location.href = returnUrl || '/dashboard'
+window.location.href = returnUrl || '/comunidad'
   }
 }
 
@@ -378,6 +378,8 @@ const handleGoogleAuth = async () => {
   }
   // Marcar que hay un welcome email pendiente (se enviará después del modal, cuando tengamos el nombre)
   localStorage.setItem('pendingWelcomeEmail', '1')
+  // Marcar que después de OAuth setup en dashboard debe redirigir a comunidad
+  sessionStorage.setItem('giro_redirect_comunidad', '1')
   // Guarda el returnUrl para después del OAuth
   const params = new URLSearchParams(window.location.search)
   const returnUrl = params.get('returnUrl')
