@@ -411,11 +411,11 @@ supabase.from('events')
   const PAISES = ['Argentina','Bolivia','Brasil','Chile','Colombia','Costa Rica','Cuba','Ecuador','El Salvador','Guatemala','Honduras','México','Nicaragua','Panamá','Paraguay','Perú','Puerto Rico','República Dominicana','Uruguay','Venezuela','España','─────────────','Alemania','Australia','Bélgica','Canadá','China','Corea del Sur','Estados Unidos','Francia','India','Italia','Japón','Países Bajos','Portugal','Reino Unido','Suecia','Suiza','Otros']
 
   const tourSteps = [
-    { emoji: '🎉', title: '¡Bienvenido a la Comunidad!', desc: 'Este es el corazón de Giro Lab. Conecta con miembros, descubre contenido de bienestar, y mucho más.', hint: '' },
-    { emoji: '📝', title: 'El Feed Principal', desc: 'Comparte lo que piensas, sube fotos, videos o deja una reseña de tu Menter. Ve las publicaciones de toda la comunidad en tiempo real.', hint: '👉 El compositor de posts está justo debajo del menú' },
-    { emoji: '⭐', title: 'Menters Destacados', desc: 'En la columna izquierda encuentras los Menters mejor valorados por la comunidad. Haz clic en cualquiera para ir a su perfil y agendar.', hint: '👈 Columna izquierda — visible en escritorio' },
-    { emoji: '📅', title: 'Eventos y Blog', desc: 'En la columna derecha aparecen los próximos eventos de Menters y artículos del blog. Las tarjetas en el feed muestran la imagen y un resumen completo.', hint: '👉 Columna derecha — visible en escritorio' },
-    { emoji: '☰', title: 'Tu menú de opciones', desc: 'Con el botón ≡ (arriba a la derecha) accedes a tu Dashboard, donde puedes gestionar tus citas, inscribirte en eventos, ver tus resultados de tests, compras y mucho más.', hint: '↗ Botón ≡ en la esquina superior derecha' },
+    { title: '¡Bienvenido a la Comunidad!', desc: 'Este es el corazón de Giro Lab. Conecta con miembros, descubre contenido de bienestar, y mucho más.', hint: '' },
+    { title: 'El Feed Principal', desc: 'Comparte lo que piensas, sube fotos, videos o deja una reseña de tu Menter. Ve las publicaciones de toda la comunidad en tiempo real.', hint: 'El compositor de posts está justo debajo del menú' },
+    { title: 'Menters Destacados', desc: 'En la columna izquierda encuentras los Menters mejor valorados por la comunidad. Haz clic en cualquiera para ir a su perfil y agendar.', hint: 'Columna izquierda — visible en escritorio' },
+    { title: 'Eventos y Blog', desc: 'En la columna derecha aparecen los próximos eventos de Menters y artículos del blog. Las tarjetas en el feed muestran la imagen y un resumen completo.', hint: 'Columna derecha — visible en escritorio' },
+    { title: 'Tu menú de opciones', desc: 'Con el botón ≡ (arriba a la derecha) accedes a tu Dashboard, donde puedes gestionar tus citas, inscribirte en eventos, ver tus resultados de tests, compras y mucho más.', hint: 'Botón ≡ en la esquina superior derecha' },
   ]
 
   return (
@@ -425,7 +425,6 @@ supabase.from('events')
       {tourActive && tourStep >= 0 && tourStep < tourSteps.length && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: 'white', borderRadius: 24, padding: '36px 32px', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', textAlign: 'center', position: 'relative' }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>{tourSteps[tourStep].emoji}</div>
             <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: '0 0 10px', fontSize: 22, fontWeight: 900 }}>{tourSteps[tourStep].title}</h2>
             <p style={{ color: '#555', fontSize: 15, lineHeight: 1.6, margin: '0 0 14px' }}>{tourSteps[tourStep].desc}</p>
             {tourSteps[tourStep].hint && (
@@ -544,15 +543,15 @@ supabase.from('events')
             {headerMenuOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: '#421869', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)', minWidth: 230, zIndex: 200, boxShadow: '0 8px 28px rgba(0,0,0,0.35)' }}>
                 {[
-                  { label: '📊 Mi Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
-                  { label: '🗓 Mis Citas', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=mis-citas') } },
-                  { label: '🎪 Eventos', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=eventos') } },
-                  { label: '🧪 Resultados de Tests', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=resultados_tests') } },
-                  { label: '🛒 Mis Compras', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=compras') } },
-                  { label: misPostsMode ? '📰 Ver todo el feed' : '📝 Mis Posts', action: () => { setHeaderMenuOpen(false); setMisPostsMode(m => !m) } },
-                  { label: '✏️ Editar perfil', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=editar') } },
-                  { label: '🗺 Ver tour de la comunidad', action: () => { setHeaderMenuOpen(false); localStorage.removeItem('giro_comunidad_tour_done'); setTourStep(0); setTourActive(true) } },
-                  { label: '🚪 Cerrar sesión', action: async () => { await supabase.auth.signOut(); router.push('/') } },
+                  { label: 'Mi Dashboard', action: () => { setHeaderMenuOpen(false); router.push('/dashboard') } },
+                  { label: 'Mis Citas', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=mis-citas') } },
+                  { label: 'Eventos', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=eventos') } },
+                  { label: 'Resultados de Tests', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=resultados_tests') } },
+                  { label: 'Mis Compras', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=compras') } },
+                  { label: misPostsMode ? 'Ver todo el feed' : 'Mis Posts', action: () => { setHeaderMenuOpen(false); setMisPostsMode(m => !m) } },
+                  { label: 'Editar perfil', action: () => { setHeaderMenuOpen(false); router.push('/dashboard?tab=editar') } },
+                  { label: 'Ver tour de la comunidad', action: () => { setHeaderMenuOpen(false); localStorage.removeItem('giro_comunidad_tour_done'); setTourStep(0); setTourActive(true) } },
+                  { label: 'Cerrar sesión', action: async () => { await supabase.auth.signOut(); router.push('/') } },
                 ].map(({ label, action }) => (
                   <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     {label}
@@ -924,7 +923,7 @@ supabase.from('events')
                         )}
                         {post.event_date && (
                           <div style={{ fontSize: 13, color: '#e65100', fontWeight: 600, marginBottom: 10 }}>
-                            📅 {new Date(post.event_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {new Date(post.event_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
                             {post.event_time && ` · ${post.event_time.slice(0, 5)}`}
                             {post.event_modality && ` · ${post.event_modality === 'virtual' ? 'Virtual' : 'Presencial'}`}
                           </div>
@@ -1056,12 +1055,12 @@ supabase.from('events')
                     )}
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#421869', lineHeight: 1.3, marginBottom: 4 }}>{e.title}</div>
                     <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>
-                      📅 {new Date(e.date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {new Date(e.date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
                       {e.start_time && ` · ${e.start_time.slice(0, 5)}`}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 11, color: e.modality === 'virtual' ? '#1565c0' : '#2e7d32', fontWeight: 600 }}>
-                        {e.modality === 'virtual' ? '💻 Virtual' : '📍 Presencial'}
+                        {e.modality === 'virtual' ? 'Virtual' : 'Presencial'}
                       </span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#421869' }}>
                         {(e.event_tickets || []).length === 0 || Math.min(...(e.event_tickets || [{ price: 0 }]).map((t: any) => t.price)) === 0

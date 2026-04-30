@@ -1794,7 +1794,6 @@ const fetchFeaturedMenters = async () => {
     { id: 'mis-citas', icon: 'citas',       label: 'Mis Citas' },
     { id: 'roadmap',        icon: 'roadmap',  label: 'Roadmap'        },
     { id: 'instrumentos' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrumentos' },
-    ...(plan === 'master' ? [{ id: 'instrumentos_empresa' as TabId, icon: 'instrumentos' as IconKey, label: 'Instrum. Empresa' }] : []),
     { id: 'ingresos',       icon: 'ingresos', label: 'Ingresos'       },
     { id: 'escribir',   icon: 'escribir',   label: 'Blog'        },
     { id: 'eventos',    icon: 'eventos',    label: 'Eventos'     },
@@ -7174,8 +7173,16 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     destacados:   { title: isMenter ? 'Directorio de Menters' : 'Menters Destacados', content: renderDestacados() },
      ingresos:    { title: 'Mis Ingresos', content: isMenter ? renderIngresos() : renderProximamente('Ingresos', '') },
     objetivos:            { title: 'Objetivos Empresariales', content: meta?.role === 'empresa' ? renderObjetivosEmpresa() : renderProximamente('Objetivos Empresariales', '') },
-    instrumentos:         { title: 'Instrumentos Psicométricos', content: isMenter && canPremium && user?.id
-      ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
+    instrumentos:         { title: 'Instrumentos', content: isMenter && canPremium && user?.id
+      ? <>
+          <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
+          {plan === 'master' && (
+            <div style={{ marginTop: 36, borderTop: '2px solid #f0f0f0', paddingTop: 28 }}>
+              <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Evaluaciones para Equipos y Empresas</h3>
+              <RenderInstrumentosEmpresa empresaId={user.id} />
+            </div>
+          )}
+        </>
       : isMenter
         ? <div style={{ textAlign: 'center', padding: '48px 24px' }}>
             <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>Instrumentos Psicométricos</h3>

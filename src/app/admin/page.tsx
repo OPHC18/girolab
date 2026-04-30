@@ -1425,7 +1425,13 @@ const confirmarCambioPlan = async () => {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ userId: u.id }),
                             })
-                            toast(res.ok ? `Cuenta desbloqueada: ${u.email}` : 'Error al desbloquear')
+                            if (res.ok) {
+                              setAuthResults(prev => prev.map(r => r.id === u.id ? { ...r, confirmed: true } : r))
+                              toast(`Cuenta desbloqueada: ${u.email}`)
+                            } else {
+                              const errData = await res.json().catch(() => ({}))
+                              toast(`Error: ${errData.error || 'No se pudo desbloquear'}`)
+                            }
                           }}
                           style={{ padding: '4px 14px', borderRadius: 20, background: '#16a34a', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans' }}
                         >
