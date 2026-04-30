@@ -292,7 +292,7 @@ export default function B2BPage() {
               <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: '#421869' }}>Giro Lab</span>
             </a>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <a href="#servicios" style={{ fontSize: 14, color: '#555', textDecoration: 'none', fontWeight: 600, display: window !== undefined && window.innerWidth < 600 ? 'none' : 'block' }}>Servicios</a>
+              <a href="#servicios" style={{ fontSize: 14, color: '#555', textDecoration: 'none', fontWeight: 600 }}>Servicios</a>
               <a href="#conversemos" style={{ padding: '10px 22px', borderRadius: 50, background: 'linear-gradient(135deg, #7b2fd4, #421869)', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway, sans-serif' }}>
                 Hablemos
               </a>
