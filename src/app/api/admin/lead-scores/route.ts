@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
     factores,
     updated_at: new Date().toISOString(),
   }))
-  await admin.from('lead_scores').upsert(rows, { onConflict: 'user_id' }).catch(() => {})
+  try { await admin.from('lead_scores').upsert(rows, { onConflict: 'user_id' }) } catch {}
 
   return NextResponse.json({ scores: results })
 }

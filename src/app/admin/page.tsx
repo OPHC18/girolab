@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos' | 'equipo'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos' | 'equipo' | 'b2b'
 type UserRole = 'admin' | 'asesor'
 
 export default function AdminPage() {
@@ -53,6 +53,10 @@ export default function AdminPage() {
   const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
   const [filtroLeadMenter, setFiltroLeadMenter] = useState('')
+  const [b2bLeads, setB2bLeads] = useState<any[]>([])
+  const [filtroB2b, setFiltroB2b] = useState('')
+  const [b2bScores, setB2bScores] = useState<Record<string, number>>({})
+  const [b2bScoreLoading, setB2bScoreLoading] = useState(false)
   const [chats, setChats] = useState<any[]>([])
   const [selectedChat, setSelectedChat] = useState<any>(null)
   const [adminReply, setAdminReply] = useState('')
@@ -252,6 +256,7 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'blog')     cargarBlogs()
     else if (activeTab === 'comunidad') cargarComunidad()
     else if (activeTab === 'leads')     cargarLeads()
+    else if (activeTab === 'b2b')       cargarB2bLeads()
     else if (activeTab === 'soporte') { cargarChats(); setSoporteBadge(0) }
     else if (activeTab === 'pagos')     cargarPagos()
     else if (activeTab === 'equipo')    cargarEquipo()
@@ -818,6 +823,28 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('leads', false)
   }
 
+  const cargarB2bLeads = async () => {
+    setLoad('b2b' as any, true)
+    const { data } = await supabase
+      .from('b2b_leads')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500)
+    setB2bLeads(data || [])
+    setLoad('b2b' as any, false)
+  }
+
+  const scoreB2bLead = (lead: any): number => {
+    let score = 0
+    if (lead.empresa) score += 20
+    if (lead.cargo) score += 10
+    if (lead.telefono) score += 15
+    if (lead.resumen && lead.resumen.length > 50) score += 20
+    if (lead.conversacion && lead.conversacion.length >= 5) score += 20
+    if (lead.conversacion && lead.conversacion.length >= 10) score += 15
+    return Math.min(100, score)
+  }
+
   const eliminarPostAdmin = async (postId: string) => {
     if (!confirm('¿Eliminar este post y todos sus comentarios?')) return
     const { data: { session } } = await supabase.auth.getSession()
@@ -1071,6 +1098,7 @@ const confirmarCambioPlan = async () => {
     { id: 'blog',         label: 'Blog',         emoji: '📝' },
     { id: 'comunidad',    label: 'Comunidad',    emoji: '💬' },
     { id: 'leads',        label: 'Leads',        emoji: '🎯' },
+    { id: 'b2b',          label: 'B2B',          emoji: '🏢' },
     { id: 'soporte',      label: 'Soporte',      emoji: '💬' },
     { id: 'pagos',        label: 'Pagos',        emoji: '💳' },
     { id: 'equipo',       label: 'Equipo',       emoji: '👥' },
@@ -2146,6 +2174,96 @@ const confirmarCambioPlan = async () => {
             })()}
           </div>
         )}
+
+        {/* ═══ B2B LEADS ═══ */}
+        {activeTab === 'b2b' && (() => {
+          const filtered = b2bLeads.filter(l => {
+            if (!filtroB2b) return true
+            const q = filtroB2b.toLowerCase()
+            return (l.nombres + ' ' + (l.apellidos || '')).toLowerCase().includes(q)
+              || (l.empresa || '').toLowerCase().includes(q)
+              || (l.correo || '').toLowerCase().includes(q)
+          })
+          const sorted = [...filtered].sort((a, b) => scoreB2bLead(b) - scoreB2bLead(a))
+
+          const scoreColor = (s: number) => s >= 75 ? '#1b5e20' : s >= 50 ? '#e65100' : '#b71c1c'
+          const scoreBg = (s: number) => s >= 75 ? '#e8f5e9' : s >= 50 ? '#fff8e1' : '#ffebee'
+
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+                <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: 0 }}>Leads B2B ({b2bLeads.length})</h2>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <input
+                    placeholder="Buscar por nombre, empresa o email..."
+                    value={filtroB2b}
+                    onChange={e => setFiltroB2b(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: 20, border: '1px solid #ddd', fontSize: 13, outline: 'none', minWidth: 240 }}
+                  />
+                  <button onClick={cargarB2bLeads} style={{ padding: '8px 18px', borderRadius: 20, border: '1px solid #ddd', background: 'white', fontSize: 13, cursor: 'pointer' }}>↻ Recargar</button>
+                </div>
+              </div>
+              {sorted.length === 0 ? (
+                <p style={{ color: '#999', textAlign: 'center', padding: 60 }}>Sin leads B2B aún.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {sorted.map(l => {
+                    const score = scoreB2bLead(l)
+                    const nombre = `${l.nombres || ''} ${l.apellidos || ''}`.trim()
+                    const waNum = l.telefono ? l.telefono.replace(/\D/g, '') : null
+                    const waUrl = waNum ? `https://wa.me/${waNum}?text=Hola ${encodeURIComponent(nombre)}, soy Omar de Giro Lab. Gracias por tu consulta sobre nuestros servicios para ${encodeURIComponent(l.empresa || '')}.` : null
+                    return (
+                      <div key={l.id} style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 20, borderLeft: `4px solid ${scoreColor(score)}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                              <span style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>{nombre}</span>
+                              <span style={{ background: scoreBg(score), color: scoreColor(score), borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{score}/100</span>
+                            </div>
+                            <div style={{ fontSize: 13, color: '#555', marginBottom: 2 }}>
+                              <b>{l.empresa}</b>{l.cargo ? ` — ${l.cargo}` : ''}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#888' }}>
+                              {new Date(l.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <a href={`mailto:${l.correo}`} style={{ padding: '7px 14px', borderRadius: 20, background: '#f3e8ff', color: '#421869', fontSize: 12, fontWeight: 700, textDecoration: 'none', border: 'none', cursor: 'pointer' }}>
+                              {l.correo}
+                            </a>
+                            {waUrl && (
+                              <a href={waUrl} target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', borderRadius: 20, background: '#e8f5e9', color: '#1b5e20', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                                WhatsApp {l.telefono}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        {l.resumen && (
+                          <div style={{ marginTop: 12, padding: '10px 14px', background: '#fafafa', borderRadius: 10, fontSize: 13, color: '#444', lineHeight: 1.6 }}>
+                            {l.resumen}
+                          </div>
+                        )}
+                        {l.conversacion && l.conversacion.length > 0 && (
+                          <details style={{ marginTop: 10 }}>
+                            <summary style={{ fontSize: 12, color: '#888', cursor: 'pointer' }}>Ver conversacion SPIN ({l.conversacion.length} respuestas)</summary>
+                            <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #eee' }}>
+                              {l.conversacion.map((item: any, i: number) => (
+                                <div key={i} style={{ marginBottom: 8 }}>
+                                  <div style={{ fontSize: 11, color: '#aaa', fontWeight: 700 }}>{item.pregunta}</div>
+                                  <div style={{ fontSize: 13, color: '#444' }}>{item.respuesta}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {activeTab === 'soporte' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

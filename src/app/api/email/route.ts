@@ -125,6 +125,37 @@ export async function POST(req: NextRequest) {
       result = await emailCheckoutAbandonado(data); break
     case 'verificacion_codigo':
       result = await emailVerificacionCodigo(data); break
+    case 'b2b_lead_interno': {
+      const { sendEmail } = await import('@/lib/email/brevo')
+      const lines = [
+        `<b>Nombre:</b> ${data.nombreCompleto}`,
+        `<b>Empresa:</b> ${data.empresa}`,
+        `<b>Cargo:</b> ${data.cargo || '—'}`,
+        `<b>Correo:</b> <a href="mailto:${data.correo}">${data.correo}</a>`,
+        `<b>Teléfono:</b> ${data.telefono || '—'}`,
+        `<b>Resumen:</b><br/>${(data.resumen || '').replace(/\n/g, '<br/>')}`,
+        data.whatsappUrl ? `<a href="${data.whatsappUrl}" style="background:#25D366;color:white;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:700;display:inline-block;margin-top:12px;">Responder por WhatsApp</a>` : '',
+      ].filter(Boolean).join('<br/><br/>')
+      result = await sendEmail({
+        to: [{ email: 'omar@girolab.net', name: 'Omar Giro Lab' }],
+        subject: `Nuevo lead B2B: ${data.nombreCompleto} — ${data.empresa}`,
+        htmlContent: `<div style="font-family:DM Sans,sans-serif;max-width:600px;margin:0 auto;padding:32px">${lines}</div>`,
+      }); break
+    }
+    case 'b2b_lead_confirmacion': {
+      const { sendEmail } = await import('@/lib/email/brevo')
+      result = await sendEmail({
+        to: [{ email: data.correo, name: data.nombres }],
+        subject: 'Giro Lab — Recibimos tu consulta',
+        htmlContent: `<div style="font-family:DM Sans,sans-serif;max-width:600px;margin:0 auto;padding:32px">
+          <h2 style="font-family:Raleway,sans-serif;color:#421869">Hola ${data.nombres}, gracias por escribirnos</h2>
+          <p>Recibimos tu consulta sobre bienestar organizacional para <b>${data.empresa}</b>.</p>
+          <p>Nuestro equipo la está revisando y en breve te haremos llegar nuestra presentación y una propuesta personalizada.</p>
+          <p>Si necesitas atención inmediata, escríbenos directamente a <a href="mailto:omar@girolab.net">omar@girolab.net</a>.</p>
+          <p style="margin-top:32px;color:#888;font-size:13px">— Equipo Giro Lab</p>
+        </div>`,
+      }); break
+    }
     case 'resultado_test_menter': {
       // Look up menter email via service role
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
