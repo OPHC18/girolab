@@ -21,35 +21,35 @@ const SERVICIOS = [
     id: 'outdoor',
     nombre: 'Talleres Outdoor & Indoor',
     descripcion: 'Experiencias de aprendizaje diseñadas para transformar equipos, ya sea en espacios abiertos llenos de naturaleza o en ambientes controlados de alta concentración.',
-    foto: '/servicios/outdoor.jpg',
+    fotos: ['/servicios/Outdoor.webp', '/servicios/Outdoor-1.webp'],
     color: '#1D9E75',
   },
   {
     id: 'teambuilding',
     nombre: 'Teambuilding',
     descripcion: 'Actividades vivenciales que fortalecen la confianza, la comunicación y la cohesión entre los miembros del equipo de forma natural y duradera.',
-    foto: '/servicios/teambuilding.jpg',
+    fotos: ['/servicios/Team-Building.webp'],
     color: '#421869',
   },
   {
     id: 'negociacion',
     nombre: 'Negociación y Ventas',
     descripcion: 'Programas prácticos que desarrollan habilidades de influencia, persuasión y cierre, combinando psicología del comportamiento con técnicas de alto rendimiento.',
-    foto: '/servicios/negociacion.jpg',
+    fotos: ['/servicios/negociacion.webp'],
     color: '#e65100',
   },
   {
     id: 'habilidades',
     nombre: 'Desarrollo de Habilidades Blandas',
     descripcion: 'Formación en liderazgo, comunicación asertiva, inteligencia emocional y gestión del estrés — las competencias que marcan la diferencia a largo plazo.',
-    foto: '/servicios/habilidades.jpg',
+    fotos: ['/servicios/habilidades.webp'],
     color: '#1565c0',
   },
   {
     id: 'danza-primal',
     nombre: 'Danza Primal',
     descripcion: 'Una metodología única que usa el movimiento y la expresión corporal para liberar tensiones, conectar con el cuerpo y potenciar la creatividad del equipo.',
-    foto: '/servicios/danza-primal.jpg',
+    fotos: ['/servicios/danza.webp'],
     color: '#c62828',
   },
 ]
@@ -139,7 +139,7 @@ const FORMULARIO_CAMPOS = [
 ]
 
 // ── YouTube video ID — reemplaza con tu video ─────────────────────────────
-const YOUTUBE_VIDEO_ID = 'TU_VIDEO_ID'
+const YOUTUBE_VIDEO_ID: string = 'VReE3ujRKLM'
 
 export default function B2BPage() {
   const [scrollY, setScrollY]             = useState(0)
@@ -335,20 +335,15 @@ export default function B2BPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
               {SERVICIOS.map(s => (
                 <div key={s.id} className="svc-card" style={{ borderRadius: 20, overflow: 'hidden', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.07)', cursor: 'default' }}>
-                  <div style={{ height: 200, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${s.color}33, ${s.color}11)` }}>
-                    <img
-                      src={s.foto} alt={s.nombre}
-                      className="svc-img"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', display: 'block' }}
-                      onError={e => {
-                        const el = e.currentTarget as HTMLImageElement
-                        el.style.display = 'none'
-                        const parent = el.parentElement!
-                        parent.style.display = 'flex'
-                        parent.style.alignItems = 'center'
-                        parent.style.justifyContent = 'center'
-                      }}
-                    />
+                  {/* Foto(s) */}
+                  <div style={{ height: 200, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${s.color}33, ${s.color}11)`, display: 'grid', gridTemplateColumns: s.fotos.length > 1 ? '1fr 1fr' : '1fr', gap: 2 }}>
+                    {s.fotos.map((foto, fi) => (
+                      <div key={fi} style={{ overflow: 'hidden', height: 200 }}>
+                        <img src={foto} alt={`${s.nombre} ${fi + 1}`} className="svc-img"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', display: 'block' }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                    ))}
                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to top, #1a1a1a, transparent)' }} />
                   </div>
                   <div style={{ padding: '24px 24px 28px' }}>
