@@ -371,6 +371,15 @@ export default function B2BPage() {
               <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 'clamp(28px,5vw,44px)', fontWeight: 900, margin: 0, color: 'white' }}>Nuestros servicios</h2>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+              {/* Card "a medida" al inicio */}
+              <div style={{ borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg,#421869,#7b2fd4)', border: '1px solid rgba(123,47,212,0.3)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '32px 28px', minHeight: 280 }}>
+                <div style={{ fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', fontWeight: 700, marginBottom: 14 }}>¿Algo distinto en mente?</div>
+                <h3 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 22, fontWeight: 900, color: 'white', margin: '0 0 14px', lineHeight: 1.2 }}>Diseñamos talleres y sesiones a tu medida</h3>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>Cada organización es única. Cuéntanos tu desafío y construimos la solución juntos — sin moldes, sin formatos genéricos.</p>
+                <a href="#conversemos" style={{ display: 'inline-block', padding: '11px 22px', borderRadius: 50, background: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 700, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway, sans-serif', border: '1px solid rgba(255,255,255,0.25)', width: 'fit-content' }}>
+                  Cuéntanos →
+                </a>
+              </div>
               {SERVICIOS.map(s => (
                 <div key={s.id} className="svc-card" style={{ borderRadius: 20, overflow: 'hidden', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.07)', cursor: 'default' }}>
                   <div style={{ height: 200, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${s.color}33, ${s.color}11)`, display: 'grid', gridTemplateColumns: s.fotos.length > 1 ? '1fr 1fr' : '1fr', gap: 2 }}>

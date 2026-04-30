@@ -24,15 +24,13 @@ const STATS = [
 ]
 
 const Logo = () => (
-  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-    <div style={{
-      background: 'white', borderRadius: '12px 12px 0 0',
-      padding: '8px 20px 10px', display: 'flex', alignItems: 'center', gap: 10,
-      boxShadow: '0 -2px 8px rgba(0,0,0,0.15)',
-    }}>
-      <img src="/favicon.svg" alt="Giro Lab" style={{ width: 32, height: 32 }} />
-      <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 16, color: '#421869' }}>Giro Lab</span>
-    </div>
+  <div style={{
+    background: 'white', borderRadius: '0 0 16px 0',
+    padding: '10px 24px 12px', display: 'inline-flex', alignItems: 'center', gap: 10,
+    boxShadow: '4px 4px 16px rgba(0,0,0,0.25)',
+  }}>
+    <img src="/favicon.svg" alt="Giro Lab" style={{ width: 32, height: 32 }} />
+    <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 16, color: '#421869' }}>Giro Lab</span>
   </div>
 )
 
@@ -84,8 +82,8 @@ export default function PresentacionPage() {
         <div style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(123,47,212,0.28),transparent)', top: '-8%', right: '-8%', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(255,167,25,0.15),transparent)', bottom: '8%', left: '-5%', pointerEvents: 'none' }} />
 
-        {/* Logo pestaña */}
-        <div style={{ padding: '0 60px', paddingTop: 0, position: 'relative', zIndex: 1 }}>
+        {/* Logo — esquina superior izquierda */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
           <Logo />
         </div>
 
