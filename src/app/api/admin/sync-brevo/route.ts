@@ -21,12 +21,13 @@ export async function POST(req: NextRequest) {
   if (!contacts?.length) return NextResponse.json({ error: 'Sin contactos' }, { status: 400 })
 
   const apiKey = process.env.BREVO_API_KEY!
+  const safeName = String(listName || '').replace(/[<>&"'\\]/g, '').trim().slice(0, 100)
 
   // 1. Crear lista en Brevo si no existe
   const listRes = await fetch(`${BREVO_API}/contacts/lists`, {
     method: 'POST',
     headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: listName || `Chat Soporte ${new Date().toLocaleDateString('es-PE')}`, folderId: 1 }),
+    body: JSON.stringify({ name: safeName || `Chat Soporte ${new Date().toLocaleDateString('es-PE')}`, folderId: 1 }),
   })
   const listData = await listRes.json()
   const listId = listData.id

@@ -25,3 +25,26 @@ body {
 h1, h2, h3, h4, h5 {
   font-family: 'Raleway', sans-serif;
 }
+
+/* ── Protección de contenido ─────────────────────────────────────────────── */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Texto no seleccionable en áreas de contenido (no en formularios) */
+p, h1, h2, h3, h4, h5, h6, span, li, blockquote {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Restaurar selección en elementos interactivos */
+input, textarea, select, [contenteditable],
+[data-selectable], code, pre {
+  -webkit-user-select: text;
+  user-select: text;
+}
