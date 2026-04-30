@@ -278,21 +278,28 @@ export default function B2BPage() {
         {/* ── HEADER ────────────────────────────────────────────────────── */}
         <header style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          background: scrollY > 20 ? 'rgba(255,255,255,0.97)' : 'white',
-          backdropFilter: 'blur(12px)',
-          boxShadow: scrollY > 20 ? '0 2px 20px rgba(0,0,0,0.12)' : '0 1px 0 rgba(0,0,0,0.06)',
-          transition: 'box-shadow 0.3s',
+          background: 'rgba(13,13,26,0.88)',
+          backdropFilter: 'blur(14px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-              <DotLottieReact
-                src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie"
-                loop autoplay style={{ width: 48, height: 48 }}
-              />
-              <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: '#421869' }}>Giro Lab</span>
+          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', height: 64 }}>
+            {/* Logo en caja blanca pegada al borde superior */}
+            <a href="/" style={{ textDecoration: 'none', display: 'flex' }}>
+              <div style={{
+                background: 'white', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '0 20px', borderRadius: '0 0 16px 0',
+                boxShadow: '4px 4px 16px rgba(0,0,0,0.25)',
+              }}>
+                <DotLottieReact
+                  src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie"
+                  loop autoplay style={{ width: 44, height: 44 }}
+                />
+                <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 17, color: '#421869' }}>Giro Lab</span>
+              </div>
             </a>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <a href="#servicios" style={{ fontSize: 14, color: '#555', textDecoration: 'none', fontWeight: 600 }}>Servicios</a>
+            {/* Nav */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, paddingRight: 24 }}>
+              <a href="#servicios" style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontWeight: 600 }}>Servicios</a>
               <a href="#conversemos" style={{ padding: '10px 22px', borderRadius: 50, background: 'linear-gradient(135deg, #7b2fd4, #421869)', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway, sans-serif' }}>
                 Hablemos
               </a>
