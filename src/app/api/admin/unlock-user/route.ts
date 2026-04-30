@@ -4,6 +4,13 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const rateMap = new Map<string, { count: number; reset: number }>()
+function checkAdminRate(id: string) {
+  const now = Date.now(); const e = rateMap.get(id)
+  if (!e || now > e.reset) { rateMap.set(id, { count: 1, reset: now + 60_000 }); return true }
+  if (e.count >= 60) return false; e.count++; return true
+}
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -16,9 +23,10 @@ export async function POST(req: NextRequest) {
   if (!user || !ADMIN_EMAILS.includes(user.email!)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+  if (!checkAdminRate(user.id)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { userId } = await req.json()
-  if (!userId) return NextResponse.json({ error: 'Falta userId' }, { status: 400 })
+  if (!userId || !UUID_RE.test(userId)) return NextResponse.json({ error: 'userId inválido' }, { status: 400 })
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 

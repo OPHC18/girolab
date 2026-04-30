@@ -4,6 +4,12 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
 const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
+const rateMap = new Map<string, { count: number; reset: number }>()
+function checkAdminRate(id: string) {
+  const now = Date.now(); const e = rateMap.get(id)
+  if (!e || now > e.reset) { rateMap.set(id, { count: 1, reset: now + 60_000 }); return true }
+  if (e.count >= 60) return false; e.count++; return true
+}
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +29,7 @@ export async function GET(req: NextRequest) {
     const { data: staffRow } = await admin.from('staff_roles').select('role').eq('user_id', user.id).maybeSingle()
     if (!staffRow) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+  if (!checkAdminRate(user.id)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const [paymentsRes, membershipsRes, authRes] = await Promise.all([
     admin.from('payments').select('*').order('created_at', { ascending: false }).limit(500),

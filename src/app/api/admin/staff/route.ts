@@ -4,6 +4,14 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
 const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
+const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const rateMap = new Map<string, { count: number; reset: number }>()
+function checkAdminRate(id: string) {
+  const now = Date.now(); const e = rateMap.get(id)
+  if (!e || now > e.reset) { rateMap.set(id, { count: 1, reset: now + 60_000 }); return true }
+  if (e.count >= 60) return false; e.count++; return true
+}
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +33,7 @@ async function getCallerUser() {
 export async function GET(req: NextRequest) {
   const user = await getCallerUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  if (!checkAdminRate(user.id)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const isAdmin = ADMIN_EMAILS.includes(user.email!)
 
@@ -45,9 +54,15 @@ export async function POST(req: NextRequest) {
   if (!user || !ADMIN_EMAILS.includes(user.email!)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+  if (!checkAdminRate(user.id)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { email, nombre } = await req.json()
-  if (!email) return NextResponse.json({ error: 'Falta email' }, { status: 400 })
+  if (!email || !EMAIL_RE.test(String(email)) || String(email).length > 200) {
+    return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+  }
+  if (nombre && String(nombre).length > 120) {
+    return NextResponse.json({ error: 'Nombre demasiado largo' }, { status: 400 })
+  }
 
   // Find user by email in auth
   const { data: authUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -72,9 +87,10 @@ export async function DELETE(req: NextRequest) {
   if (!user || !ADMIN_EMAILS.includes(user.email!)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+  if (!checkAdminRate(user.id)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { user_id } = await req.json()
-  if (!user_id) return NextResponse.json({ error: 'Falta user_id' }, { status: 400 })
+  if (!user_id || !UUID_RE.test(user_id)) return NextResponse.json({ error: 'user_id inválido' }, { status: 400 })
 
   await admin.from('staff_roles').delete().eq('user_id', user_id)
   return NextResponse.json({ ok: true })
