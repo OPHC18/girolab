@@ -26,14 +26,14 @@ const STATS = [
 const Logo = () => (
   <div style={{
     background: 'white', borderRadius: '0 0 16px 16px',
-    padding: '10px 24px 14px', display: 'inline-flex', alignItems: 'center', gap: 10,
+    padding: '10px 22px 14px', display: 'inline-flex', alignItems: 'center', gap: 10,
     boxShadow: '4px 4px 16px rgba(0,0,0,0.25)',
   }}>
-    <img src="/favicon.svg" alt="Giro Lab" style={{ width: 30, height: 30 }} />
-    <span style={{ whiteSpace: 'nowrap' }}>
-      <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 17, color: '#421869' }}>Giro</span>
-      <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 300, fontSize: 17, color: '#421869', letterSpacing: 2 }}> Lab</span>
-    </span>
+    <img src="/favicon.svg" alt="Giro Lab" style={{ width: 36, height: 36 }} />
+    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+      <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: '#421869', letterSpacing: 1, textTransform: 'uppercase' }}>Giro</span>
+      <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 400, fontSize: 11, color: '#421869', letterSpacing: 4, textTransform: 'uppercase', textAlign: 'right', marginTop: 1 }}>Lab</span>
+    </div>
   </div>
 )
 
