@@ -65,6 +65,21 @@ type Message = { sender: 'user' | 'bot' | 'admin'; content: string; created_at?:
 
 const BOT_DELAY = 600
 
+const playNotifSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.setValueAtTime(660, ctx.currentTime)
+    gain.gain.setValueAtTime(0.12, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4)
+  } catch {}
+}
+
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
   const [phase, setPhase] = useState<'welcome' | 'form' | 'chat'>('welcome')
@@ -116,7 +131,10 @@ export default function ChatWidget() {
         if (msgs.length === prev.length) return prev
         const newMsgs = msgs.slice(prev.length)
         newMsgs.forEach((m: Message) => {
-          if (m.sender === 'admin' && !open) setUnread(u => u + 1)
+          if (m.sender === 'admin') {
+            if (!open) { setUnread(u => u + 1); playNotifSound() }
+            else playNotifSound()
+          }
         })
         return msgs
       })
@@ -138,6 +156,26 @@ export default function ChatWidget() {
     setTimeout(() => {
       setMessages(prev => [...prev, { sender: 'bot', content }])
     }, BOT_DELAY)
+  }
+
+  const getBotResponse = (content: string, userMsgCount: number): string => {
+    const lower = content.toLowerCase()
+    if (lower.includes('hola') || lower.includes('buenos') || lower.includes('buenas') || lower.includes('buen día') || lower.includes('buen dia'))
+      return `¡Hola ${name}! Qué bueno que nos escribes. Un asesor de Giro Lab te atenderá muy pronto. ¿En qué podemos ayudarte?`
+    if (lower.includes('precio') || lower.includes('costo') || lower.includes('cuánto') || lower.includes('cuanto') || lower.includes('plan'))
+      return `Entiendo tu consulta sobre precios, ${name}. Tenemos opciones desde totalmente gratuitas. Un asesor te dará todos los detalles de forma personalizada en breve.`
+    if (lower.includes('urgente') || lower.includes('emergencia'))
+      return `Entendemos que es urgente, ${name}. Ya notificamos a nuestro equipo con prioridad. Alguien te atenderá enseguida. También puedes hacer clic en "Hablar con un asesor".`
+    if (lower.includes('gracias'))
+      return `¡Con mucho gusto, ${name}! Nuestro equipo estará contigo muy pronto.`
+    if (lower.includes('cita') || lower.includes('sesión') || lower.includes('agendar') || lower.includes('agenda'))
+      return `Perfecto, ${name}. Coordinar una sesión con nuestros Menters es muy sencillo. Un asesor te guiará paso a paso en breve.`
+    const defaults = [
+      `Gracias por escribirnos, ${name}. Tu consulta es importante para nosotros. Ya notificamos a nuestro equipo y te responderán muy pronto.`,
+      `Entendido, ${name}. Estamos revisando tu mensaje. Un asesor te atenderá en breve. ¿Hay algo más que quieras agregar mientras tanto?`,
+      `Gracias por la información adicional, ${name}. Nuestro equipo ya está al tanto y te contactará pronto.`,
+    ]
+    return defaults[Math.min(userMsgCount, defaults.length - 1)]
   }
 
   const startChat = async () => {
@@ -177,7 +215,14 @@ export default function ChatWidget() {
         addBotMessage(faq.answer)
       }
     } else {
-      addBotMessage('Gracias por tu mensaje. Un asesor te responderá pronto. Si prefieres una respuesta inmediata, haz clic en "Hablar con asesor".')
+      const userMsgCount = messages.filter(m => m.sender === 'user').length
+      const botReply = getBotResponse(content, userMsgCount)
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_message', chat_id: chatId, sender: 'bot', content: botReply }),
+      })
+      addBotMessage(botReply)
     }
     setSending(false)
   }

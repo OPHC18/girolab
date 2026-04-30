@@ -66,6 +66,22 @@ export default function AdminPage() {
   const activeTabRef = useRef<AdminTab>('metricas')
   const notifiedMsgIds = useRef<Set<string>>(new Set())
   const notifiedChatIds = useRef<Set<string>>(new Set())
+  const seededRef = useRef(false)
+
+  const playNotifSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.frequency.setValueAtTime(800, ctx.currentTime)
+      gain.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5)
+    } catch {}
+  }
   const [pagos, setPagos] = useState<any[]>([])
   const [memberships, setMemberships] = useState<any[]>([])
   const [filtroPagos, setFiltroPagos] = useState('')
@@ -81,6 +97,26 @@ export default function AdminPage() {
   const [statsMenters, setStatsMenters] = useState<any>(null)
   const [metricasCitas, setMetricasCitas] = useState<any>(null)
   const [sinRespuesta, setSinRespuesta] = useState<any[]>([])
+
+  // ── Lead scores ────────────────────────────────────────────────────────────
+  const [leadScores, setLeadScores] = useState<Record<string, { score: number; factores: Record<string, number> }>>({})
+  const [scoringLoading, setScoringLoading] = useState(false)
+
+  const cargarLeadScores = async (role: 'menter' | 'empresa', userIds: string[]) => {
+    if (!userIds.length) return
+    setScoringLoading(true)
+    try {
+      const res = await fetch('/api/admin/lead-scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, userIds }),
+      })
+      const { scores } = await res.json()
+      if (scores) setLeadScores(prev => ({ ...prev, ...scores }))
+    } finally {
+      setScoringLoading(false)
+    }
+  }
 
 
   // Filtros Personas
@@ -437,6 +473,7 @@ const cargarEmpresas = async () => {
     respuestas: { ...(u.respuestas || {}), ...(perfilesMap[u.id] || {}) },
   }))
   setEmpresas(soloEmpresas)
+  cargarLeadScores('empresa', soloEmpresas.map((e: any) => e.id))
 
   // Stats de países
   const paises = contarCampo(soloEmpresas, 'pais')
@@ -521,10 +558,8 @@ const cargarMenters = async () => {
       .map((i: any) => i.insignia_id),
   }
 })
-console.log('perfilesData sample:', perfilesData?.[0])
-console.log('menterData sample id:', menterData[0]?.id)
-console.log('primer menter completo:', mentersCompletos[0])
   setMenters(mentersCompletos)
+  cargarLeadScores('menter', menterIds)
 
   // Stats de citas por menter
   const stats: Record<string, any> = {}
@@ -644,6 +679,16 @@ const especialidades = Object.entries(especialidadesMap)
       if (!fresh) return
 
       setChats(prev => {
+        // Primera carga: seed de IDs existentes sin notificar
+        if (!seededRef.current) {
+          seededRef.current = true
+          fresh.forEach((fc: any) => {
+            notifiedChatIds.current.add(fc.id)
+            ;(fc.support_messages || []).forEach((msg: any) => notifiedMsgIds.current.add(msg.id))
+          })
+          return fresh
+        }
+
         fresh.forEach((fc: any) => {
           const existing = prev.find((c: any) => c.id === fc.id)
           const onSoporte = activeTabRef.current === 'soporte'
@@ -655,6 +700,7 @@ const especialidades = Object.entries(especialidadesMap)
               setChatToast({ nombre: fc.user_name || 'Nuevo usuario', mensaje: 'Inició un chat de soporte' })
               setSoporteBadge(b => b + 1)
               setTimeout(() => setChatToast(null), 5000)
+              playNotifSound()
             }
           }
 
@@ -667,6 +713,7 @@ const especialidades = Object.entries(especialidadesMap)
                 setChatToast({ nombre: fc.user_name || 'Usuario', mensaje: msg.content })
                 setSoporteBadge(b => b + 1)
                 setTimeout(() => setChatToast(null), 5000)
+                playNotifSound()
               }
             }
           })
@@ -1452,7 +1499,13 @@ const confirmarCambioPlan = async () => {
         {/* ═══ EMPRESAS ═══ */}
         {activeTab === 'empresas' && (
           <div>
-            <h2 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 24 }}>🏢 Empresas</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+              <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: 0 }}>🏢 Empresas</h2>
+              <button onClick={() => cargarLeadScores('empresa', empresas.map((e: any) => e.id))} disabled={scoringLoading}
+                style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: scoringLoading ? '#e0e0e0' : '#421869', color: 'white', fontSize: 13, fontWeight: 700, cursor: scoringLoading ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans' }}>
+                {scoringLoading ? 'Calculando…' : 'Recalcular scores'}
+              </button>
+            </div>
 
             {statsEmpresas && (
   <>
@@ -1538,28 +1591,56 @@ const confirmarCambioPlan = async () => {
           (!filtroEmpresaArea || (u.areas || []).includes(filtroEmpresaArea)) &&
           (!filtroEmpresaTamano || (u.tamano || []).includes(filtroEmpresaTamano))
         )
-        .map(u => (
+        .sort((a, b) => (leadScores[b.id]?.score ?? -1) - (leadScores[a.id]?.score ?? -1))
+        .map(u => {
+          const ls = leadScores[u.id]
+          const scoreColor = !ls ? '#999' : ls.score >= 71 ? '#16a34a' : ls.score >= 41 ? '#ea580c' : '#dc2626'
+          const scoreBg   = !ls ? '#f5f5f5' : ls.score >= 71 ? '#dcfce7' : ls.score >= 41 ? '#ffedd5' : '#fee2e2'
+          const factoresTexto = ls ? Object.entries(ls.factores).map(([k, v]) => `${k}: ${v}`).join('\n') : ''
+          return (
           <div key={u.id} style={{ background: 'white', border: '1px solid #f0f0f0', borderRadius: 12, padding: '14px 16px' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#421869', marginBottom: 2 }}>{u.nombre || '—'} {u.apellidos || ''}</div>
-            <div style={{ fontWeight: 600, fontSize: 13, color: '#1565c0', marginBottom: 2 }}>{u.empresa || '—'} {u.cargo ? `· ${u.cargo}` : ''}</div>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{u.email}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#421869', marginBottom: 2 }}>{u.nombre || '—'} {u.apellidos || ''}</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1565c0', marginBottom: 2 }}>{u.empresa || '—'} {u.cargo ? `· ${u.cargo}` : ''}</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{u.email}</div>
+              </div>
+              <div title={`Score: ${ls?.score ?? '?'}\n\n${factoresTexto}`}
+                style={{ width: 42, height: 42, borderRadius: '50%', background: scoreBg, color: scoreColor, fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${scoreColor}`, cursor: 'help', flexShrink: 0 }}>
+                {scoringLoading && !ls ? '…' : (ls?.score ?? '?')}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 10 }}>
               {u.pais && <span>{u.pais}</span>}
               {u.telefono && <span>{u.telefono}</span>}
               {u.created_at && <span>{new Date(u.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={() => navigator.clipboard.writeText(u.id).then(() => toast('📋 UUID copiado'))}
                 style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
                 {u.id?.slice(0, 8)}...
               </button>
+              {u.email && (
+                <a href={`mailto:${u.email}?subject=Giro Lab — Bienestar organizacional&body=Hola ${u.nombre}, te escribo desde el equipo de Giro Lab.`}
+                  style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #c7d2fe', background: '#eef2ff', fontSize: 11, color: '#4338ca', fontWeight: 600, textDecoration: 'none' }}>
+                  Email
+                </a>
+              )}
+              {u.telefono && (
+                <a href={`https://wa.me/${u.telefono.replace(/\D/g, '')}?text=Hola ${u.nombre}, te escribo desde Giro Lab para apoyarlos en bienestar organizacional.`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: 11, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>
+                  WhatsApp
+                </a>
+              )}
               <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
                 style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 12, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
                 Eliminar
               </button>
             </div>
           </div>
-        ))}
+        )})}
+
     </div>
   ) : (
     /* ── Vista tabla en desktop ── */
@@ -1615,7 +1696,13 @@ const confirmarCambioPlan = async () => {
 
 {activeTab === 'menters' && (
   <div>
-    <h2 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 24 }}>⭐ Menters</h2>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+      <h2 style={{ fontFamily: 'Raleway', color: '#421869', margin: 0 }}>⭐ Menters</h2>
+      <button onClick={() => cargarLeadScores('menter', menters.map(m => m.menter_id))} disabled={scoringLoading}
+        style={{ padding: '8px 20px', borderRadius: 20, border: 'none', background: scoringLoading ? '#e0e0e0' : '#421869', color: 'white', fontSize: 13, fontWeight: 700, cursor: scoringLoading ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans' }}>
+        {scoringLoading ? 'Calculando…' : 'Recalcular scores'}
+      </button>
+    </div>
 
     {/* KPIs */}
     {statsMenters && (
@@ -1681,10 +1768,15 @@ const confirmarCambioPlan = async () => {
                     (!filtroPais || m.pais === filtroPais) &&
                     (!filtroEspecialidad || (m.casos_que_atiende || []).includes(filtroEspecialidad))
                   )
+                  .sort((a, b) => (leadScores[b.menter_id]?.score ?? -1) - (leadScores[a.menter_id]?.score ?? -1))
                   .map(m => {
                     const plan = m.menter_memberships?.[0]?.plan || 'free'
                     const pi = PLANES_COLOR[plan]
                     const stats = mentersStats[m.menter_id] || {}
+                    const ls = leadScores[m.menter_id]
+                    const scoreColor = !ls ? '#999' : ls.score >= 71 ? '#16a34a' : ls.score >= 41 ? '#ea580c' : '#dc2626'
+                    const scoreBg   = !ls ? '#f5f5f5' : ls.score >= 71 ? '#dcfce7' : ls.score >= 41 ? '#ffedd5' : '#fee2e2'
+                    const factoresTexto = ls ? Object.entries(ls.factores).map(([k, v]) => `${k}: ${v}`).join('\n') : ''
                     return (
                       <div key={m.menter_id} style={{ background: 'white', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderLeft: `4px solid ${pi.color}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
@@ -1705,7 +1797,12 @@ const confirmarCambioPlan = async () => {
                               </div>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {/* Score badge */}
+                            <div title={`Score: ${ls?.score ?? '?'}\n\n${factoresTexto}`}
+                              style={{ width: 42, height: 42, borderRadius: '50%', background: scoreBg, color: scoreColor, fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${scoreColor}`, cursor: 'help', flexShrink: 0 }}>
+                              {scoringLoading && !ls ? '…' : (ls?.score ?? '?')}
+                            </div>
                             <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: pi.bg, color: pi.color }}>{pi.emoji} {plan.toUpperCase()}</span>
                             <select
                               value={plan}
@@ -1751,11 +1848,24 @@ const confirmarCambioPlan = async () => {
                           </div>
                         </div>
 
-                        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <button onClick={() => navigator.clipboard.writeText(m.menter_id).then(() => toast('📋 UUID copiado'))}
                             style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
                             {m.menter_id?.slice(0, 8)}...
                           </button>
+                          {m.email && (
+                            <a href={`mailto:${m.email}?subject=Giro Lab — Tu perfil está listo&body=Hola ${m.nombre}, te escribo desde el equipo de Giro Lab.`}
+                              style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #c7d2fe', background: '#eef2ff', fontSize: 11, color: '#4338ca', fontWeight: 600, textDecoration: 'none' }}>
+                              Email
+                            </a>
+                          )}
+                          {m.telefono && (
+                            <a href={`https://wa.me/${m.telefono.replace(/\D/g, '')}?text=Hola ${m.nombre}, te escribo desde Giro Lab para ayudarte con tu perfil.`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: 11, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>
+                              WhatsApp
+                            </a>
+                          )}
                           <button onClick={() => eliminarUsuarioAdmin(m.menter_id, m.email || '', `${m.nombre || ''} ${m.apellidos || ''}`.trim())}
                             style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
                             Eliminar cuenta

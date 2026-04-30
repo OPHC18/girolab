@@ -7176,7 +7176,7 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     instrumentos:         { title: 'Instrumentos', content: isMenter && canPremium && user?.id
       ? <>
           <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
-          {plan === 'master' && (
+          {canPremium && (
             <div style={{ marginTop: 36, borderTop: '2px solid #f0f0f0', paddingTop: 28 }}>
               <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Evaluaciones para Equipos y Empresas</h3>
               <RenderInstrumentosEmpresa empresaId={user.id} />
