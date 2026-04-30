@@ -13,7 +13,7 @@ const FB_PIXEL_ID  = process.env.NEXT_PUBLIC_FB_PIXEL_ID
 const GA4_ID       = process.env.NEXT_PUBLIC_GA4_ID
 
 // ── Logos (public/logo-1.png … logo-30.png) ───────────────────────────────
-const CLIENTE_LOGOS = Array.from({ length: 30 }, (_, i) => `/logo-${i + 1}.png`)
+const CLIENTE_LOGOS = Array.from({ length: 30 }, (_, i) => `/clientes/logo-${i + 1}.png`)
 
 // ── Servicios ─────────────────────────────────────────────────────────────
 const SERVICIOS = [

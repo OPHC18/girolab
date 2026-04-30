@@ -236,7 +236,7 @@ export default function PresentacionPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 16 }}>
             {Array.from({ length: 24 }, (_, i) => (
               <div key={i} style={{ background: 'white', borderRadius: 10, padding: '10px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 52, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <img src={`/logo-${i + 1}.png`} alt="" style={{ maxWidth: '100%', maxHeight: 32, objectFit: 'contain' }}
+                <img src={`/clientes/logo-${i + 1}.png`} alt="" style={{ maxWidth: '100%', maxHeight: 32, objectFit: 'contain' }}
                   onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.background = '#f0eaff' }} />
               </div>
             ))}
