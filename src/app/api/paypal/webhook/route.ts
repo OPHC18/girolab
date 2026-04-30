@@ -16,8 +16,8 @@ const WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || ''
  */
 async function verifyPayPalWebhook(req: NextRequest, rawBody: string): Promise<boolean> {
   if (!WEBHOOK_ID) {
-    console.warn('[paypal/webhook] PAYPAL_WEBHOOK_ID no configurado — omitiendo verificación')
-    return true // En desarrollo, aceptar sin verificar
+    console.warn('[paypal/webhook] PAYPAL_WEBHOOK_ID no configurado — rechazando webhook')
+    return false
   }
 
   try {

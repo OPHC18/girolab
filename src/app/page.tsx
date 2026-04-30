@@ -318,14 +318,8 @@ const toggleOpcion = (opcion: string) => {
     if (typeof window !== 'undefined' && (window as any).ttq) {
       (window as any).ttq.track('CompleteRegistration', { content_name: role })
     }
-    // Notificar a admins si se registró un Menter
-    if (role === 'menter') {
-      fetch('/api/push/notify-admins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
-        body: JSON.stringify({ title: 'Nuevo Menter registrado', body: `${form.nombre} ${form.apellidos} se unió como Menter`, url: '/admin' }),
-      }).catch(() => {})
-    }
+    // Notificar a admins si se registró un Menter (vía register-profile que ya tiene sesión)
+
     // Email de bienvenida Día 1 — diferido hasta después de confirmar email
     // (no hay sesión autenticada hasta que el usuario confirme el link)
     localStorage.setItem('pendingWelcomeEmail', JSON.stringify({

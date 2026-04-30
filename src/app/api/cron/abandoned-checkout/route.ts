@@ -6,7 +6,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const INTERNAL_SECRET = process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || ''
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || ''
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
 export async function GET(req: NextRequest) {

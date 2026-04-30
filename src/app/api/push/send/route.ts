@@ -13,10 +13,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+async function isAuthorized(req: NextRequest): Promise<boolean> {
+  const secret = req.headers.get('x-internal-secret')
+  if (secret && secret === process.env.INTERNAL_API_SECRET) return true
+  const token = (req.headers.get('authorization') || '').slice(7)
+  if (!token) return false
+  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const { data: { user } } = await anon.auth.getUser(token)
+  return !!user
+}
+
 export async function POST(req: NextRequest) {
-  // Verificar secret interno para que solo el backend pueda llamar esto
-  const auth = req.headers.get('x-internal-secret')
-  if (auth !== process.env.INTERNAL_API_SECRET) {
+  if (!await isAuthorized(req)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

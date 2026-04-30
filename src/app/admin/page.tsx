@@ -860,9 +860,13 @@ const especialidades = Object.entries(especialidadesMap)
   const lanzarSeed = async () => {
     if (!confirm('¿Crear 4 Menters demo y posts de prueba? Esto no se puede deshacer.')) return
     setSeedLoading(true)
+    const { data: { session: adminSession } } = await supabase.auth.getSession()
     const res = await fetch('/api/admin/seed', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': adminSession ? `Bearer ${adminSession.access_token}` : '',
+      },
     })
     const data = await res.json()
     setSeedLoading(false)

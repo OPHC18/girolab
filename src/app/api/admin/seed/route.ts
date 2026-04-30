@@ -67,9 +67,20 @@ const DEMO_POSTS = [
   'Este mes decidí trabajar en mis límites personales y profesionales. Es increíble cómo decir "no" con confianza puede transformar tus relaciones y tu energía. Gracias a mi Menter por el acompañamiento.',
 ]
 
-export async function POST(req: NextRequest) {
+const ADMIN_EMAILS_SEED = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
+
+async function isAdminAuthorized(req: NextRequest): Promise<boolean> {
   const secret = req.headers.get('x-internal-secret')
-  if (secret !== process.env.INTERNAL_API_SECRET) {
+  if (secret && secret === process.env.INTERNAL_API_SECRET) return true
+  const token = (req.headers.get('authorization') || '').slice(7)
+  if (!token) return false
+  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const { data: { user } } = await anon.auth.getUser(token)
+  return !!(user && ADMIN_EMAILS_SEED.includes(user.email || ''))
+}
+
+export async function POST(req: NextRequest) {
+  if (!await isAdminAuthorized(req)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

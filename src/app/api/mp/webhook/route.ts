@@ -15,12 +15,7 @@ const WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || ''
  * Docs: https://www.mercadopago.com.ar/developers/en/docs/your-integrations/notifications/webhooks
  */
 function validateMPSignature(req: NextRequest, dataId: string): boolean {
-  // Siempre requerir el secret configurado
   if (!WEBHOOK_SECRET) return false
-
-  // También aceptar el secret en query string como fallback (legacy)
-  const querySecret = req.nextUrl.searchParams.get('secret')
-  if (querySecret && querySecret === WEBHOOK_SECRET) return true
 
   // Validación mediante firma HMAC (método preferido de MercadoPago)
   const xSignature  = req.headers.get('x-signature')

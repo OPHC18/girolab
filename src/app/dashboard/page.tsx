@@ -4685,17 +4685,19 @@ const renderCitasMenter = () => {
         }
         if (nuevoEstado === 'confirmada') {
           dispararEmail('confirmacion_cliente', citaData)
-          // Push al cliente notificando confirmación
-          fetch('/api/push/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
-            body: JSON.stringify({
-              user_id: cita.client_id,
-              title: '¡Cita confirmada!',
-              body: `Tu sesión con ${cita.menter_name} el ${citaData.date} a las ${citaData.startTime} está confirmada.`,
-              url: '/dashboard?tab=mis-citas',
-            }),
-          }).catch(() => {})
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session) return
+            fetch('/api/push/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({
+                user_id: cita.client_id,
+                title: '¡Cita confirmada!',
+                body: `Tu sesión con ${cita.menter_name} el ${citaData.date} a las ${citaData.startTime} está confirmada.`,
+                url: '/dashboard?tab=mis-citas',
+              }),
+            }).catch(() => {})
+          })
         }
         if (nuevoEstado === 'rechazada')  dispararEmail('rechazo_cliente', citaData)
       }
@@ -5439,15 +5441,18 @@ const saveEvento = async (status: string) => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', 'comunidad_post_creado', { tipo: 'evento', titulo: eventoForm.title })
     }
-    fetch('/api/push/notify-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
-      body: JSON.stringify({
-        title: 'Nuevo evento en Giro Lab',
-        body: eventoForm.title,
-        url: '/dashboard?tab=eventos',
-      }),
-    }).catch(() => {})
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      fetch('/api/push/notify-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          title: 'Nuevo evento en Giro Lab',
+          body: eventoForm.title,
+          url: '/dashboard?tab=eventos',
+        }),
+      }).catch(() => {})
+    })
   }
 
   setEventoView('lista')
@@ -8058,16 +8063,19 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
 
   // Push al cliente confirmando la solicitud
   if (clientId) {
-    fetch('/api/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || '' },
-      body: JSON.stringify({
-        user_id: clientId,
-        title: '¡Solicitud enviada!',
-        body: `Tu cita con ${menter.nombre} el ${formatFecha(fecha)} está pendiente de confirmación.`,
-        url: '/dashboard?tab=mis-citas',
-      }),
-    }).catch(() => {})
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          user_id: clientId,
+          title: '¡Solicitud enviada!',
+          body: `Tu cita con ${menter.nombre} el ${formatFecha(fecha)} está pendiente de confirmación.`,
+          url: '/dashboard?tab=mis-citas',
+        }),
+      }).catch(() => {})
+    })
   }
 
   setTimeout(() => onBooked(), 2500)

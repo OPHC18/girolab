@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase-server'
 
-const INTERNAL_SECRET = process.env.NEXT_PUBLIC_INTERNAL_API_SECRET || ''
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || ''
 
 export async function GET(req: NextRequest) {
   // Verificar autorización (cron de Vercel o llamada interna)
