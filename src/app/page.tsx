@@ -703,7 +703,7 @@ const handleGoogleAuth = async () => {
                     </div>
                   ))}
                 </div>
-                <button onClick={irARegistro} style={{ padding: '13px 24px', borderRadius: 30, border: 'none', background: '#0891b2', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', width: '100%' }}>
+                <button onClick={irARegistro} style={{ padding: '13px 24px', borderRadius: 30, border: 'none', background: '#075985', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif', width: '100%' }}>
                   Para mi empresa →
                 </button>
               </div>
@@ -824,7 +824,7 @@ const handleGoogleAuth = async () => {
               <a key={href} href={href} style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
             ))}
           </div>
-          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>© 2025 Giro Lab</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>© 2025 Giro Lab</span>
         </footer>
       </main>
     )

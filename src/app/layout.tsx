@@ -24,14 +24,15 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.webp",
-        width: 1200,
-        height: 628,
+        width: 1199,
+        height: 629,
         alt: "Giro Lab: Donde el caos se vuelve evolución.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@girolab",
     title: "Giro Lab: Donde el caos se vuelve evolución.",
     description: "Un espacio para agendar con expertos, aprender en comunidad y trackear tu avance emocional. Porque la salud mental también es ciencia y rebeldía.",
     images: ["/og-image.webp"],
@@ -67,6 +68,35 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
+        {/* Schema.org — Organization + LocalBusiness */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": ["Organization", "LocalBusiness"],
+              "@id": `${APP_URL}/#organization`,
+              "name": "Giro Lab",
+              "url": APP_URL,
+              "logo": { "@type": "ImageObject", "url": `${APP_URL}/favicon.svg` },
+              "image": `${APP_URL}/og-image.webp`,
+              "description": "Acompañamos a personas y empresas a alcanzar objetivos reales mediante procesos estratégicos, humanos y medibles.",
+              "email": "omar@girolab.net",
+              "address": { "@type": "PostalAddress", "addressCountry": "PE", "addressRegion": "Lima" },
+              "sameAs": ["https://www.linkedin.com/company/girolab", "https://www.instagram.com/girolab.pe"],
+              "founder": { "@type": "Person", "name": "Omar Herrera", "jobTitle": "Coach Ontológico, Organizacional y Sistémico" },
+              "foundingDate": "2015",
+              "knowsAbout": ["bienestar organizacional", "coaching ontológico", "teambuilding", "desarrollo de habilidades blandas"]
+            },
+            {
+              "@type": "WebSite",
+              "@id": `${APP_URL}/#website`,
+              "url": APP_URL,
+              "name": "Giro Lab",
+              "publisher": { "@id": `${APP_URL}/#organization` },
+              "potentialAction": { "@type": "SearchAction", "target": { "@type": "EntryPoint", "urlTemplate": `${APP_URL}/blog?q={search_term_string}` }, "query-input": "required name=search_term_string" }
+            }
+          ]
+        }) }} />
         {/* Google Tag Manager */}
         <script dangerouslySetInnerHTML={{ __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-WMXX32N3');` }} />
         {/* Google Analytics GA4 */}
