@@ -8,6 +8,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   }
 
+  // Validar longitudes y formato
+  if (String(token).length > 200) return NextResponse.json({ error: 'Token inválido' }, { status: 400 })
+  if (nombre && String(nombre).length > 120) return NextResponse.json({ error: 'Nombre inválido' }, { status: 400 })
+  if (email) {
+    const emailStr = String(email)
+    if (emailStr.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    }
+  }
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) return NextResponse.json({ error: 'Config error' }, { status: 500 })
 

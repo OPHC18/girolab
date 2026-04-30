@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const objetivo_id = searchParams.get('objetivo_id')
   const tipo = searchParams.get('tipo') // 'roadmap' | 'empresa'
   const disponibles = searchParams.get('disponibles') === 'true'
-  const target_user_id = searchParams.get('user_id') || user.id
+  const target_user_id = user.id // siempre el usuario autenticado
 
   if (!objetivo_id || !tipo) {
     return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
@@ -89,6 +89,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
   }
 
+  // Verificar que el resultado pertenece al usuario autenticado
+  const { data: owned } = await admin
+    .from('assessment_results')
+    .select('id')
+    .eq('id', result_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
   if (tipo === 'roadmap') {
     const { error } = await admin
       .from('assessment_results')
@@ -116,6 +125,15 @@ export async function DELETE(req: NextRequest) {
   if (!objetivo_id || !tipo || !result_id) {
     return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
   }
+
+  // Verificar que el resultado pertenece al usuario autenticado
+  const { data: owned } = await admin
+    .from('assessment_results')
+    .select('id')
+    .eq('id', result_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   if (tipo === 'roadmap') {
     const { error } = await admin

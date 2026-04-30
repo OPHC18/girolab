@@ -3,6 +3,19 @@ import { createClient } from '@supabase/supabase-js'
 
 const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
 
+const commentRateMap = new Map<string, { count: number; reset: number }>()
+function checkCommentRate(userId: string): boolean {
+  const now = Date.now()
+  const entry = commentRateMap.get(userId)
+  if (!entry || now > entry.reset) {
+    commentRateMap.set(userId, { count: 1, reset: now + 3_600_000 })
+    return true
+  }
+  if (entry.count >= 20) return false
+  entry.count++
+  return true
+}
+
 async function getUser(req: NextRequest) {
   const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   const auth = req.headers.get('Authorization')
@@ -17,8 +30,13 @@ export async function POST(req: NextRequest) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  if (!checkCommentRate(user.id)) {
+    return NextResponse.json({ error: 'Demasiados comentarios. Intenta más tarde.' }, { status: 429 })
+  }
+
   const { post_id, contenido } = await req.json()
   if (!post_id || !contenido?.trim()) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  if (String(contenido).length > 1000) return NextResponse.json({ error: 'Comentario demasiado largo' }, { status: 400 })
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { error } = await admin.from('community_comments').insert({

@@ -20,6 +20,12 @@ export async function POST(req: NextRequest) {
 
   const { plan, billing_cycle } = await req.json()
 
+  const VALID_PLANS  = ['starter', 'professional', 'master', 'premium']
+  const VALID_CYCLES = ['monthly', 'annual', 'lifetime']
+  if (!VALID_PLANS.includes(plan) || !VALID_CYCLES.includes(billing_cycle)) {
+    return NextResponse.json({ error: 'Plan o ciclo inválido' }, { status: 400 })
+  }
+
   const authUser = await admin.auth.admin.getUserById(user.id)
   const nombre = authUser.data.user?.user_metadata?.nombre || ''
   const email = user.email || ''
