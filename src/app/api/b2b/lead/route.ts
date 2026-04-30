@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { syncB2bContact } from '@/lib/brevo-contacts'
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +26,34 @@ export async function POST(req: NextRequest) {
     created_at: new Date().toISOString(),
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Extraer respuestas SPIN para atributos Brevo
+  const spinMap: Record<string, string> = {}
+  if (Array.isArray(conversacion)) {
+    for (const item of conversacion as Array<{ pregunta: string; respuesta: string }>) {
+      if (item.respuesta) {
+        const p = item.pregunta.toLowerCase()
+        if (p.includes('ayudarte') || p.includes('servicio'))  spinMap.servicio   = item.respuesta
+        if (p.includes('personas') || p.includes('participantes')) spinMap.personas = item.respuesta
+        if (p.includes('comenzar') || p.includes('cuándo'))    spinMap.cuando     = item.respuesta
+        if (p.includes('presupuesto'))                          spinMap.presupuesto = item.respuesta
+      }
+    }
+  }
+
+  // Sincronizar con Brevo (no bloquea la respuesta)
+  syncB2bContact({
+    email:       correo,
+    nombres,
+    apellidos:   apellidos || undefined,
+    empresa,
+    cargo:       cargo    || undefined,
+    telefono:    telefono  || undefined,
+    servicio:    spinMap.servicio,
+    personas:    spinMap.personas,
+    cuando:      spinMap.cuando,
+    presupuesto: spinMap.presupuesto,
+  }).catch(() => {})
 
   const nombreCompleto = `${nombres} ${apellidos || ''}`.trim()
   const whatsappUrl = telefono
