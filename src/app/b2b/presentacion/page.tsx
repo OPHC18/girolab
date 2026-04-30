@@ -25,12 +25,15 @@ const STATS = [
 
 const Logo = () => (
   <div style={{
-    background: 'white', borderRadius: '0 0 16px 0',
-    padding: '10px 24px 12px', display: 'inline-flex', alignItems: 'center', gap: 10,
-    boxShadow: '4px 4px 16px rgba(0,0,0,0.25)',
+    background: 'white', borderRadius: 14,
+    padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: 10,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
   }}>
-    <img src="/favicon.svg" alt="Giro Lab" style={{ width: 32, height: 32 }} />
-    <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 16, color: '#421869' }}>Giro Lab</span>
+    <img src="/favicon.svg" alt="Giro Lab" style={{ width: 30, height: 30 }} />
+    <span style={{ whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 17, color: '#421869' }}>Giro</span>
+      <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 300, fontSize: 17, color: '#421869', letterSpacing: 2 }}> Lab</span>
+    </span>
   </div>
 )
 
@@ -82,8 +85,8 @@ export default function PresentacionPage() {
         <div style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(123,47,212,0.28),transparent)', top: '-8%', right: '-8%', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(255,167,25,0.15),transparent)', bottom: '8%', left: '-5%', pointerEvents: 'none' }} />
 
-        {/* Logo — esquina superior izquierda */}
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Logo — con margen, separado del borde */}
+        <div style={{ position: 'relative', zIndex: 1, padding: '28px 0 0 52px' }}>
           <Logo />
         </div>
 

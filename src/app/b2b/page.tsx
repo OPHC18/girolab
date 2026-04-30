@@ -285,7 +285,10 @@ export default function B2BPage() {
                 src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie"
                 loop autoplay style={{ width: 44, height: 44 }}
               />
-              <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: 'white', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>Giro Lab</span>
+              <span style={{ whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>
+                <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: 'white' }}>Giro</span>
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 300, fontSize: 18, color: 'white', letterSpacing: 2 }}> Lab</span>
+              </span>
             </a>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <a href="#servicios" style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontWeight: 600, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Servicios</a>
