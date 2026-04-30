@@ -18,21 +18,26 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Verificar si ya está verificado
-  const { data: existing } = await admin
+  // Verificar si ya está verificado o si hay un código reciente (cooldown 2 min)
+  const { data: existing, error: existingError } = await admin
     .from('email_verifications')
-    .select('verified')
+    .select('verified, created_at')
     .eq('user_id', user.id)
     .maybeSingle()
 
+  if (existingError) return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   if (existing?.verified) return NextResponse.json({ already_verified: true })
+  if (existing && Date.now() - new Date(existing.created_at).getTime() < 2 * 60 * 1000) {
+    return NextResponse.json({ ok: true })
+  }
 
   const code = Math.floor(100000 + Math.random() * 900000).toString()
 
-  await admin.from('email_verifications').upsert(
+  const { error: upsertError } = await admin.from('email_verifications').upsert(
     { user_id: user.id, email: user.email!, code, verified: false, created_at: new Date().toISOString() },
     { onConflict: 'user_id' }
   )
+  if (upsertError) return NextResponse.json({ error: 'No se pudo guardar el código. Contacta soporte.' }, { status: 500 })
 
   const nombre = user.user_metadata?.nombre || user.email!.split('@')[0]
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'

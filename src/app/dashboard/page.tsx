@@ -6628,7 +6628,7 @@ const renderDestacados = () => (
         <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
           {featuredMenters.map(m => (
             <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false); if (typeof window !== 'undefined' && (window as any).gtag) { (window as any).gtag('event', 'menter_perfil_visto', { menter_id: m.menter_id }) } }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#421869,#995bd5)' }}>
+              <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
                 {m.avatar_url && <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />}
               </div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(66,24,105,0.95) 0%, transparent 100%)', padding: '32px 12px 12px' }}>
