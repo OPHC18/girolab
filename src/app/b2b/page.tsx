@@ -287,7 +287,7 @@ export default function B2BPage() {
               />
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>
                 <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 18, color: 'white', letterSpacing: 1, textTransform: 'uppercase' }}>Giro</span>
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 400, fontSize: 10, color: 'white', letterSpacing: 4, textTransform: 'uppercase', textAlign: 'right', marginTop: 1 }}>Lab</span>
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 400, fontSize: 10, color: 'white', letterSpacing: 4, textTransform: 'uppercase', textAlign: 'left', marginTop: 1 }}>Lab</span>
               </div>
             </a>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
