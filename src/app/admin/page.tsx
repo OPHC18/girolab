@@ -2244,17 +2244,17 @@ const confirmarCambioPlan = async () => {
                           </div>
                         )}
                         {l.conversacion && l.conversacion.length > 0 && (
-                          <details style={{ marginTop: 10 }}>
-                            <summary style={{ fontSize: 12, color: '#888', cursor: 'pointer' }}>Ver conversacion SPIN ({l.conversacion.length} respuestas)</summary>
-                            <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #eee' }}>
+                          <div style={{ marginTop: 12, borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+                            <div style={{ fontSize: 11, color: '#aaa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Respuestas SPIN ({l.conversacion.length})</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
                               {l.conversacion.map((item: any, i: number) => (
-                                <div key={i} style={{ marginBottom: 8 }}>
-                                  <div style={{ fontSize: 11, color: '#aaa', fontWeight: 700 }}>{item.pregunta}</div>
-                                  <div style={{ fontSize: 13, color: '#444' }}>{item.respuesta}</div>
+                                <div key={i} style={{ background: '#f8f4ff', borderRadius: 8, padding: '8px 12px' }}>
+                                  <div style={{ fontSize: 10, color: '#aaa', fontWeight: 700, marginBottom: 3, textTransform: 'uppercase' }}>{item.pregunta?.split('?')[0]?.slice(0, 40)}</div>
+                                  <div style={{ fontSize: 13, color: '#421869', fontWeight: 600 }}>{item.respuesta || '—'}</div>
                                 </div>
                               ))}
                             </div>
-                          </details>
+                          </div>
                         )}
                       </div>
                     )
