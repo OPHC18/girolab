@@ -18,16 +18,18 @@ export async function GET(req: NextRequest) {
   }
 
   const email = req.nextUrl.searchParams.get('email')?.trim().toLowerCase()
-  if (!email) return NextResponse.json({ error: 'Falta email' }, { status: 400 })
+  if (!email || email.length < 3 || email.length > 200) {
+    return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+  }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
 
-  // Search in auth.users via admin API
+  // Search in auth.users via admin API — filter server-side, max 25 results
   const { data: { users }, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const found = users.filter(u => u.email?.toLowerCase().includes(email))
+  const found = users.filter(u => u.email?.toLowerCase().includes(email)).slice(0, 25)
 
   const result = found.map(u => ({
     id: u.id,

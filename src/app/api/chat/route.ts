@@ -5,6 +5,22 @@ import { cookies } from 'next/headers'
 
 const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'omarphc@hotmail.com', 'omarphc180726@gmail.com']
 
+// Rate limiting: 3 chats nuevos por IP por hora; 30 mensajes por IP por 5 min
+const chatCreateMap = new Map<string, { count: number; reset: number }>()
+const chatMsgMap    = new Map<string, { count: number; reset: number }>()
+
+function checkRate(map: Map<string, { count: number; reset: number }>, key: string, max: number, windowMs: number): boolean {
+  const now = Date.now()
+  const entry = map.get(key)
+  if (!entry || now > entry.reset) {
+    map.set(key, { count: 1, reset: now + windowMs })
+    return true
+  }
+  if (entry.count >= max) return false
+  entry.count++
+  return true
+}
+
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -12,11 +28,18 @@ const admin = createClient(
 
 // POST /api/chat — crear chat o enviar mensaje
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
   const body = await req.json()
   const { action } = body
 
   if (action === 'create_chat') {
+    if (!checkRate(chatCreateMap, ip, 3, 3_600_000)) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Intenta más tarde.' }, { status: 429 })
+    }
     const { user_name, user_email, user_id, email_consent } = body
+    if (!user_name || String(user_name).length > 100) {
+      return NextResponse.json({ error: 'Nombre inválido' }, { status: 400 })
+    }
     const { data, error } = await admin
       .from('support_chats')
       .insert({ user_name, user_email, user_id: user_id || null, status: 'open', email_consent: !!email_consent })
@@ -27,8 +50,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'send_message') {
+    if (!checkRate(chatMsgMap, ip, 30, 300_000)) {
+      return NextResponse.json({ error: 'Demasiados mensajes. Espera unos minutos.' }, { status: 429 })
+    }
     const { chat_id, content, sender } = body
     if (!chat_id || !content || !sender) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
+    if (String(content).length > 2000) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })
     const { data, error } = await admin
       .from('support_messages')
       .insert({ chat_id, content, sender })

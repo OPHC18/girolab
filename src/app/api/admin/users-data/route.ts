@@ -23,10 +23,21 @@ export async function GET(req: NextRequest) {
   const role = searchParams.get('role')       // 'persona' | 'empresa' | null (todos)
   const ids  = searchParams.get('ids')        // IDs separados por coma
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+  const VALID_ROLES = ['persona', 'empresa', 'menter']
+
   let query = admin.from('user_public_data').select('*').order('created_at', { ascending: false }).limit(500)
 
-  if (role)      query = query.eq('role', role)
-  if (ids)       query = query.in('id', ids.split(','))
+  if (role) {
+    if (!VALID_ROLES.includes(role)) return NextResponse.json({ error: 'Role inválido' }, { status: 400 })
+    query = query.eq('role', role)
+  }
+  if (ids) {
+    const parsed = ids.split(',').map(s => s.trim()).filter(id => UUID_RE.test(id))
+    if (!parsed.length) return NextResponse.json({ error: 'IDs inválidos' }, { status: 400 })
+    query = query.in('id', parsed)
+  }
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

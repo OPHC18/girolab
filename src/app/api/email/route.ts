@@ -23,6 +23,15 @@ import {
   emailVerificacionCodigo,
 } from '@/lib/email'
 
+function escapeHtml(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ── Rate limiting en memoria (10 emails por usuario por minuto) ──────────────
 const rateLimitMap = new Map<string, { count: number; reset: number }>()
 const RATE_LIMIT = 10
@@ -127,14 +136,16 @@ export async function POST(req: NextRequest) {
       result = await emailVerificacionCodigo(data); break
     case 'b2b_lead_interno': {
       const { sendEmail } = await import('@/lib/email/brevo')
+      const safeWaUrl = typeof data.whatsappUrl === 'string' && data.whatsappUrl.startsWith('https://wa.me/')
+        ? data.whatsappUrl : null
       const lines = [
-        `<b>Nombre:</b> ${data.nombreCompleto}`,
-        `<b>Empresa:</b> ${data.empresa}`,
-        `<b>Cargo:</b> ${data.cargo || '—'}`,
-        `<b>Correo:</b> <a href="mailto:${data.correo}">${data.correo}</a>`,
-        `<b>Teléfono:</b> ${data.telefono || '—'}`,
-        `<b>Resumen:</b><br/>${(data.resumen || '').replace(/\n/g, '<br/>')}`,
-        data.whatsappUrl ? `<a href="${data.whatsappUrl}" style="background:#25D366;color:white;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:700;display:inline-block;margin-top:12px;">Responder por WhatsApp</a>` : '',
+        `<b>Nombre:</b> ${escapeHtml(data.nombreCompleto)}`,
+        `<b>Empresa:</b> ${escapeHtml(data.empresa)}`,
+        `<b>Cargo:</b> ${escapeHtml(data.cargo || '—')}`,
+        `<b>Correo:</b> <a href="mailto:${escapeHtml(data.correo)}">${escapeHtml(data.correo)}</a>`,
+        `<b>Teléfono:</b> ${escapeHtml(data.telefono || '—')}`,
+        `<b>Resumen:</b><br/>${escapeHtml(data.resumen).replace(/\n/g, '<br/>')}`,
+        safeWaUrl ? `<a href="${escapeHtml(safeWaUrl)}" style="background:#25D366;color:white;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:700;display:inline-block;margin-top:12px;">Responder por WhatsApp</a>` : '',
       ].filter(Boolean).join('<br/><br/>')
       result = await sendEmail({
         to: [{ email: 'omar@girolab.net', name: 'Omar Giro Lab' }],

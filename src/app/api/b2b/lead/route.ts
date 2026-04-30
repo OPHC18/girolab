@@ -10,11 +10,43 @@ const admin = createClient(
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 const OMAR_WA  = process.env.OMAR_WHATSAPP_NUMBER || '51999999999'
 
+// Rate limiting: 5 leads por IP por hora
+const b2bRateMap = new Map<string, { count: number; reset: number }>()
+function checkB2bRate(ip: string): boolean {
+  const now = Date.now()
+  const entry = b2bRateMap.get(ip)
+  if (!entry || now > entry.reset) {
+    b2bRateMap.set(ip, { count: 1, reset: now + 3_600_000 })
+    return true
+  }
+  if (entry.count >= 5) return false
+  entry.count++
+  return true
+}
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+  if (!checkB2bRate(ip)) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Intenta más tarde.' }, { status: 429 })
+  }
+
   const body = await req.json()
   const { nombres, apellidos, empresa, cargo, correo, telefono, conversacion, resumen } = body
   if (!nombres || !correo || !empresa) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
+  }
+
+  // Validar longitudes y formato de email
+  if (
+    String(nombres).length > 120 ||
+    String(empresa).length > 200 ||
+    String(correo).length > 200 ||
+    String(resumen || '').length > 5000
+  ) {
+    return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo))) {
+    return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
   }
 
   // Guardar en Supabase
