@@ -14,11 +14,11 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.google.com https://www.gstatic.com https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://analytics.tiktok.com https://snap.licdn.com https://connect.facebook.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.supabase.co https://supabase.co https://lh3.googleusercontent.com https://img.youtube.com https://i.ytimg.com https://px.ads.linkedin.com https://www.facebook.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://supabase.co https://lh3.googleusercontent.com https://img.youtube.com https://i.ytimg.com https://px.ads.linkedin.com https://www.linkedin.com https://www.facebook.com",
       "media-src 'self' https://*.supabase.co",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://www.google.com https://lottie.host https://cdn.jsdelivr.net https://unpkg.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com https://snap.licdn.com https://px.ads.linkedin.com https://www.facebook.com https://connect.facebook.net",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://www.google.com https://lottie.host https://cdn.jsdelivr.net https://unpkg.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com https://analytics-ipv6.tiktokw.us https://snap.licdn.com https://px.ads.linkedin.com https://www.facebook.com https://connect.facebook.net",
       "worker-src 'self' blob:",
-      "frame-src https://www.google.com https://js.mercadopago.com https://www.mercadopago.com https://www.youtube.com https://www.youtube-nocookie.com",
+      "frame-src https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -42,6 +42,10 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        source: '/:file(.*\\.(?:png|jpg|jpeg|webp|svg|ico|woff2?))',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

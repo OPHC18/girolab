@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 .grecaptcha-badge { visibility: hidden !important; }
@@ -29,9 +28,6 @@ h1, h2, h3, h4, h5 {
 /* ── Protección de contenido ─────────────────────────────────────────────── */
 img {
   -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  user-drag: none;
   -webkit-user-select: none;
   user-select: none;
 }

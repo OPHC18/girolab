@@ -741,7 +741,7 @@ const handleGoogleAuth = async () => {
         {menterModal && (
           <div onClick={() => setMenterModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(8px)' }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#130a24', border: '1px solid rgba(255,167,25,0.25)', borderRadius: 28, padding: '44px 44px', maxWidth: 640, width: '100%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-              <button onClick={() => setMenterModal(false)} style={{ position: 'absolute', top: 18, right: 22, background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={() => setMenterModal(false)} style={{ position: 'absolute', top: 18, right: 22, background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}aria-label="Cerrar">✕</button>
 
               <p style={{ margin: '0 0 8px', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,167,25,0.7)', fontWeight: 700 }}>Para Menters</p>
               <h3 style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 26, color: 'white', margin: '0 0 8px', lineHeight: 1.2 }}>Giro Lab hace por ti<br/>lo que tomaría años construir.</h3>

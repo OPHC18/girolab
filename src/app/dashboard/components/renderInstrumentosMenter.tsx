@@ -43,6 +43,12 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [vinculandoId, setVinculandoId] = useState<string | null>(null);
   const [objetivoSeleccionado, setObjetivoSeleccionado] = useState<string>('');
+  const [creditos, setCreditos]         = useState<number | null>(null);
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [buyingPack, setBuyingPack]     = useState<string | null>(null);
+  const [buyMsg, setBuyMsg]             = useState<string | null>(null);
+
+  const isFreeStarter = !['premium', 'master'].includes(menterPlan);
 
   const canAccess = (plan: ('master' | 'premium')[]) =>
     menterPlan === 'master' || (menterPlan === 'premium' && !plan.every(p => p === 'master'));
@@ -76,19 +82,54 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       });
   }, [selectedResult, userId]);
 
+  useEffect(() => {
+    if (!isFreeStarter) return;
+    supabase.from('instrumento_creditos').select('creditos').eq('empresa_id', userId).maybeSingle()
+      .then(({ data }) => setCreditos(data?.creditos ?? 0));
+  }, [userId, isFreeStarter]);
+
+  useEffect(() => {
+    if (!isFreeStarter) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pp') === 'ok') {
+      const orderId = sessionStorage.getItem('paypal_order_id');
+      if (orderId) {
+        sessionStorage.removeItem('paypal_order_id');
+        fetch('/api/paypal/capture-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: orderId }),
+        })
+          .then(r => r.json())
+          .then(d => { if (d.ok) { setCreditos(d.creditos_nuevos); setBuyMsg('¡Créditos acreditados!'); } });
+      }
+    }
+  }, [isFreeStarter]);
+
   // Generar link compartible
   const handleGenerarLink = async (instrumentId: InstrumentId) => {
-    if (!canAccess(INSTRUMENTS[instrumentId].planesMenter)) return;
+    if (isFreeStarter) {
+      if (!creditos || creditos <= 0) { setShowBuyModal(true); return; }
+    } else if (!canAccess(INSTRUMENTS[instrumentId].planesMenter)) {
+      return;
+    }
     setLoadingLink(instrumentId);
     const { data, error } = await supabase.rpc('create_assessment_link', {
       p_instrument_id: instrumentId,
       p_menter_id: userId,
     });
     if (!error && data) {
-      // Construir URL desde el origen actual (evita dominio hardcodeado en la DB)
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net'
-      const url = `${origin}/test/${instrumentId}?t=${data.token}`
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net';
+      const url = `${origin}/test/${instrumentId}?t=${data.token}`;
       setShareLinks(prev => ({ ...prev, [instrumentId]: { token: data.token, url, copied: false } }));
+      if (isFreeStarter) {
+        const nuevos = (creditos || 0) - 1;
+        await supabase.from('instrumento_creditos').upsert(
+          { empresa_id: userId, creditos: nuevos, updated_at: new Date().toISOString() },
+          { onConflict: 'empresa_id' }
+        );
+        setCreditos(nuevos);
+      }
     }
     setLoadingLink(null);
   };
@@ -103,6 +144,24 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     }
     setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: true } }));
     setTimeout(() => setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: false } })), 2000);
+  };
+
+  const handleComprar = async (packId: string) => {
+    setBuyingPack(packId);
+    setBuyMsg(null);
+    const res = await fetch('/api/paypal/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack_id: packId }),
+    });
+    const d = await res.json();
+    if (d.approve_url) {
+      sessionStorage.setItem('paypal_order_id', d.order_id);
+      window.location.href = d.approve_url;
+    } else {
+      setBuyMsg('Error al iniciar el pago. Intenta de nuevo.');
+      setBuyingPack(null);
+    }
   };
 
   // Vincular resultado al Roadmap
@@ -131,17 +190,6 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     'Área de Oportunidad':        '#FF9800',
   };
 
-  if (!['premium', 'master'].includes(menterPlan)) {
-    return (
-      <div style={s.upgradeBox}>
-        <span style={{ fontSize: 40 }}></span>
-        <h3 style={s.upgradeTitle}>Instrumentos Psicométricos</h3>
-        <p style={s.upgradeText}>Disponible para Menters Premium y Master. Actualiza tu plan para acceder a los 9 instrumentos validados.</p>
-        <button style={s.upgradeBtn}>Ver planes</button>
-      </div>
-    );
-  }
-
   return (
     <div style={s.container}>
       {/* HEADER */}
@@ -154,6 +202,20 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
           {menterPlan.charAt(0).toUpperCase() + menterPlan.slice(1)}
         </span>
       </div>
+
+      {isFreeStarter && (
+        <div style={s.creditBanner}>
+          <span style={s.creditBannerText}>
+            {creditos === null ? '...' : creditos} crédito{creditos !== 1 ? 's' : ''} disponibles
+          </span>
+          <button style={s.creditBannerBtn} onClick={() => setShowBuyModal(true)}>+ Comprar</button>
+        </div>
+      )}
+      {buyMsg && (
+        <div style={{ background: '#e8f5e9', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#2e7d32', fontWeight: 600 as const }}>
+          {buyMsg}
+        </div>
+      )}
 
       {/* TABS */}
       <div style={s.tabBar}>
@@ -175,9 +237,9 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
             const soloMaster = inst.planesMenter.every((p: string) => p === 'master');
 
             return (
-              <div key={inst.id} style={{ ...s.card, opacity: acceso ? 1 : 0.6 }}>
+              <div key={inst.id} style={{ ...s.card, opacity: isFreeStarter ? 0.88 : acceso ? 1 : 0.6 }}>
                 {/* Badge Master-only */}
-                {soloMaster && menterPlan !== 'master' && (
+                {soloMaster && menterPlan === 'premium' && (
                   <span style={s.masterOnlyBadge}>Solo Master</span>
                 )}
                 {/* Ícono + nombre */}
@@ -215,7 +277,20 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                 )}
 
                 {/* Botones */}
-                {acceso ? (
+                {isFreeStarter ? (
+                  creditos !== null && creditos > 0 ? (
+                    <button style={{ ...s.actionBtn, background: inst.color }}
+                      disabled={isLoading}
+                      onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
+                      {isLoading ? 'Generando...' : link ? 'Copiar link' : `Usar 1 crédito (${creditos} disp.)`}
+                    </button>
+                  ) : (
+                    <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
+                      onClick={() => setShowBuyModal(true)}>
+                      {creditos === null ? 'Cargando...' : 'Comprar crédito'}
+                    </button>
+                  )
+                ) : acceso ? (
                   <button style={{ ...s.actionBtn, background: inst.color }}
                     disabled={isLoading}
                     onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
@@ -328,9 +403,43 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
           </div>
         </div>
       )}
+
+      {/* ── MODAL COMPRAR CRÉDITOS (plan free/starter) ── */}
+      {isFreeStarter && showBuyModal && (
+        <div style={s.modalOverlay} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>
+          <div style={s.buyModal} onClick={e => e.stopPropagation()}>
+            <button aria-label="Cerrar" style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>✕</button>
+            <h3 style={s.modalTitle}>Comprar créditos</h3>
+            <p style={s.buyModalSub}>Cada crédito te permite compartir 1 instrumento con una persona.</p>
+            <div style={s.packsGrid}>
+              {CREDIT_PACKS.map(pack => (
+                <button key={pack.id}
+                  style={{ ...s.packCard, ...(buyingPack === pack.id ? s.packCardActive : {}) }}
+                  onClick={() => handleComprar(pack.id)}
+                  disabled={!!buyingPack}>
+                  <div style={s.packCreditos}>{pack.creditos}</div>
+                  <div style={s.packLabel}>{pack.label}</div>
+                  <div style={s.packPrecio}>${pack.precio} USD</div>
+                  {pack.ahorro && <div style={s.packAhorro}>{pack.ahorro}</div>}
+                  {buyingPack === pack.id && <div style={s.packLoading}>Redirigiendo...</div>}
+                </button>
+              ))}
+            </div>
+            {buyMsg && <p style={{ textAlign: 'center', color: '#c62828', fontSize: 13, marginTop: 12 }}>{buyMsg}</p>}
+            <p style={s.paypalNote}>Pago seguro via PayPal.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const CREDIT_PACKS = [
+  { id: 'pack_1',  creditos: 1,  precio: 5,  label: '1 evaluación',   ahorro: null },
+  { id: 'pack_5',  creditos: 5,  precio: 20, label: '5 evaluaciones',  ahorro: 'Ahorra $5' },
+  { id: 'pack_10', creditos: 10, precio: 35, label: '10 evaluaciones', ahorro: 'Ahorra $15' },
+  { id: 'pack_20', creditos: 20, precio: 60, label: '20 evaluaciones', ahorro: 'Ahorra $40' },
+];
 
 // ── ESTILOS ────────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
@@ -386,4 +495,19 @@ const s: Record<string, React.CSSProperties> = {
   modalBtns:      { display:'flex', gap:10, justifyContent:'flex-end' },
   cancelBtn:      { padding:'10px 20px', borderRadius:8, border:'1px solid #ddd', background:'none', cursor:'pointer', fontSize:14 },
   confirmBtn:     { padding:'10px 20px', borderRadius:8, background:'#5C6BC0', color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:700 },
+  creditBanner:     { display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f3e8ff', borderRadius:12, padding:'10px 16px', marginBottom:16 },
+  creditBannerText: { fontSize:13, color:'#421869', fontWeight:700 },
+  creditBannerBtn:  { padding:'6px 14px', borderRadius:20, background:'#421869', color:'#fff', border:'none', fontWeight:700, fontSize:12, cursor:'pointer' },
+  buyModal:       { background:'#fff', borderRadius:24, padding:32, maxWidth:480, width:'90%', position:'relative' },
+  closeBtn:       { position:'absolute', top:16, right:16, background:'none', border:'none', fontSize:18, cursor:'pointer', color:'#888' },
+  buyModalSub:    { fontSize:13, color:'#666', marginBottom:24, lineHeight:1.6 },
+  packsGrid:      { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 },
+  packCard:       { border:'2px solid #e0e0e0', borderRadius:16, padding:'16px 12px', textAlign:'center', cursor:'pointer', background:'white' },
+  packCardActive: { border:'2px solid #421869', background:'#f3e8ff' },
+  packCreditos:   { fontSize:32, fontWeight:900, color:'#421869', fontFamily:'Raleway, sans-serif' },
+  packLabel:      { fontSize:12, color:'#555', margin:'4px 0' },
+  packPrecio:     { fontSize:18, fontWeight:700, color:'#2d2926', margin:'4px 0' },
+  packAhorro:     { fontSize:11, background:'#e8f5e9', color:'#2e7d32', borderRadius:99, padding:'2px 8px', display:'inline-block', fontWeight:600 },
+  packLoading:    { fontSize:11, color:'#421869', marginTop:6 },
+  paypalNote:     { textAlign:'center', fontSize:11, color:'#aaa', marginTop:12 },
 };

@@ -4926,6 +4926,7 @@ const renderBlogMenter = () => {
         style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 12 }} />
       <button
         type="button"
+        aria-label="Cerrar"
         onClick={() => setBlogForm(prev => ({ ...prev, cover_image: '' }))}
         style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
         ✕
@@ -5159,7 +5160,7 @@ const renderBlogModal = () => {
       </p>
     </div>
   </div>
-  <button onClick={() => setBlogModalPost(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}>✕</button>
+  <button onClick={() => setBlogModalPost(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}aria-label="Cerrar">✕</button>
 </div>
 
         {/* Contenido */}
@@ -5546,7 +5547,7 @@ const renderInscritosModal = () => {
               Descargar CSV
             </button>
             <button onClick={() => { setInscritosModal(null); setInscritosList([]); setCertifiedMap({}) }}
-              style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}>✕</button>
+              style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}aria-label="Cerrar">✕</button>
           </div>
         </div>
 
@@ -5673,7 +5674,7 @@ const renderEventosMenter = () => {
             <div style={{ position: 'relative', marginBottom: 8 }}>
               <img src={eventoForm.cover_image} style={{ width: '100%', maxHeight: 180, objectFit: 'cover' as const, borderRadius: 12 }} />
               <button type="button" onClick={() => setEventoForm(prev => ({ ...prev, cover_image: '' }))}
-                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', fontWeight: 700 }}aria-label="Cerrar">✕</button>
             </div>
           )}
           <input type="file" accept="image/*" onChange={(e) => {
@@ -5775,7 +5776,7 @@ const renderEventosMenter = () => {
             <div style={{ position: 'relative', marginBottom: 10, display: 'inline-block' }}>
               <img src={eventoForm.certificate_firma} style={{ maxHeight: 80, borderRadius: 8, border: '1px solid #ddd', background: '#f9f0ff' }} alt="Firma" />
               <button type="button" onClick={() => setEventoForm(prev => ({ ...prev, certificate_firma: '' }))}
-                style={{ position: 'absolute', top: -8, right: -8, background: '#c62828', border: 'none', borderRadius: '50%', width: 22, height: 22, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 13, lineHeight: '22px', textAlign: 'center' }}>✕</button>
+                style={{ position: 'absolute', top: -8, right: -8, background: '#c62828', border: 'none', borderRadius: '50%', width: 22, height: 22, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 13, lineHeight: '22px', textAlign: 'center' }}aria-label="Cerrar">✕</button>
             </div>
           )}
           <input type="file" accept="image/*" onChange={(e) => {
@@ -6185,7 +6186,7 @@ const renderEventoModal = () => {
             <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#421869' }}>{eventoModal.menter?.nombre || 'Menter'}</p>
           </div>
           <button onClick={closeModal}
-            style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}>✕</button>
+            style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}aria-label="Cerrar">✕</button>
         </div>
 
         <div style={{ padding: '24px' }}>
@@ -6508,7 +6509,7 @@ const renderBlogPersona = () => {
           <SectionHeader emoji="" title="Formación académica" subtitle="Puedes agregar varios títulos." />
 {menterProfile.formacion.map((f, i) => (
   <div key={i} style={{ marginBottom: 12, padding: 16, background: '#f8f9fa', borderRadius: 12, position: 'relative' }}>
-    <button onClick={() => setMenterProfile(p => ({ ...p, formacion: p.formacion.filter((_,idx) => idx !== i) }))} style={{ position: 'absolute', top: 8, right: 8, background: '#ffebee', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#c62828', fontSize: 12, fontWeight: 600 }}>✕</button>
+    <button onClick={() => setMenterProfile(p => ({ ...p, formacion: p.formacion.filter((_,idx) => idx !== i) }))} style={{ position: 'absolute', top: 8, right: 8, background: '#ffebee', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#c62828', fontSize: 12, fontWeight: 600 }}aria-label="Cerrar">✕</button>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 40 }}>
       <FormField label="Título" value={f.titulo} onChange={v => setMenterProfile(p => { const arr = [...p.formacion]; arr[i] = { ...arr[i], titulo: v }; return { ...p, formacion: arr } })} />
       <FormField label="Casa de estudios" value={f.institucion} onChange={v => setMenterProfile(p => { const arr = [...p.formacion]; arr[i] = { ...arr[i], institucion: v }; return { ...p, formacion: arr } })} />
@@ -6522,7 +6523,7 @@ const renderBlogPersona = () => {
 <SectionHeader emoji="" title="Experiencia laboral" />
 {menterProfile.experiencia_laboral.map((e, i) => (
   <div key={i} style={{ marginBottom: 12, padding: 16, background: '#f8f9fa', borderRadius: 12, position: 'relative' }}>
-    <button onClick={() => setMenterProfile(p => ({ ...p, experiencia_laboral: p.experiencia_laboral.filter((_,idx) => idx !== i) }))} style={{ position: 'absolute', top: 8, right: 8, background: '#ffebee', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#c62828', fontSize: 12, fontWeight: 600 }}>✕</button>
+    <button onClick={() => setMenterProfile(p => ({ ...p, experiencia_laboral: p.experiencia_laboral.filter((_,idx) => idx !== i) }))} style={{ position: 'absolute', top: 8, right: 8, background: '#ffebee', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#c62828', fontSize: 12, fontWeight: 600 }}aria-label="Cerrar">✕</button>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 40 }}>
       <FormField label="Empresa" value={e.empresa} onChange={v => setMenterProfile(p => { const arr = [...p.experiencia_laboral]; arr[i] = { ...arr[i], empresa: v }; return { ...p, experiencia_laboral: arr } })} />
       <FormField label="Cargo" value={e.cargo} onChange={v => setMenterProfile(p => { const arr = [...p.experiencia_laboral]; arr[i] = { ...arr[i], cargo: v }; return { ...p, experiencia_laboral: arr } })} />
@@ -6827,7 +6828,7 @@ const renderDestacados = () => (
             )}
           </div>
         </div>
-        <button onClick={() => setSelectedMenter(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        <button onClick={() => setSelectedMenter(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}aria-label="Cerrar">✕</button>
       </div>
 
       <div style={{ padding: 28 }}>
@@ -7049,7 +7050,7 @@ const renderDestacados = () => (
               <h3 style={{ margin: 0, color: 'white', fontFamily: 'Raleway, sans-serif' }}>Agendar sesión</h3>
               <p style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>con {selectedMenter.nombre} {selectedMenter.apellidos}</p>
             </div>
-            <button onClick={() => setShowAgenda(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            <button onClick={() => setShowAgenda(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: 16 }}aria-label="Cerrar">✕</button>
           </div>
           <AgendaModal
             menter={selectedMenter}
@@ -7178,29 +7179,17 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     destacados:   { title: isMenter ? 'Directorio de Menters' : 'Menters Destacados', content: renderDestacados() },
      ingresos:    { title: 'Mis Ingresos', content: isMenter ? renderIngresos() : renderProximamente('Ingresos', '') },
     objetivos:            { title: 'Objetivos Empresariales', content: meta?.role === 'empresa' ? renderObjetivosEmpresa() : renderProximamente('Objetivos Empresariales', '') },
-    instrumentos:         { title: 'Instrumentos', content: isMenter && canPremium && user?.id
+    instrumentos:         { title: 'Instrumentos', content: isMenter && user?.id
       ? <>
           <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
-          {canPremium && (
-            <div style={{ marginTop: 36, borderTop: '2px solid #f0f0f0', paddingTop: 28 }}>
-              <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Evaluaciones para Equipos y Empresas</h3>
-              <RenderInstrumentosEmpresa empresaId={user.id} />
-            </div>
-          )}
-        </>
-      : isMenter
-        ? <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 22, fontWeight: 800, margin: '0 0 10px' }}>Instrumentos Psicométricos</h3>
-            <p style={{ color: '#666', fontSize: 15, lineHeight: 1.7, maxWidth: 420, margin: '0 auto 28px' }}>
-              Envía evaluaciones a tus clientes y analiza sus resultados con instrumentos validados. Disponible desde el plan <strong>Premium</strong>.
-            </p>
-            <button onClick={() => switchTab('membresia')} style={{ padding: '14px 36px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>
-              Ver planes →
-            </button>
+          <div style={{ marginTop: 36, borderTop: '2px solid #f0f0f0', paddingTop: 28 }}>
+            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Evaluaciones para Equipos y Empresas</h3>
+            <RenderInstrumentosEmpresa empresaId={user.id} isMaster={plan === 'master'} />
           </div>
-        : renderProximamente('Instrumentos', '') },
+        </>
+      : renderProximamente('Instrumentos', '') },
     resultados_tests:     { title: 'Mis Resultados', content: !isMenter && user?.id ? <RenderResultadosTests userId={user.id} /> : renderProximamente('Mis Resultados', '') },
-    instrumentos_empresa: { title: 'Instrumentos', content: (meta?.role === 'empresa' || (isMenter && plan === 'master')) && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} /> : renderProximamente('Instrumentos', '') },
+    instrumentos_empresa: { title: 'Instrumentos', content: (meta?.role === 'empresa' || (isMenter && plan === 'master')) && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} isMaster={isMenter && plan === 'master'} /> : renderProximamente('Instrumentos', '') },
      compras:      { title: 'Historial de Compras',                                         content: user?.id ? <RenderCompras userId={user.id} isMenter={isMenter} /> : null },
      certificados: { title: 'Mis Certificados',                                             content: renderMisCertificados() },
    comunidad: {
@@ -7298,7 +7287,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
             {/* card */}
             <div style={{ position: 'relative', background: 'white', borderRadius: 24, padding: '32px 32px 28px', maxWidth: 440, width: '100%', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', pointerEvents: 'auto', animation: 'tourSlideUp 0.35s cubic-bezier(.22,.68,0,1.2) both' }}>
               {/* close */}
-              <button onClick={closeTour} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+              <button onClick={closeTour} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 20, lineHeight: 1, padding: 4 }}aria-label="Cerrar">✕</button>
 
               {/* icon */}
               <div style={{ textAlign: 'center', marginBottom: 12 }}>

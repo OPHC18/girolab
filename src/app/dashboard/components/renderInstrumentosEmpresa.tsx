@@ -45,9 +45,10 @@ interface JobProfile { id: string; nombre: string; }
 interface Props {
   empresaId: string;
   menterId?: string;
+  isMaster?: boolean;
 }
 
-export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props) {
+export default function RenderInstrumentosEmpresa({ empresaId, menterId, isMaster }: Props) {
   const [activeTab, setActiveTab]           = useState<'biblioteca' | 'resultados' | 'perfiles'>('biblioteca');
   const [shareLinks, setShareLinks]         = useState<Record<string, ShareLink[]>>({});
   const [loadingLink, setLoadingLink]       = useState<string | null>(null);
@@ -138,11 +139,13 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
 
   // ── Generar links ─────────────────────────────────────────────────────────────
   const handleGenerarLinks = async (instrumentId: string) => {
-    if (!creditos || creditos <= 0) { setShowBuyModal(true); return }
     if (candidatosValidos.length === 0) return
-    if (creditos < candidatosValidos.length) {
-      alert(`Necesitas ${candidatosValidos.length} créditos. Solo tienes ${creditos}.`)
-      return
+    if (!isMaster) {
+      if (!creditos || creditos <= 0) { setShowBuyModal(true); return }
+      if (creditos < candidatosValidos.length) {
+        alert(`Necesitas ${candidatosValidos.length} créditos. Solo tienes ${creditos}.`)
+        return
+      }
     }
 
     setLoadingLink(instrumentId)
@@ -163,13 +166,14 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       }
     }
 
-    // Descontar créditos
-    const nuevos = (creditos || 0) - links.length
-    await supabase.from('instrumento_creditos').upsert(
-      { empresa_id: empresaId, creditos: nuevos, updated_at: new Date().toISOString() },
-      { onConflict: 'empresa_id' }
-    )
-    setCreditos(nuevos)
+    if (!isMaster) {
+      const nuevos = (creditos || 0) - links.length
+      await supabase.from('instrumento_creditos').upsert(
+        { empresa_id: empresaId, creditos: nuevos, updated_at: new Date().toISOString() },
+        { onConflict: 'empresa_id' }
+      )
+      setCreditos(nuevos)
+    }
     setShareLinks(prev => ({ ...prev, [instrumentId]: links }))
     setLoadingLink(null)
   }
@@ -239,13 +243,15 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
           <h2 style={s.titulo}>Instrumentos de Selección y Diagnóstico</h2>
           <p style={s.sub}>Envía evaluaciones a candidatos y colaboradores</p>
         </div>
-        <div style={s.creditBox}>
-          <div style={s.creditCount}>
-            <span style={s.creditNum}>{creditos ?? '—'}</span>
-            <span style={s.creditLabel}>créditos</span>
+        {!isMaster && (
+          <div style={s.creditBox}>
+            <div style={s.creditCount}>
+              <span style={s.creditNum}>{creditos ?? '—'}</span>
+              <span style={s.creditLabel}>créditos</span>
+            </div>
+            <button style={s.buyBtn} onClick={() => setShowBuyModal(true)}>+ Comprar</button>
           </div>
-          <button style={s.buyBtn} onClick={() => setShowBuyModal(true)}>+ Comprar</button>
-        </div>
+        )}
       </div>
 
       {buyMsg && (
@@ -254,7 +260,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
         </div>
       )}
 
-      {creditos === 0 && (
+      {!isMaster && creditos === 0 && (
         <div style={s.noCreditsBanner}>
           <span style={{ fontWeight: 700 }}>Sin créditos disponibles.</span> Cada evaluación que envíes consume 1 crédito.
           <button style={s.bannerBuyBtn} onClick={() => setShowBuyModal(true)}>Comprar ahora</button>
@@ -316,7 +322,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
           </div>
 
           {/* Aviso de créditos necesarios */}
-          {candidatosValidos.length > 1 && (creditos ?? 0) > 0 && (
+          {!isMaster && candidatosValidos.length > 1 && (creditos ?? 0) > 0 && (
             <div style={{ background: '#f3e8ff', borderRadius: 10, padding: '8px 14px', marginBottom: 16, fontSize: 13, color: '#6d28d9' }}>
               Con {candidatosValidos.length} candidatos, cada instrumento consumirá <strong>{candidatosValidos.length} créditos</strong>. Tienes {creditos} disponibles.
             </div>
@@ -347,9 +353,11 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                     ))}
                   </div>
 
-                  <div style={s.costBadge}>
-                    <span style={s.costText}>🎫 {necesita} crédito{necesita !== 1 ? 's' : ''} para {necesita} candidato{necesita !== 1 ? 's' : ''}</span>
-                  </div>
+                  {!isMaster && (
+                    <div style={s.costBadge}>
+                      <span style={s.costText}>🎫 {necesita} crédito{necesita !== 1 ? 's' : ''} para {necesita} candidato{necesita !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
 
                   {/* Links generados */}
                   {links.length > 0 && (
@@ -369,12 +377,12 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
                     </div>
                   )}
 
-                  {sinCreditos ? (
+                  {!isMaster && sinCreditos ? (
                     <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
                       onClick={() => setShowBuyModal(true)}>
                       Comprar créditos para evaluar
                     </button>
-                  ) : sinSuficientes && candidatosValidos.length > 0 ? (
+                  ) : !isMaster && sinSuficientes && candidatosValidos.length > 0 ? (
                     <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
                       onClick={() => setShowBuyModal(true)}>
                       Comprar más créditos ({necesita} necesarios)
@@ -502,10 +510,10 @@ export default function RenderInstrumentosEmpresa({ empresaId, menterId }: Props
       )}
 
       {/* ── MODAL COMPRAR CRÉDITOS ── */}
-      {showBuyModal && (
+      {!isMaster && showBuyModal && (
         <div style={s.overlay} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null) }}>
           <div style={s.buyModal} onClick={e => e.stopPropagation()}>
-            <button style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null) }}>✕</button>
+            <button aria-label="Cerrar" style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null) }}>✕</button>
             <h3 style={s.modalTitle}>Comprar créditos de evaluación</h3>
             <p style={s.buyModalSub}>Cada crédito = 1 evaluación enviada. Si tienes 3 candidatos y eliges un instrumento, se usan 3 créditos.</p>
             <div style={s.packsGrid}>

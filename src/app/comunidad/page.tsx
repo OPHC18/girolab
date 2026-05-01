@@ -446,7 +446,7 @@ supabase.from('events')
                 <button onClick={() => { setTourActive(false); setTourStep(-1); localStorage.setItem('giro_comunidad_tour_done', '1') }} style={{ padding: '10px 28px', borderRadius: 30, border: 'none', background: '#421869', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'Raleway, sans-serif' }}>¡Empezar!</button>
               )}
             </div>
-            <button onClick={() => { setTourActive(false); setTourStep(-1); localStorage.setItem('giro_comunidad_tour_done', '1') }} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: 20, color: '#bbb', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            <button onClick={() => { setTourActive(false); setTourStep(-1); localStorage.setItem('giro_comunidad_tour_done', '1') }} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: 20, color: '#bbb', cursor: 'pointer', lineHeight: 1 }}aria-label="Cerrar">✕</button>
           </div>
         </div>
       )}
@@ -668,7 +668,7 @@ supabase.from('events')
               <div style={{ marginBottom: 16, padding: '14px 16px', background: '#fdf8ff', border: '1px solid #e9d5ff', borderRadius: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#421869', fontFamily: 'Raleway, sans-serif' }}>Quiero compartir mi experiencia con el Menter:</span>
-                  <button onClick={() => setResenaDraft(null)} style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+                  <button onClick={() => setResenaDraft(null)} style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}aria-label="Cerrar">✕</button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   {resenaDraft.menter_avatar
@@ -710,7 +710,7 @@ supabase.from('events')
                   <div style={{ position: 'relative', marginTop: 8 }}>
                     <img src={postForm.media_url} style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10 }} />
                     <button onClick={() => setPostForm(p => ({ ...p, media_url: '', tipo: 'texto' }))}
-                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontWeight: 700 }}aria-label="Cerrar">✕</button>
                   </div>
                 )}
 
@@ -726,7 +726,7 @@ supabase.from('events')
                       />
                       {postForm.media_url && !postForm.media_url.startsWith('data:') && (
                         <button onClick={() => setPostForm(p => ({ ...p, media_url: '' }))}
-                          style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 18 }}>✕</button>
+                          style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 18 }}aria-label="Cerrar">✕</button>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -760,7 +760,7 @@ supabase.from('events')
                           : <video src={postForm.media_url} controls style={{ width: '100%', borderRadius: 10, maxHeight: 200 }} />
                         }
                         <button onClick={() => setPostForm(p => ({ ...p, media_url: '' }))}
-                          style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                          style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontWeight: 700 }}aria-label="Cerrar">✕</button>
                       </div>
                     )}
                   </div>

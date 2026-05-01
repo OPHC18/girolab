@@ -153,7 +153,22 @@ export default function B2BPage() {
   const [formError, setFormError]         = useState('')
   const [otroModal, setOtroModal]         = useState(false)
   const [otroTexto, setOtroTexto]         = useState('')
-  const otroRef = useRef<HTMLTextAreaElement>(null)
+  const otroRef        = useRef<HTMLTextAreaElement>(null)
+  const formStartedRef = useRef(false)
+  const formDoneRef    = useRef(false)
+
+  useEffect(() => {
+    if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'ViewContent', { content_name: 'B2B Landing' })
+    if (typeof (window as any).ttq !== 'undefined') (window as any).ttq.track('ViewContent', { content_name: 'B2B Landing' })
+    const onBeforeUnload = () => {
+      if (formStartedRef.current && !formDoneRef.current) {
+        if (typeof (window as any).fbq === 'function') (window as any).fbq('trackCustom', 'B2BFormAbandonment')
+        if (typeof (window as any).gtag === 'function') (window as any).gtag('event', 'form_abandon', { event_category: 'B2B' })
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY)
@@ -225,6 +240,7 @@ export default function B2BPage() {
       const data = await res.json()
       if (data.ok) {
         setFormDone(true)
+        formDoneRef.current = true
         if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Lead')
         if (typeof (window as any).gtag === 'function') (window as any).gtag('event', 'generate_lead', { event_category: 'B2B' })
       } else {
@@ -495,7 +511,15 @@ export default function B2BPage() {
                 </div>
                 <h3 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 22, fontWeight: 700, color: 'white', margin: '0 0 8px' }}>Perfecto. Déjanos tus datos</h3>
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: '0 0 28px' }}>Te enviaremos nuestra presentación y en breve te contactaremos con una propuesta personalizada.</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}
+                  onFocus={() => {
+                    if (!formStartedRef.current) {
+                      formStartedRef.current = true
+                      if (typeof (window as any).fbq === 'function') (window as any).fbq('track', 'Contact')
+                      if (typeof (window as any).ttq !== 'undefined') (window as any).ttq.track('Contact')
+                      if (typeof (window as any).gtag === 'function') (window as any).gtag('event', 'form_start', { event_category: 'B2B' })
+                    }
+                  }}>
                   {FORMULARIO_CAMPOS.map(campo => (
                     <div key={campo.key} style={{ gridColumn: ['correo', 'empresa'].includes(campo.key) ? '1 / -1' : 'auto' }}>
                       <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{campo.label}</label>

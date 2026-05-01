@@ -244,6 +244,7 @@ export default function ChatWidget() {
     <>
       {/* Botón flotante */}
       <button
+        aria-label={open ? 'Cerrar chat' : 'Abrir chat'}
         onClick={() => setOpen(o => !o)}
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 9999,

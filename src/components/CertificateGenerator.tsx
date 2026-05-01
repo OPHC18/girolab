@@ -151,7 +151,7 @@ export default function CertificateGenerator({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', margin: 0, fontSize: 18, fontWeight: 800 }}>Tu Certificado</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#666' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#666' }}aria-label="Cerrar">✕</button>
         </div>
 
         {/* Editar nombre */}
