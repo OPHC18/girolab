@@ -78,8 +78,8 @@ export default function ComunidadPage() {
       const u = session.user
       setUser({ id: u.id, email: u.email! })
       setMeta(u.user_metadata)
+      await cargarFeed(0)
       setLoading(false)
-      cargarFeed(0)
 
       // Perfil incompleto: pedir datos faltantes
       const { data: perfil } = await supabase.from('user_profiles').select('telefono, pais, cumpleanos').eq('user_id', u.id).maybeSingle()

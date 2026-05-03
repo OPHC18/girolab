@@ -599,11 +599,12 @@ export default function ResultadoPage() {
   const resultId   = searchParams?.get('r') || '';
   const token      = searchParams?.get('t') || '';
 
-  const [result, setResult]     = useState<any>(null);
-  const [loading, setLoading]   = useState(true);
-  const [user, setUser]         = useState<any>(null);
-  const [sharing, setSharing]   = useState(false);
-  const [shared, setShared]     = useState(false);
+  const [result, setResult]       = useState<any>(null);
+  const [loading, setLoading]     = useState(true);
+  const [showFallback, setShowFallback] = useState(false);
+  const [user, setUser]           = useState<any>(null);
+  const [sharing, setSharing]     = useState(false);
+  const [shared, setShared]       = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const inst = INSTRUMENTS[instrumentId as InstrumentId] ||
@@ -611,27 +612,36 @@ export default function ResultadoPage() {
   const cfg  = CARD_CONFIGS[instrumentId];
 
   useEffect(() => {
+    setLoading(true);
+    setResult(null);
+    setShowFallback(false);
+
+    const timer = setTimeout(() => setShowFallback(true), 8000);
+
     const init = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
       setUser(u);
 
       if (resultId) {
-        // Usamos la API route para bypassar RLS (permite anónimos y autenticados)
-        const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.resultado_json) {
-            setResult(data.resultado_json);
-            if (typeof window !== 'undefined' && (window as any).gtag) {
-              (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+        try {
+          const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.resultado_json) {
+              clearTimeout(timer);
+              setResult(data.resultado_json);
+              if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId });
+              }
             }
           }
-        }
+        } catch (_) {}
       }
       setLoading(false);
     };
     init();
-  }, [resultId]);
+    return () => clearTimeout(timer);
+  }, [resultId, token]);
 
   const handleShare = async () => {
     if (!cfg || !result) return;
@@ -666,7 +676,7 @@ export default function ResultadoPage() {
     router.push(`/?registro=1&returnUrl=${encodeURIComponent(returnUrl)}`);
   };
 
-  if (loading) return <LoadingScreen />;
+  if (loading) return <LoadingScreen showFallback={showFallback} onRegister={handleRegister} />;
   if (!result || !inst || !cfg) return <div style={rs.notFound}>Resultado no encontrado.</div>;
 
   const headline = cfg.headline(result);
@@ -875,7 +885,7 @@ export default function ResultadoPage() {
   );
 }
 
-function LoadingScreen() {
+function LoadingScreen({ showFallback, onRegister }: { showFallback?: boolean; onRegister?: () => void }) {
   return (
     <div style={{ minHeight:'100vh', background:'#421869', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap: 16 }}>
       <DotLottieReact
@@ -885,6 +895,19 @@ function LoadingScreen() {
       <p style={{ color: 'rgba(255,255,255,0.7)', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 16, margin: 0 }}>
         Analizando tu resultado...
       </p>
+      {showFallback && (
+        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '20px 28px', background: 'rgba(255,255,255,0.08)', borderRadius: 16, maxWidth: 320, textAlign: 'center' }}>
+          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+            ¿No ves tu resultado? Crea una cuenta para guardarlo y acceder desde tu perfil.
+          </p>
+          <button
+            onClick={onRegister}
+            style={{ padding: '12px 28px', borderRadius: 10, background: '#fff', color: '#421869', border: 'none', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: "'Raleway', sans-serif" }}
+          >
+            Crear cuenta gratis
+          </button>
+        </div>
+      )}
     </div>
   );
 }
