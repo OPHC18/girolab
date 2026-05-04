@@ -147,16 +147,63 @@ async function retencionEmails() {
   return resultados
 }
 
+// ── 4. RECORDATORIOS 24H ANTES DE LA CITA ────────────────────────────────────
+async function recordatoriosCitas() {
+  const tomorrow = new Date()
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+  const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+  const { data: citas, error } = await admin
+    .from('appointments')
+    .select('id, client_name, client_email, menter_name, menter_id, date, start_time, end_time, modality, price')
+    .eq('date', tomorrowStr)
+    .eq('status', 'confirmada')
+
+  if (error || !citas?.length) return { enviados: 0 }
+
+  let enviados = 0
+  for (const c of citas) {
+    const fechaStr = new Date(c.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const base = {
+      clientName:    c.client_name || 'Cliente',
+      clientEmail:   c.client_email || '',
+      menterName:    c.menter_name || 'tu Menter',
+      menterEmail:   '',
+      date:          fechaStr,
+      startTime:     c.start_time?.slice(0, 5) || '',
+      endTime:       c.end_time?.slice(0, 5) || '',
+      modality:      c.modality || 'online',
+      price:         c.price || 0,
+      appointmentId: c.id,
+    }
+
+    if (c.client_email) {
+      await sendEmail('recordatorio_cliente', base)
+      enviados++
+    }
+
+    if (c.menter_id) {
+      const { data: { user: mu } } = await admin.auth.admin.getUserById(c.menter_id)
+      if (mu?.email) {
+        await sendEmail('recordatorio_menter', { ...base, menterEmail: mu.email })
+        enviados++
+      }
+    }
+  }
+  return { enviados }
+}
+
 // ── HANDLER PRINCIPAL ─────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const [r1, r2, r3] = await Promise.all([
+  const [r1, r2, r3, r4] = await Promise.all([
     cancelarCitasPendientes(),
     checkoutAbandonado(),
     retencionEmails(),
+    recordatoriosCitas(),
   ])
 
   return NextResponse.json({
@@ -164,6 +211,7 @@ export async function GET(req: NextRequest) {
     canceladas:         r1.canceladas,
     checkout_enviados:  r2.enviados,
     retencion:          r3,
+    recordatorios:      r4.enviados,
     timestamp:          new Date().toISOString(),
   })
 }

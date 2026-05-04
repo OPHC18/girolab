@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   emailNuevaSolicitudMenter,
+  emailSolicitudConfirmadaCliente,
   emailConfirmacionCliente,
   emailRecordatorioMenter,
   emailRecordatorioCliente,
@@ -94,8 +95,25 @@ export async function POST(req: NextRequest) {
   let result
 
   switch (tipo) {
-    case 'nueva_solicitud_menter':
+    case 'nueva_solicitud_menter': {
+      // menterEmail viene vacío (menter_public_profiles no expone email)
+      // → lo resolvemos aquí con service role
+      if (!data.menterEmail && data.menterId) {
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (serviceKey) {
+          const { createClient: createAdmin } = await import('@supabase/supabase-js')
+          const adm = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+          const { data: { user: mu } } = await adm.auth.admin.getUserById(data.menterId)
+          if (mu?.email) data.menterEmail = mu.email
+        }
+      }
+      if (!data.menterEmail) {
+        return NextResponse.json({ error: 'Email de Menter no resuelto' }, { status: 400 })
+      }
       result = await emailNuevaSolicitudMenter(data); break
+    }
+    case 'solicitud_confirmada_cliente':
+      result = await emailSolicitudConfirmadaCliente(data); break
     case 'confirmacion_cliente':
       result = await emailConfirmacionCliente(data); break
     case 'recordatorio_menter':

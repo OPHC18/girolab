@@ -41,7 +41,31 @@ export async function emailNuevaSolicitudMenter(data: CitaData) {
   })
 }
 
-// ── 2. Confirmación → Cliente ────────────────────────────────────────────────
+// ── 2a. Solicitud recibida → Cliente (confirmación inmediata al reservar) ────
+export async function emailSolicitudConfirmadaCliente(data: CitaData) {
+  const html = emailLayout(`
+    ${h1('Solicitud enviada con éxito')}
+    ${p(`Tu solicitud de sesión con <strong>${data.menterName}</strong> fue enviada. El Menter la revisará y te confirmará a la brevedad.`)}
+    ${infoTable(
+      infoRow('Menter', data.menterName) +
+      infoRow('Fecha', data.date) +
+      infoRow('Hora', `${data.startTime} – ${data.endTime}`) +
+      infoRow('Modalidad', data.modality === 'online' ? 'Online (videollamada)' : 'Presencial') +
+      (data.price ? infoRow('Precio', `S/ ${data.price}`) : '')
+    )}
+    ${btn('Ver mis citas', `${APP_URL}/dashboard?tab=mis-citas`)}
+    ${divider()}
+    ${p('Recibirás otro correo cuando el Menter confirme tu sesión. Si tienes preguntas escríbenos a <a href="mailto:contacto@girolab.net" style="color:#421869;">contacto@girolab.net</a>')}
+  `, `Tu solicitud con ${data.menterName} fue enviada`)
+
+  return sendEmail({
+    to:      [{ email: data.clientEmail, name: data.clientName }],
+    subject: `Tu solicitud con ${data.menterName} está en revisión — ${data.date}`,
+    htmlContent: html,
+  })
+}
+
+// ── 2b. Confirmación → Cliente ────────────────────────────────────────────────
 export async function emailConfirmacionCliente(data: CitaData) {
   const html = emailLayout(`
     ${h1('¡Tu sesión está confirmada!')}

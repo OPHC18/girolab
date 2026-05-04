@@ -8030,17 +8030,13 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
   }
 
   setBooking(false)
-  // Si el Menter tiene precio y WhatsApp → mostrar modal de pago
-  if (menter.precio_sesion && menter.precio_sesion > 0 && menter.enlaces?.whatsapp) {
-    setShowWhatsappModal(true)
-    return
-  }
-  setBookingMsg('¡Solicitud enviada! El Menter confirmará tu cita pronto.')
+
   const citaData = {
     clientName:    clientName,
     clientEmail:   clientEmail,
     menterName:    `${menter.nombre} ${menter.apellidos}`,
-    menterEmail:   (menter as any).email || '',
+    menterId:      menter.menter_id,
+    menterEmail:   '',  // resuelto server-side por menterId
     date:          formatFecha(fecha),
     startTime:     selectedSlot!.slot_start.slice(0, 5),
     endTime:       selectedSlot!.slot_end.slice(0, 5),
@@ -8048,9 +8044,11 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
     price:         menter.precio_sesion,
     appointmentId: apt.id,
   }
+  // Notificar siempre, independiente del flujo de pago
   dispararEmail('nueva_solicitud_menter', citaData)
+  if (clientEmail) dispararEmail('solicitud_confirmada_cliente', citaData)
 
-  // Push al cliente confirmando la solicitud
+  // Push al cliente
   if (clientId) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) return
@@ -8067,6 +8065,12 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
     })
   }
 
+  // Si el Menter tiene precio y WhatsApp → mostrar modal de pago
+  if (menter.precio_sesion && menter.precio_sesion > 0 && menter.enlaces?.whatsapp) {
+    setShowWhatsappModal(true)
+    return
+  }
+  setBookingMsg('¡Solicitud enviada! El Menter confirmará tu cita pronto.')
   setTimeout(() => onBooked(), 2500)
 }
 
