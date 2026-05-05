@@ -4543,8 +4543,15 @@ const renderIngresos = () => {
       </div>
       {plan !== 'master' && (
         <>
+          <div style={{ background: 'linear-gradient(135deg, #421869 0%, #6a1b9a 100%)', borderRadius: 14, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ fontSize: 28, flexShrink: 0 }}>🎁</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: 800, color: 'white', fontSize: 15, fontFamily: 'Raleway, sans-serif' }}>20 días de prueba gratuita incluidos</p>
+              <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Ingresa tu tarjeta hoy y empieza a usar todas las herramientas. Sin cargo durante los primeros 20 días — cancela cuando quieras.</p>
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-            <h3 style={{ color: '#421869', fontFamily: 'Raleway, sans-serif', margin: 0 }}>Comparar planes</h3>
+            <h3 style={{ color: '#421869', fontFamily: 'Raleway, sans-serif', margin: 0 }}>Elige tu plan</h3>
             <div style={{ display: 'flex', background: '#f0f0f0', borderRadius: 30, padding: 4 }}>
               <button onClick={() => setBillingCycle('monthly')} style={{ padding: '8px 20px', borderRadius: 26, border: 'none', background: billingCycle === 'monthly' ? '#421869' : 'transparent', color: billingCycle === 'monthly' ? 'white' : '#666', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'DM Sans' }}>Mensual</button>
               <button onClick={() => setBillingCycle('annual')} style={{ padding: '8px 20px', borderRadius: 26, border: 'none', background: billingCycle === 'annual' ? '#421869' : 'transparent', color: billingCycle === 'annual' ? 'white' : '#666', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'DM Sans', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -4557,19 +4564,27 @@ const renderIngresos = () => {
               const pi = PLANES[p]; const esPlanActual = plan === p
               const precio = p === 'free' ? null : billingCycle === 'monthly' ? pi.precio_mensual : pi.precio_anual
               return (
-                <div key={p} style={{ borderRadius: 16, border: `2px solid ${esPlanActual ? pi.color : '#e0e0e0'}`, padding: 22, background: esPlanActual ? pi.bg : 'white', position: 'relative' }}>
+                <div key={p} style={{ borderRadius: 16, border: `2px solid ${esPlanActual ? pi.color : p !== 'free' ? pi.color : '#e0e0e0'}`, padding: 22, background: esPlanActual ? pi.bg : 'white', position: 'relative' }}>
                   {esPlanActual && <div style={{ position: 'absolute', top: -1, right: 16, background: pi.color, color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: '0 0 10px 10px', letterSpacing: 1 }}>ACTUAL</div>}
+                  {!esPlanActual && p !== 'free' && <div style={{ position: 'absolute', top: -1, right: 16, background: '#ffa719', color: '#2d2926', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: '0 0 10px 10px', letterSpacing: 0.5 }}>20 DÍAS GRATIS</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><span style={{ fontSize: 22 }}>{pi.emoji}</span><h4 style={{ margin: 0, color: pi.color, fontFamily: 'Raleway, sans-serif', fontSize: 17, fontWeight: 900 }}>{pi.label}</h4></div>
-                  <div style={{ marginBottom: 14 }}>
+                  <div style={{ marginBottom: 6 }}>
                     {precio === null ? <div style={{ fontSize: 20, fontWeight: 700, color: '#2d2926' }}>Gratis</div>
                       : <div style={{ fontSize: 20, fontWeight: 700, color: '#2d2926' }}>${precio}<span style={{ fontSize: 13, fontWeight: 400, color: '#666' }}>{billingCycle === 'annual' ? '/año' : '/mes'}</span></div>}
                   </div>
+                  {p !== 'free' && (
+                    <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                      20 días gratis — sin cargo hasta que termines la prueba
+                    </div>
+                  )}
                   <div style={{ fontSize: 13, color: '#4d4d4d', lineHeight: 1.7, marginBottom: 16 }}>
                     {p === 'free'    && <><span>Especialidades y casos</span><br/><span>Bio y presentación</span><br/><span>Precio y disponibilidad</span><br/><span>Descuento a Menters</span><br/><span style={{color:'#bbb'}}>Sin matching automático</span></>}
                     {p === 'starter' && <><span>Todo lo de Free</span><br/><span>Matching automático</span><br/><span>Idiomas</span><br/><span>Formación académica</span><br/><span>Experiencia laboral</span></>}
                     {p === 'premium' && <><span>Todo lo de Starter</span><br/><span>Número de colegiatura</span><br/><span>Certificados</span><br/><span>Escribir en blog</span><br/><span>Redes y enlaces</span></>}
                   </div>
                   {!esPlanActual && p !== 'free' && (
+                    <>
                     <button
                       disabled={subLoading === p}
                       onClick={async () => {
@@ -4603,10 +4618,14 @@ const renderIngresos = () => {
                           setSubLoading(null)
                         }
                       }}
-                      style={{ width: '100%', padding: '10px', borderRadius: 30, border: 'none', background: subLoading === p ? '#ccc' : pi.color, color: 'white', fontWeight: 700, fontSize: 13, cursor: subLoading === p ? 'not-allowed' : 'pointer', fontFamily: 'Raleway, sans-serif' }}
+                      style={{ width: '100%', padding: '12px', borderRadius: 30, border: 'none', background: subLoading === p ? '#ccc' : pi.color, color: 'white', fontWeight: 800, fontSize: 14, cursor: subLoading === p ? 'not-allowed' : 'pointer', fontFamily: 'Raleway, sans-serif' }}
                     >
-                      {subLoading === p ? 'Redirigiendo…' : `Elegir ${pi.label} →`}
+                      {subLoading === p ? 'Redirigiendo…' : 'Probar 20 días gratis →'}
                     </button>
+                    <p style={{ margin: '8px 0 0', fontSize: 11, color: '#999', textAlign: 'center', lineHeight: 1.5 }}>
+                      Requiere tarjeta · Sin cobro por 20 días · Cancela cuando quieras
+                    </p>
+                    </>
                   )}
                   {esPlanActual && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
