@@ -73,9 +73,19 @@ export async function POST(req: NextRequest) {
       planId = await createPayPalPlan({ productId, plan, billingCycle: billing_cycle })
     }
 
-    // Calcular trial end
+    // Calcular trial end — leer promo activa o usar default de 15 días
+    let trialDias = 15
+    const { data: promoActiva } = await supabase
+      .from('promos')
+      .select('trial_dias, aplica_plan')
+      .eq('tipo', 'trial')
+      .eq('is_active', true)
+      .or(`aplica_plan.is.null,aplica_plan.eq.${plan}`)
+      .maybeSingle()
+    if (promoActiva) trialDias = promoActiva.trial_dias
+
     const trialEnds = new Date()
-    trialEnds.setDate(trialEnds.getDate() + 15)
+    trialEnds.setDate(trialEnds.getDate() + trialDias)
 
     // Crear suscripción
     const { id: subscriptionId, approveUrl } = await createSubscription({

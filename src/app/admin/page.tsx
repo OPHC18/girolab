@@ -15,7 +15,7 @@ const ADMIN_EMAILS = [
 ]
 
 
-type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos' | 'equipo' | 'b2b'
+type AdminTab = 'metricas' | 'personas' | 'empresas' | 'menters' | 'certificados' | 'frases' | 'eventos' | 'blog' | 'comunidad' | 'leads' | 'soporte' | 'pagos' | 'equipo' | 'b2b' | 'promociones'
 type UserRole = 'admin' | 'asesor'
 
 export default function AdminPage() {
@@ -90,6 +90,13 @@ export default function AdminPage() {
   const [memberships, setMemberships] = useState<any[]>([])
   const [filtroPagos, setFiltroPagos] = useState('')
   const [staff, setStaff] = useState<any[]>([])
+  const [promos, setPromos] = useState<any[]>([])
+  const [promoForm, setPromoForm] = useState({ nombre: '', tipo: 'trial', trial_dias: 20, aplica_plan: '', expires_at: '', nota: '' })
+  const [creandoPromo, setCreandoPromo] = useState(false)
+  const [modalTrialMenter, setModalTrialMenter] = useState<{ menterId: string; nombre: string } | null>(null)
+  const [trialPlan, setTrialPlan] = useState('starter')
+  const [trialDias, setTrialDias] = useState(20)
+  const [trialNota, setTrialNota] = useState('')
   const [nuevoAsesorEmail, setNuevoAsesorEmail] = useState('')
   const [nuevoAsesorNombre, setNuevoAsesorNombre] = useState('')
   const [addingAsesor, setAddingAsesor] = useState(false)
@@ -258,8 +265,9 @@ const crearDona = (ref: React.RefObject<HTMLCanvasElement | null>, key: string, 
     else if (activeTab === 'leads')     cargarLeads()
     else if (activeTab === 'b2b')       cargarB2bLeads()
     else if (activeTab === 'soporte') { cargarChats(); setSoporteBadge(0) }
-    else if (activeTab === 'pagos')     cargarPagos()
-    else if (activeTab === 'equipo')    cargarEquipo()
+    else if (activeTab === 'pagos')       cargarPagos()
+    else if (activeTab === 'equipo')      cargarEquipo()
+    else if (activeTab === 'promociones') cargarPromos()
   }, [activeTab, user])
 
   // ── Gráficas se crean después de que los datos están disponibles ────────────
@@ -811,6 +819,76 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('pagos', false)
   }
 
+  const cargarPromos = async () => {
+    const res = await fetch('/api/admin/promos')
+    if (res.ok) { const { promos: data } = await res.json(); setPromos(data || []) }
+  }
+
+  const crearPromo = async () => {
+    if (!promoForm.nombre.trim() || promoForm.trial_dias < 1) return
+    setCreandoPromo(true)
+    const res = await fetch('/api/admin/promos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre:      promoForm.nombre,
+        tipo:        promoForm.tipo,
+        trial_dias:  promoForm.trial_dias,
+        aplica_plan: promoForm.aplica_plan || null,
+        expires_at:  promoForm.expires_at || null,
+        nota:        promoForm.nota,
+      }),
+    })
+    setCreandoPromo(false)
+    if (res.ok) {
+      setPromoForm({ nombre: '', tipo: 'trial', trial_dias: 20, aplica_plan: '', expires_at: '', nota: '' })
+      cargarPromos()
+      toast('Promo creada')
+    } else {
+      const e = await res.json()
+      toast('Error: ' + (e.error || 'desconocido'))
+    }
+  }
+
+  const togglePromo = async (id: string, is_active: boolean) => {
+    const res = await fetch('/api/admin/promos', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_active }),
+    })
+    if (res.ok) { cargarPromos(); toast(is_active ? 'Promo activada' : 'Promo desactivada') }
+  }
+
+  const eliminarPromo = async (id: string) => {
+    if (!confirm('Eliminar esta promo?')) return
+    const res = await fetch('/api/admin/promos', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (res.ok) { cargarPromos(); toast('Promo eliminada') }
+  }
+
+  const activarTrialMenter = async () => {
+    if (!modalTrialMenter) return
+    setLoad('trial', true)
+    const res = await fetch('/api/admin/set-promo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ menterId: modalTrialMenter.menterId, plan: trialPlan, dias: trialDias, nota: trialNota }),
+    })
+    setLoad('trial', false)
+    if (res.ok) {
+      setModalTrialMenter(null)
+      setTrialPlan('starter'); setTrialDias(20); setTrialNota('')
+      cargarMenters()
+      toast('Trial activado para ' + modalTrialMenter.nombre)
+    } else {
+      const e = await res.json()
+      toast('Error: ' + (e.error || 'desconocido'))
+    }
+  }
+
   const cargarLeads = async () => {
     setLoad('leads', true)
     const { data } = await supabase
@@ -1106,6 +1184,7 @@ const confirmarCambioPlan = async () => {
     { id: 'soporte',      label: 'Soporte',      emoji: '💬' },
     { id: 'pagos',        label: 'Pagos',        emoji: '💳' },
     { id: 'equipo',       label: 'Equipo',       emoji: '👥' },
+    { id: 'promociones',  label: 'Promociones',  emoji: '🎁' },
   ]
 
   const visibleTabs = userRole === 'asesor'
@@ -1898,6 +1977,10 @@ const confirmarCambioPlan = async () => {
                               WhatsApp
                             </a>
                           )}
+                          <button onClick={() => { setModalTrialMenter({ menterId: m.menter_id, nombre: `${m.nombre} ${m.apellidos}`.trim() }); setTrialPlan('starter'); setTrialDias(20); setTrialNota('') }}
+                            style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: 11, cursor: 'pointer', color: '#15803d', fontWeight: 600 }}>
+                            Trial
+                          </button>
                           <button onClick={() => eliminarUsuarioAdmin(m.menter_id, m.email || '', `${m.nombre || ''} ${m.apellidos || ''}`.trim())}
                             style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
                             Eliminar cuenta
@@ -2798,6 +2881,162 @@ const confirmarCambioPlan = async () => {
                 }
                 <button onClick={() => eliminarBlog(modalBlog.id)} style={{ flex: 1, padding: '10px', borderRadius: 20, border: 'none', background: '#ffebee', color: '#c62828', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>🗑️ Eliminar</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ PROMOCIONES ═══ */}
+      {activeTab === 'promociones' && (
+        <div>
+          <h2 style={{ fontFamily: 'Raleway', color: '#421869', marginBottom: 24 }}>🎁 Promociones y trials</h2>
+
+          {/* ── Crear nueva promo ── */}
+          <div style={{ background: 'white', borderRadius: 16, padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 28 }}>
+            <h3 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 18px', fontSize: 15 }}>Nueva promoción global</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Nombre *</label>
+                <input value={promoForm.nombre} onChange={e => setPromoForm(p => ({ ...p, nombre: e.target.value }))}
+                  placeholder="ej: Lanzamiento 2026"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Tipo</label>
+                <select value={promoForm.tipo} onChange={e => setPromoForm(p => ({ ...p, tipo: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans' }}>
+                  <option value="trial">Trial — extiende días de prueba</option>
+                  <option value="acceso">Acceso manual — da acceso directo</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Días de prueba *</label>
+                <input type="number" min={1} max={365} value={promoForm.trial_dias}
+                  onChange={e => setPromoForm(p => ({ ...p, trial_dias: Number(e.target.value) }))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Plan (opcional)</label>
+                <select value={promoForm.aplica_plan} onChange={e => setPromoForm(p => ({ ...p, aplica_plan: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans' }}>
+                  <option value="">Todos los planes</option>
+                  <option value="starter">Starter</option>
+                  <option value="premium">Premium</option>
+                  <option value="master">Master</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Vence (opcional)</label>
+                <input type="datetime-local" value={promoForm.expires_at}
+                  onChange={e => setPromoForm(p => ({ ...p, expires_at: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', display: 'block', marginBottom: 4 }}>Nota interna</label>
+                <input value={promoForm.nota} onChange={e => setPromoForm(p => ({ ...p, nota: e.target.value }))}
+                  placeholder="ej: Campaña Black Friday"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+            </div>
+            <button onClick={crearPromo} disabled={creandoPromo || !promoForm.nombre.trim()}
+              style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: promoForm.nombre.trim() ? '#421869' : '#e0e0e0', color: promoForm.nombre.trim() ? 'white' : '#999', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+              {creandoPromo ? 'Creando...' : '+ Crear promo'}
+            </button>
+          </div>
+
+          {/* ── Lista de promos ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {promos.length === 0 && (
+              <p style={{ color: '#999', fontSize: 14 }}>No hay promos creadas aún.</p>
+            )}
+            {promos.map(p => {
+              const vencida = p.expires_at && new Date(p.expires_at) < new Date()
+              return (
+                <div key={p.id} style={{ background: 'white', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderLeft: `4px solid ${p.is_active ? '#16a34a' : '#ddd'}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: '#421869' }}>{p.nombre}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: p.is_active ? '#dcfce7' : '#f5f5f5', color: p.is_active ? '#16a34a' : '#999', fontWeight: 700 }}>
+                        {vencida ? 'Vencida' : p.is_active ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      {p.tipo === 'trial' ? 'Trial de nuevos signups' : 'Acceso manual'} · {p.trial_dias} días
+                      {p.aplica_plan ? ` · ${p.aplica_plan}` : ' · todos los planes'}
+                      {p.expires_at ? ` · vence ${new Date(p.expires_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                    </div>
+                    {p.nota && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{p.nota}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!vencida && (
+                      <button onClick={() => togglePromo(p.id, !p.is_active)}
+                        style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: p.is_active ? '#fff8e1' : '#421869', color: p.is_active ? '#e65100' : 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        {p.is_active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    )}
+                    <button onClick={() => eliminarPromo(p.id)}
+                      style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: '#ffebee', color: '#c62828', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={{ marginTop: 32, background: '#f8f0ff', borderRadius: 14, padding: '16px 20px', fontSize: 13, color: '#6d28d9', lineHeight: 1.6 }}>
+            <strong>¿Cómo funciona?</strong><br/>
+            — <strong>Trial (global)</strong>: cuando hay una promo de tipo "trial" activa, los nuevos Menters que se suscriban vía PayPal recibirán esa cantidad de días de prueba en vez del valor por defecto.<br/>
+            — <strong>Trial manual (por Menter)</strong>: usa el botón "Trial" en la tarjeta de cada Menter para darle acceso a un plan por N días sin pasar por PayPal.<br/>
+            — Solo puede haber una promo activa por tipo a la vez. Activar una desactiva las demás del mismo tipo.
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL TRIAL POR MENTER ── */}
+      {modalTrialMenter && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setModalTrialMenter(null)}>
+          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 400, padding: '28px' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'Raleway', color: '#421869', margin: '0 0 6px' }}>Activar trial manual</h3>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
+              Dando acceso directo a <strong>{modalTrialMenter.nombre}</strong> sin pasar por PayPal.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#421869', display: 'block', marginBottom: 6 }}>Plan a activar</label>
+                <select value={trialPlan} onChange={e => setTrialPlan(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans' }}>
+                  <option value="starter">Starter</option>
+                  <option value="premium">Premium</option>
+                  <option value="master">Master</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#421869', display: 'block', marginBottom: 6 }}>Duración (días)</label>
+                <input type="number" min={1} max={365} value={trialDias} onChange={e => setTrialDias(Number(e.target.value))}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#421869', display: 'block', marginBottom: 6 }}>Nota interna (opcional)</label>
+                <input value={trialNota} onChange={e => setTrialNota(e.target.value)}
+                  placeholder="ej: Trial lanzamiento"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', fontSize: 13, fontFamily: 'DM Sans', boxSizing: 'border-box' as const }} />
+              </div>
+            </div>
+            <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#15803d' }}>
+              El trial vencerá el <strong>{new Date(Date.now() + trialDias * 86400000).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setModalTrialMenter(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 20, border: '1px solid #ddd', background: 'white', color: '#666', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={activarTrialMenter} disabled={loadings.trial || trialDias < 1}
+                style={{ flex: 1, padding: '10px', borderRadius: 20, border: 'none', background: '#16a34a', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Raleway' }}>
+                {loadings.trial ? 'Activando...' : 'Activar trial'}
+              </button>
             </div>
           </div>
         </div>
