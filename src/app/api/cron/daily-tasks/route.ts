@@ -155,7 +155,7 @@ async function recordatoriosCitas() {
 
   const { data: citas, error } = await admin
     .from('appointments')
-    .select('id, client_name, client_email, menter_name, menter_id, date, start_time, end_time, modality, price')
+    .select('id, client_id, client_name, client_email, menter_name, menter_id, date, start_time, end_time, modality, price')
     .eq('date', tomorrowStr)
     .eq('status', 'confirmada')
 
@@ -189,6 +189,17 @@ async function recordatoriosCitas() {
         enviados++
       }
     }
+
+    // Push reminders (fire-and-forget)
+    const pushReminder = (uid: string, title: string, body: string, url: string) =>
+      fetch(`${APP_URL}/api/push/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
+        body: JSON.stringify({ user_id: uid, title, body, url }),
+      }).catch(() => {})
+
+    if (c.client_id) pushReminder(c.client_id, 'Recordatorio de sesión', `Tu sesión con ${base.menterName} es mañana a las ${base.startTime}.`, '/dashboard?tab=mis-citas')
+    if (c.menter_id) pushReminder(c.menter_id, 'Sesión mañana', `Tienes sesión con ${base.clientName} mañana a las ${base.startTime}.`, '/dashboard?tab=citas')
   }
   return { enviados }
 }

@@ -4699,7 +4699,22 @@ const renderCitasMenter = () => {
             }).catch(() => {})
           })
         }
-        if (nuevoEstado === 'rechazada')  dispararEmail('rechazo_cliente', citaData)
+        if (nuevoEstado === 'rechazada') {
+          dispararEmail('rechazo_cliente', citaData)
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session || !cita.client_id) return
+            fetch('/api/push/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({
+                user_id: cita.client_id,
+                title: 'Solicitud no confirmada',
+                body: `${cita.menter_name} no pudo aceptar tu solicitud para el ${citaData.date}.`,
+                url: '/dashboard?tab=mis-citas',
+              }),
+            }).catch(() => {})
+          })
+        }
       }
     }
   }
@@ -8048,13 +8063,13 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
   dispararEmail('nueva_solicitud_menter', citaData)
   if (clientEmail) dispararEmail('solicitud_confirmada_cliente', citaData)
 
-  // Push al cliente
-  if (clientId) {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return
+  // Push al cliente y al Menter
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!session) return
+    const h = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }
+    if (clientId) {
       fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        method: 'POST', headers: h,
         body: JSON.stringify({
           user_id: clientId,
           title: '¡Solicitud enviada!',
@@ -8062,8 +8077,17 @@ function AgendaModal({ menter, clientId, clientName, clientEmail, onClose, onBoo
           url: '/dashboard?tab=mis-citas',
         }),
       }).catch(() => {})
-    })
-  }
+    }
+    fetch('/api/push/send', {
+      method: 'POST', headers: h,
+      body: JSON.stringify({
+        user_id: menter.menter_id,
+        title: 'Nueva solicitud de sesión',
+        body: `${clientName} quiere agendar el ${formatFecha(fecha)} a las ${selectedSlot!.slot_start.slice(0, 5)}.`,
+        url: '/dashboard?tab=citas',
+      }),
+    }).catch(() => {})
+  })
 
   // Si el Menter tiene precio y WhatsApp → mostrar modal de pago
   if (menter.precio_sesion && menter.precio_sesion > 0 && menter.enlaces?.whatsapp) {

@@ -42,13 +42,12 @@ export default function PushNotificationSetup({ userId }: { userId: string }) {
       applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
     })
 
-    await fetch('/api/push/subscribe', {
+    const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub.toJSON(), user_id: userId }),
     })
-
-    setSubscribed(true)
+    if (res.ok) setSubscribed(true)
   }
 
   // Registrar SW silenciosamente si ya tiene permiso
