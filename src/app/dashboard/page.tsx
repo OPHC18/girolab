@@ -336,6 +336,7 @@ const [eventoFiltroOrden, setEventoFiltroOrden] = useState<'proximo' | 'popular'
   const [editMsg, setEditMsg]         = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [membership, setMembership]   = useState<Membership | null>(null)
   const [subLoading, setSubLoading]   = useState<string | null>(null)
+  const [activePromo, setActivePromo] = useState<{ trial_dias: number; nombre: string; expires_at: string | null } | null>(null)
   const [ppModal, setPpModal] = useState<{ type: 'success' | 'confirm' | 'error'; msg: string; onConfirm?: () => void } | null>(null)
   const [showAgenda, setShowAgenda] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
@@ -1312,6 +1313,7 @@ const cargarRutaEmpresas = async () => {
   .then(({ data }) => { if (data) setFraseDelDia(data) })
 
       if (m.role === 'menter') {
+        fetch('/api/promos/active').then(r => r.json()).then(({ promo }) => { if (promo) setActivePromo(promo) }).catch(() => {})
         const { data: mb } = await supabase.from('menter_memberships').select('*').eq('menter_id', u.id).single()
         if (mb) setMembership(mb)
         else {
@@ -4546,8 +4548,17 @@ const renderIngresos = () => {
           <div style={{ background: 'linear-gradient(135deg, #421869 0%, #6a1b9a 100%)', borderRadius: 14, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ fontSize: 28, flexShrink: 0 }}>🎁</span>
             <div>
-              <p style={{ margin: 0, fontWeight: 800, color: 'white', fontSize: 15, fontFamily: 'Raleway, sans-serif' }}>20 días de prueba gratuita incluidos</p>
-              <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Ingresa tu tarjeta hoy y empieza a usar todas las herramientas. Sin cargo durante los primeros 20 días — cancela cuando quieras.</p>
+              {activePromo && (
+                <p style={{ margin: '0 0 2px', fontSize: 11, color: '#ffa719', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: 1 }}>
+                  {activePromo.nombre}
+                </p>
+              )}
+              <p style={{ margin: 0, fontWeight: 800, color: 'white', fontSize: 15, fontFamily: 'Raleway, sans-serif' }}>
+                {activePromo ? activePromo.trial_dias : 20} días de prueba gratuita incluidos
+              </p>
+              <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+                Ingresa tu tarjeta hoy y empieza a usar todas las herramientas. Sin cargo durante los primeros {activePromo ? activePromo.trial_dias : 20} días — cancela cuando quieras.
+              </p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
@@ -4575,7 +4586,7 @@ const renderIngresos = () => {
                   {p !== 'free' && (
                     <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-                      20 días gratis — sin cargo hasta que termines la prueba
+                      {activePromo ? activePromo.trial_dias : 20} días gratis — sin cargo hasta que termines la prueba
                     </div>
                   )}
                   <div style={{ fontSize: 13, color: '#4d4d4d', lineHeight: 1.7, marginBottom: 16 }}>
@@ -4620,10 +4631,10 @@ const renderIngresos = () => {
                       }}
                       style={{ width: '100%', padding: '12px', borderRadius: 30, border: 'none', background: subLoading === p ? '#ccc' : pi.color, color: 'white', fontWeight: 800, fontSize: 14, cursor: subLoading === p ? 'not-allowed' : 'pointer', fontFamily: 'Raleway, sans-serif' }}
                     >
-                      {subLoading === p ? 'Redirigiendo…' : 'Probar 20 días gratis →'}
+                      {subLoading === p ? 'Redirigiendo…' : `Probar ${activePromo ? activePromo.trial_dias : 20} días gratis →`}
                     </button>
                     <p style={{ margin: '8px 0 0', fontSize: 11, color: '#999', textAlign: 'center', lineHeight: 1.5 }}>
-                      Requiere tarjeta · Sin cobro por 20 días · Cancela cuando quieras
+                      Requiere tarjeta · Sin cobro por {activePromo ? activePromo.trial_dias : 20} días · Cancela cuando quieras
                     </p>
                     </>
                   )}

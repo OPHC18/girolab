@@ -3,6 +3,8 @@ import Script from "next/script";
 import "./globals.css";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ContentProtection } from "@/components/ContentProtection";
+import PromoBanner from "@/components/PromoBanner";
+import PromoModal from "@/components/PromoModal";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
@@ -115,7 +117,9 @@ export default function RootLayout({
           <noscript dangerouslySetInnerHTML={{ __html: `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${metaPixelId}&ev=PageView&noscript=1" />` }} />
         )}
         <ContentProtection />
+        <PromoBanner />
         {children}
+        <PromoModal />
         <UpdateBanner />
 
         {/* ── Analytics & Pixels — afterInteractive (no bloquean el render inicial) ── */}
