@@ -8,6 +8,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
+  applicationName: "Giro Lab",
   title: {
     default: "Giro Lab | Bienestar y Desarrollo",
     template: "%s | Giro Lab",
