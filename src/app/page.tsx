@@ -303,18 +303,21 @@ const toggleOpcion = (opcion: string) => {
     setFormErrors({ general: error.message })
   } else {
     // Crear fila en user_profiles via server route (usa service role para bypassear RLS)
-    if (data.user) {
-      await fetch('/api/auth/register-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId:     data.user.id,
-          empresa:    form.empresa || null,
-          cargo:      form.cargo   || null,
-          respuestas: respuestas,
-        }),
-      })
-    }
+    if (data.user && data.session) {
+  await fetch('/api/auth/register-profile', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${data.session.access_token}`,
+    },
+    body: JSON.stringify({
+      userId:     data.user.id,
+      empresa:    form.empresa || null,
+      cargo:      form.cargo   || null,
+      respuestas: respuestas,
+    }),
+  })
+}
     if (typeof window !== 'undefined' && (window as any).ttq) {
       (window as any).ttq.track('CompleteRegistration', { content_name: role })
     }
