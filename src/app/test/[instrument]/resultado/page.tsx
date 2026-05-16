@@ -623,21 +623,26 @@ export default function ResultadoPage() {
       setUser(u);
 
       if (resultId) {
-        try {
-          const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.resultado_json) {
-              clearTimeout(timer);
-              setResult(data.resultado_json);
-              if (typeof window !== 'undefined' && (window as any).gtag) {
-                (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId });
-              }
-            }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.resultado_json) {
+          clearTimeout(timer)
+          setResult(data.resultado_json)
+          setLoading(false)
+          if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
           }
-        } catch (_) {}
+          return
+        }
       }
-      setLoading(false);
+    } catch (_) {}
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
+  }
+ }
+      // No se encontró resultado: mantener loading=true para que el timer de fallback dispare
     };
     init();
     return () => clearTimeout(timer);

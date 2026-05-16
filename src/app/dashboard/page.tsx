@@ -1476,29 +1476,32 @@ const cargarRutaEmpresas = async () => {
  const handleSaveEdit = async () => {
   setEditSaving(true); setEditMsg(null)
 
-  // Actualizar nombre/apellidos en auth
-  await supabase.auth.updateUser({
-    data: { ...meta, nombre: editForm.nombre, apellidos: editForm.apellidos }
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/account/update-profile', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: JSON.stringify({
+      nombre:    editForm.nombre,
+      apellidos: editForm.apellidos,
+      telefono:  editForm.telefono,
+      pais:      editForm.pais,
+      cumpleanos: editForm.cumpleanos,
+      empresa:   editForm.empresa || null,
+      cargo:     editForm.cargo   || null,
+    }),
   })
 
-  // Guardar todos los campos de perfil en la tabla (fuente única de verdad)
-  const { error } = await supabase.from('user_profiles').upsert({
-    user_id:    user!.id,
-    telefono:   editForm.telefono,
-    pais:       editForm.pais,
-    cumpleanos: editForm.cumpleanos,
-    empresa:    editForm.empresa || null,
-    cargo:      editForm.cargo   || null,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
-
   setEditSaving(false)
-  if (error) setEditMsg({ type: 'error', text: 'Error al guardar.' })
-  else {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    setEditMsg({ type: 'error', text: body.error || 'Error al guardar.' })
+  } else {
     setMeta(prev => prev ? { ...prev, ...editForm } : prev)
     setEditMsg({ type: 'success', text: 'Datos actualizados' })
     setTimeout(() => setEditMsg(null), 4000)
-    // Sync contacto Brevo en background
     fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
   }
 }
@@ -1512,30 +1515,30 @@ const handleCompleteProfile = async () => {
 
   setCompleteSaving(true)
 
-  // Guardar nombre/apellidos en auth metadata si faltaban
-  if (missingProfileFields.nombre || missingProfileFields.apellidos) {
-    await supabase.auth.updateUser({
-      data: { ...meta, nombre: completeForm.nombre.trim(), apellidos: completeForm.apellidos.trim() }
-    })
-  }
+  const { data: { session } } = await supabase.auth.getSession()
+  const payload: Record<string, string | null> = {}
+  if (missingProfileFields.nombre    || completeForm.nombre)    payload.nombre    = completeForm.nombre.trim()
+  if (missingProfileFields.apellidos || completeForm.apellidos) payload.apellidos = completeForm.apellidos.trim()
+  if (completeForm.telefono)   payload.telefono   = completeForm.telefono
+  if (completeForm.pais)       payload.pais       = completeForm.pais
+  if (completeForm.cumpleanos) payload.cumpleanos = completeForm.cumpleanos
 
-  const { error } = await supabase.from('user_profiles').upsert({
-    user_id:    user!.id,
-    ...(completeForm.telefono   && { telefono:   completeForm.telefono }),
-    ...(completeForm.pais       && { pais:       completeForm.pais }),
-    ...(completeForm.cumpleanos && { cumpleanos: completeForm.cumpleanos }),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  const res = await fetch('/api/account/update-profile', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: JSON.stringify(payload),
+  })
 
   setCompleteSaving(false)
-  if (!error) {
+  if (res.ok) {
     setMeta(prev => prev ? { ...prev, ...completeForm } : prev)
     setMissingProfileFields({ nombre: false, apellidos: false, telefono: false, pais: false, cumpleanos: false })
     setShowCompleteProfile(false)
-    // Sync contacto Brevo en background
     fetch('/api/account/sync-contact', { method: 'POST' }).catch(() => {})
 
-    // Lanzar tour si es la primera vez
     if (typeof window !== 'undefined' && !localStorage.getItem('giro_tour_done')) {
       setTimeout(() => { setTourStep(0); setTourActive(true) }, 400)
     }
