@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
   if (existingError) return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   if (existing?.verified) return NextResponse.json({ already_verified: true })
   if (existing && Date.now() - new Date(existing.created_at).getTime() < 2 * 60 * 1000) {
-    return NextResponse.json({ ok: true })
-  }
+  return NextResponse.json({ ok: true, cooldown: true })
+}
 
   const code = Math.floor(100000 + Math.random() * 900000).toString()
 
@@ -42,14 +42,8 @@ export async function POST(req: NextRequest) {
   const nombre = user.user_metadata?.nombre || user.email!.split('@')[0]
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
-  await fetch(`${APP_URL}/api/email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_API_SECRET || '' },
-    body: JSON.stringify({
-      tipo: 'verificacion_codigo',
-      data: { nombre, email: user.email!, code },
-    }),
-  })
+ const { emailVerificacionCodigo } = await import('@/lib/email/templates/auth')
+await emailVerificacionCodigo({ email: user.email!, nombre, code })
 
-  return NextResponse.json({ ok: true })
+return NextResponse.json({ ok: true })
 }
