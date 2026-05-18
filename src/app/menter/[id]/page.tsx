@@ -113,9 +113,9 @@ export default function MenterPage() {
                   {perfil.avatar_url ? (
                     <img src={perfil.avatar_url} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' as const, border: '3px solid rgba(255,255,255,0.5)', display: 'block', margin: '0 auto 12px' }} />
                   ) : (
-                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: 'white', margin: '0 auto 12px' }}>
-                      {perfil.nombre?.[0] || 'M'}
-                    </div>
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: '#421869', margin: '0 auto 12px' }}>
+  {perfil.nombre?.[0] || 'M'}
+</div>
                   )}
                   <h2 style={{ margin: '0 0 8px', color: 'white', fontFamily: 'Raleway', fontSize: 18, fontWeight: 800 }}>{perfil.nombre || 'Menter'}</h2>
                   {rating && (
@@ -166,7 +166,7 @@ export default function MenterPage() {
     📅 Agendar sesión
   </button>
 ) : (
-  <a href={`/?registro=1&returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'block', padding: '12px', borderRadius: 20, background: '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway', textAlign: 'center', marginTop: 4 }}>
+  <a href={`/registro?returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'block', padding: '12px', borderRadius: 20, background: '#ffa719', color: '#2d2926', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway', textAlign: 'center', marginTop: 4 }}>
     Regístrate para agendar →
   </a>
 )}
@@ -360,7 +360,7 @@ export default function MenterPage() {
                       ¿Listo para conectar con {perfil.nombre?.split(' ')[0] || 'este Menter'}?
                     </h3>
                     <p style={{ color: '#666', fontSize: 14, margin: '0 0 16px' }}>Regístrate en Giro Lab y agenda tu primera sesión.</p>
-                    <a href={`/?registro=1&returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 20, background: '#421869', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway' }}>
+                    <a href={`/registro?returnUrl=${typeof window !== 'undefined' ? window.location.pathname : ''}`} style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 20, background: '#421869', color: 'white', fontWeight: 800, fontSize: 14, textDecoration: 'none', fontFamily: 'Raleway' }}>
                       Empezar ahora →
                     </a>
                   </div>

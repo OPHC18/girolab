@@ -674,12 +674,11 @@ export default function ResultadoPage() {
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  const handleRegister = () => {
-    // Persist token so dashboard can link this result after registration
-    if (token) localStorage.setItem('pendingTestToken', token)
-    const returnUrl = `/test/${rawId}/resultado?r=${resultId}&t=${token}`;
-    router.push(`/?registro=1&returnUrl=${encodeURIComponent(returnUrl)}`);
-  };
+const handleRegister = () => {
+  if (token) localStorage.setItem('pendingTestToken', token)
+  const returnUrl = `/test/${rawId}/resultado?r=${resultId}&t=${token}`
+  router.push(`/registro?returnUrl=${encodeURIComponent(returnUrl)}`)
+}
 
   if (loading) return <LoadingScreen showFallback={showFallback} onRegister={handleRegister} />;
   if (!result || !inst || !cfg) return <div style={rs.notFound}>Resultado no encontrado.</div>;

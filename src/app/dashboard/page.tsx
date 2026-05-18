@@ -267,6 +267,7 @@ export default function Dashboard() {
   const [blogEditId, setBlogEditId] = useState<string | null>(null)
   const [blogView, setBlogView] = useState<'lista' | 'editor'>('lista')
   const [roadmapClientes, setRoadmapClientes] = useState<any[]>([])
+  const carruselRef = useRef<HTMLDivElement>(null)
 const [roadmapClienteActivo, setRoadmapClienteActivo] = useState<string | null>(null)
 const [roadmapData, setRoadmapData] = useState<any | null>(null)
 const [roadmapLoading, setRoadmapLoading] = useState(false)
@@ -563,6 +564,19 @@ useEffect(() => {
 
   return () => { ingresosChartInstance.current?.destroy() }
 }, [ingresosSesiones, ingresosEventos, activeTab])
+
+useEffect(() => {
+  const el = carruselRef.current
+  if (!el || featuredMenters.length === 0) return
+  const interval = setInterval(() => {
+    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
+      el.scrollTo({ left: 0, behavior: 'smooth' })
+    } else {
+      el.scrollBy({ left: 180 + 16, behavior: 'smooth' })
+    }
+  }, 3000)
+  return () => clearInterval(interval)
+}, [featuredMenters])
 
 useEffect(() => {
   if (!user?.id) return
@@ -1251,7 +1265,11 @@ const cargarRutaEmpresas = async () => {
 
   // Verificación de email por código (solo usuarios email/password, no Google)
   if (!isGoogleUser) {
-    const verRes = await fetch('/api/auth/send-verification', { method: 'POST' })
+    const { data: { session: verSession } } = await supabase.auth.getSession()
+const verRes = await fetch('/api/auth/send-verification', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${verSession?.access_token}` },
+})
     const verData = await verRes.json()
     if (!verData.already_verified && verData.ok) {
       setShowVerification(true)
@@ -1287,23 +1305,24 @@ const cargarRutaEmpresas = async () => {
 
   // Modal de completar perfil: para cualquier usuario con datos faltantes
   const missingFields = {
-    nombre:     !m.nombre,
-    apellidos:  !m.apellidos,
-    telefono:   !perfil?.telefono,
-    pais:       !perfil?.pais,
-    cumpleanos: !perfil?.cumpleanos,
-  }
-  if (Object.values(missingFields).some(Boolean)) {
-    setMissingProfileFields(missingFields)
-    setCompleteForm({
-      nombre:     nombre,
-      apellidos:  apellidos,
-      telefono:   perfil?.telefono || '',
-      pais:       perfil?.pais     || '',
-      cumpleanos: perfil?.cumpleanos || '',
-    })
-    setShowCompleteProfile(true)
-  }
+  nombre:     !m.nombre,
+  apellidos:  !m.apellidos,
+  telefono:   false,  // opcional, no forzar
+  pais:       false,  // opcional, no forzar
+  cumpleanos: false,  // opcional, no forzar
+}
+
+if (missingFields.nombre || missingFields.apellidos) {
+  setMissingProfileFields(missingFields)
+  setCompleteForm({
+    nombre:     nombre,
+    apellidos:  apellidos,
+    telefono:   perfil?.telefono  || '',
+    pais:       perfil?.pais      || '',
+    cumpleanos: perfil?.cumpleanos || '',
+  })
+  setShowCompleteProfile(true)
+}
 
   await supabase.rpc('sincronizar_insignias_menter', { p_menter_id: u.id })
   supabase.from('frases_del_dia')
@@ -1339,28 +1358,35 @@ const cargarRutaEmpresas = async () => {
           return ex ? { id: ex.id, day_of_week: i, start_time: ex.start_time, end_time: ex.end_time, is_active: ex.is_active }
                     : { day_of_week: i, start_time: '09:00', end_time: '18:00', is_active: false }
         }))
+     }
+
+      // Redirecciones antes de mostrar el dashboard
+      if (typeof window !== 'undefined' && sessionStorage.getItem('giro_redirect_comunidad')) {
+        sessionStorage.removeItem('giro_redirect_comunidad')
+        const returnUrl = localStorage.getItem('returnUrl')
+        if (returnUrl) { localStorage.removeItem('returnUrl'); window.location.href = returnUrl; return }
+        window.location.href = '/comunidad'
+        return
       }
+
       setLoading(false)
 
       // Vincular resultado de test anónimo al usuario recién registrado
-      const pendingTestToken = typeof window !== 'undefined' && localStorage.getItem('pendingTestToken')
-      if (pendingTestToken) {
-        localStorage.removeItem('pendingTestToken')
-        try {
-          const { data: session } = await supabase
-            .from('assessment_sessions')
-            .select('id')
-            .eq('session_token', pendingTestToken)
-            .single()
-          if (session?.id) {
-            await supabase
-              .from('assessment_results')
-              .update({ persona_id: u.id })
-              .eq('session_id', session.id)
-              .is('persona_id', null)
-          }
-        } catch { /* non-critical */ }
-      }
+const pendingTestToken = typeof window !== 'undefined' && localStorage.getItem('pendingTestToken')
+if (pendingTestToken) {
+  try {
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    const res = await fetch('/api/assessment/link-result', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authSession?.access_token}`,
+      },
+      body: JSON.stringify({ session_token: pendingTestToken }),
+    })
+    if (res.ok) localStorage.removeItem('pendingTestToken')
+  } catch { /* non-critical */ }
+}
 
       // Welcome email pendiente (registro con email — diferido hasta tener sesión activa)
       const pendingRaw = typeof window !== 'undefined' && localStorage.getItem('pendingWelcomeEmail')
@@ -1420,15 +1446,6 @@ const cargarRutaEmpresas = async () => {
       if (!hasIncomplete) {
         setTimeout(() => { setTourStep(0); setTourActive(true) }, 800)
       }
-    }
-
-    // Después de Google OAuth, redirigir a comunidad
-    if (typeof window !== 'undefined' && sessionStorage.getItem('giro_redirect_comunidad')) {
-      sessionStorage.removeItem('giro_redirect_comunidad')
-      const returnUrl = localStorage.getItem('returnUrl')
-      if (returnUrl) { localStorage.removeItem('returnUrl'); window.location.href = returnUrl; return }
-      window.location.href = '/comunidad'
-      return
     }
     }
     init()
@@ -1570,7 +1587,11 @@ const handleCompleteProfile = async () => {
 
   const handleResendCode = async () => {
     setVerifyResent(false); setVerifyError('')
-    await fetch('/api/auth/send-verification', { method: 'POST' })
+    const { data: { session: resendSession } } = await supabase.auth.getSession()
+await fetch('/api/auth/send-verification', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${resendSession?.access_token}` },
+})
     setVerifyResent(true)
     setTimeout(() => setVerifyResent(false), 5000)
   }
@@ -6672,27 +6693,27 @@ const renderBlogPersona = () => {
 const renderDestacados = () => (
   <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
 
-    {/* CARRUSEL Master & Premium */}
-    {featuredMenters.length > 0 && (
-      <div style={{ marginBottom: 32 }}>
-        <h3 style={{ fontFamily: 'Raleway', color: '#421869', fontSize: 16, fontWeight: 800, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Menters Destacados
-        </h3>
-        <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
-          {featuredMenters.map(m => (
-            <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false); if (typeof window !== 'undefined' && (window as any).gtag) { (window as any).gtag('event', 'menter_perfil_visto', { menter_id: m.menter_id }) } }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
-              <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
-                {m.avatar_url && <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />}
-              </div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(66,24,105,0.95) 0%, transparent 100%)', padding: '32px 12px 12px' }}>
-                <div style={{ color: 'white', fontWeight: 700, fontSize: 13, fontFamily: 'Raleway', textAlign: 'center', marginBottom: 6 }}>{m.nombre} {m.apellidos}</div>
-                {m.especialidad && <div style={{ textAlign: 'center' }}><span style={{ fontSize: 11, background: '#ffa719', color: '#2d2926', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>{m.especialidad}</span></div>}
-              </div>
-            </div>
-          ))}
+{/* CARRUSEL Master & Premium */}
+{featuredMenters.length > 0 && (
+  <div style={{ marginBottom: 32 }}>
+    <h3 style={{ fontFamily: 'Raleway', color: '#421869', fontSize: 16, fontWeight: 800, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      Menters Destacados
+    </h3>
+    <div ref={carruselRef} style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
+      {featuredMenters.map(m => (
+        <div key={m.menter_id} onClick={() => { setSelectedMenter(m); setYoutubePlayerOpen(false); if (typeof window !== 'undefined' && (window as any).gtag) { (window as any).gtag('event', 'menter_perfil_visto', { menter_id: m.menter_id }) } }} style={{ minWidth: 180, maxWidth: 180, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', flexShrink: 0, position: 'relative', height: 220 }}>
+          <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
+            {m.avatar_url && <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />}
+          </div>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(66,24,105,0.95) 0%, transparent 100%)', padding: '32px 12px 12px' }}>
+            <div style={{ color: 'white', fontWeight: 700, fontSize: 13, fontFamily: 'Raleway', textAlign: 'center', marginBottom: 6 }}>{m.nombre} {m.apellidos}</div>
+            {m.especialidad && <div style={{ textAlign: 'center' }}><span style={{ fontSize: 11, background: '#ffa719', color: '#2d2926', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>{m.especialidad}</span></div>}
+          </div>
         </div>
-      </div>
-    )}
+      ))}
+    </div>
+  </div>
+)}
 
     {/* AVISO MENTER */}
     {isMenter && (

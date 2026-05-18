@@ -10,8 +10,8 @@ self.addEventListener('push', function(event) {
   const title = data.title || 'Giro Lab'
   const options = {
     body: data.body || '',
-    icon: '/android-chrome-192x192.png',
-    badge: '/android-chrome-192x192.png',
+    icon: '/notification-icon.svg',
+    badge: '/notification-icon.svg',
     data: { url: data.url || '/dashboard' },
     vibrate: [200, 100, 200],
   }
