@@ -53,6 +53,7 @@ export default function AdminPage() {
   const [comunidadPosts, setComunidadPosts] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
   const [filtroLeadMenter, setFiltroLeadMenter] = useState('')
+  const [tpeLeads, setTpeLeads] = useState<any[]>([])
   const [b2bLeads, setB2bLeads] = useState<any[]>([])
   const [filtroB2b, setFiltroB2b] = useState('')
   const [b2bScores, setB2bScores] = useState<Record<string, number>>({})
@@ -901,16 +902,33 @@ const especialidades = Object.entries(especialidadesMap)
     setLoad('leads', false)
   }
 
-  const cargarB2bLeads = async () => {
-    setLoad('b2b' as any, true)
-    const { data } = await supabase
-      .from('b2b_leads')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500)
-    setB2bLeads(data || [])
-    setLoad('b2b' as any, false)
-  }
+const cargarB2bLeads = async () => {
+  setLoad('b2b' as any, true)
+  const [{ data: b2b }, { data: tpe }] = await Promise.all([
+    supabase.from('b2b_leads').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('tpe_leads').select('*').order('created_at', { ascending: false }).limit(500),
+  ])
+  setB2bLeads(
+    [
+      ...(b2b || []).map(l => ({ ...l, fuente: 'B2B' })),
+      ...(tpe || []).map(l => ({
+        ...l,
+        fuente: 'TPE',
+        // normalizar campos al formato b2b para reutilizar el render
+        nombres:   l.nombre,
+        apellidos: '',
+        correo:    l.email,
+        cargo:     l.servicios?.join(', ') || '',
+        resumen:   [
+          l.coaching_areas?.length ? `Coaching: ${l.coaching_areas.join(', ')}` : null,
+          l.uniformes?.length      ? `Uniformes: ${l.uniformes.map((p: any) => `${p.nombre} (${p.cantidad})`).join(', ')}` : null,
+          l.merchandising          ? `Merchandising: ${l.merchandising}` : null,
+        ].filter(Boolean).join(' · '),
+      })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  )
+  setLoad('b2b' as any, false)
+}
 
   const scoreB2bLead = (lead: any): number => {
     let score = 0
@@ -2305,6 +2323,15 @@ const confirmarCambioPlan = async () => {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                               <span style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>{nombre}</span>
+                              <span style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>{nombre}</span>
+<span style={{
+  fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
+  background: l.fuente === 'TPE' ? '#f0fdf4' : '#f3e8ff',
+  color:      l.fuente === 'TPE' ? '#1D9E75'  : '#421869',
+  letterSpacing: 1, textTransform: 'uppercase' as const,
+}}>
+  {l.fuente}
+</span>
                               <span style={{ background: scoreBg(score), color: scoreColor(score), borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{score}/100</span>
                             </div>
                             <div style={{ fontSize: 13, color: '#555', marginBottom: 2 }}>
