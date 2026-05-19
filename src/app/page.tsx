@@ -287,7 +287,7 @@ const toggleOpcion = (opcion: string) => {
     email: form.email,
     password: form.password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/dashboard`,
+     emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/comunidad`,
       data: {
         nombre: form.nombre,
         apellidos: form.apellidos,
@@ -387,7 +387,7 @@ const handleGoogleAuth = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/dashboard`,
+      redirectTo: `${window.location.origin}/comunidad`,
     }
   })
   if (error) console.error('Google auth error:', error)

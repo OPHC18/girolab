@@ -177,7 +177,6 @@ const CARD_CONFIGS: Partial<Record<string, CardConfig>> = {
   },
 };
 
-// Helpers para labels dinámicos
 function getOceanType(r: any): string {
   if (!r.dimensiones) return 'OCEAN';
   const dims = r.dimensiones as { dimension: string; label: string }[];
@@ -193,6 +192,202 @@ function getDominantDomain(r: any): string {
   if (!r.dimensiones) return 'Evaluado';
   const dom = r.dimensiones.sort((a: any, b: any) => b.score - a.score)[0];
   return dom?.dimension || 'Evaluado';
+}
+
+// ─────────────────────────────────────────────────────────────
+// CHART COMPONENTS
+// ─────────────────────────────────────────────────────────────
+
+const CHART_COLORS = {
+  purple: '#7F77DD',
+  green:  '#15803d',
+  amber:  '#b45309',
+  red:    '#dc2626',
+  blue:   '#1d4ed8',
+  teal:   '#0f766e',
+  gray:   '#6b7280',
+};
+
+function severityColor(label: string): string {
+  const l = label?.toLowerCase() ?? '';
+  if (l.includes('mínim') || l.includes('negativ') || l.includes('bajo') || l.includes('muy baj') || l.includes('normal') || l.includes('adecuad')) return CHART_COLORS.green;
+  if (l.includes('leve') || l.includes('moderado') || l.includes('promedio') || l.includes('moderada') || l.includes('oportunid')) return CHART_COLORS.amber;
+  if (l.includes('severo') || l.includes('severa') || l.includes('alto') || l.includes('muy alt') || l.includes('elevad') || l.includes('positiv')) return CHART_COLORS.red;
+  return CHART_COLORS.purple;
+}
+
+function RadarChart({ dims, maxVal, color }: { dims: { dimension: string; score: number }[]; maxVal: number; color: string }) {
+  if (!dims || dims.length < 3) return null;
+  const cx = 120; const cy = 110; const r = 80;
+  const n = dims.length;
+  const toRad = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+  const pt = (i: number, val: number) => {
+    const ratio = Math.min(val / maxVal, 1);
+    return { x: cx + r * ratio * Math.cos(toRad(i)), y: cy + r * ratio * Math.sin(toRad(i)) };
+  };
+  const rings = [0.25, 0.5, 0.75, 1];
+  const axes = dims.map((_, i) => ({ x: cx + r * Math.cos(toRad(i)), y: cy + r * Math.sin(toRad(i)) }));
+  const dataPoints = dims.map((d, i) => pt(i, d.score));
+  const polygon = dataPoints.map(p => `${p.x},${p.y}`).join(' ');
+  return (
+    <svg viewBox="0 0 240 220" width="100%" style={{ display: 'block', maxHeight: 200 }}>
+      {rings.map((ring, ri) => {
+        const pts = dims.map((_, i) => {
+          const x = cx + r * ring * Math.cos(toRad(i));
+          const y = cy + r * ring * Math.sin(toRad(i));
+          return `${x},${y}`;
+        }).join(' ');
+        return <polygon key={ri} points={pts} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="0.5" />;
+      })}
+      {axes.map((a, i) => (
+        <line key={i} x1={cx} y1={cy} x2={a.x} y2={a.y} stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+      ))}
+      <polygon points={polygon} fill={color} fillOpacity="0.2" stroke={color} strokeWidth="2" />
+      {dataPoints.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />)}
+      {dims.map((d, i) => {
+        const lx = cx + (r + 18) * Math.cos(toRad(i));
+        const ly = cy + (r + 18) * Math.sin(toRad(i));
+        const anchor = lx < cx - 5 ? 'end' : lx > cx + 5 ? 'start' : 'middle';
+        const shortName = d.dimension.length > 10 ? d.dimension.slice(0, 10) + '…' : d.dimension;
+        return (
+          <text key={i} x={lx} y={ly} textAnchor={anchor} dominantBaseline="central"
+            fontSize="9" fill="#555" fontFamily="system-ui, sans-serif">{shortName}</text>
+        );
+      })}
+    </svg>
+  );
+}
+
+function HorizontalBars({ dims, maxVal, getColor }: {
+  dims: { dimension: string; score: number; label?: string }[];
+  maxVal: number;
+  getColor: (d: any) => string;
+}) {
+  if (!dims || dims.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 8 }}>
+      {dims.map((d, i) => {
+        const pct = Math.min((d.score / maxVal) * 100, 100);
+        const c = getColor(d);
+        const shortName = d.dimension.length > 18 ? d.dimension.slice(0, 18) + '…' : d.dimension;
+        return (
+          <div key={i}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ fontSize: 11, color: '#555' }}>{shortName}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: c }}>
+                {typeof d.score === 'number' ? d.score.toFixed(d.score < 10 ? 1 : 0) : d.score}
+              </span>
+            </div>
+            <div style={{ height: 6, background: '#f0f0f0', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.8s ease' }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DiscBarsChart({ percentiles }: { percentiles: Record<string, number> }) {
+  const factors: ('D'|'I'|'S'|'C')[] = ['D','I','S','C'];
+  const colors = { D: '#E53935', I: '#FB8C00', S: '#43A047', C: '#1E88E5' };
+  const labels = { D: 'Dominance', I: 'Influence', S: 'Steadiness', C: 'Conscient.' };
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'space-around' }}>
+      {factors.map(f => {
+        const pct = percentiles[f] || 0;
+        return (
+          <div key={f} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: colors[f] }}>{pct}%</span>
+            <div style={{ width: '100%', maxWidth: 36, height: 72, background: '#f0f0f0', borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                height: `${pct}%`, background: colors[f], borderRadius: '4px 4px 0 0',
+                transition: 'height 0.8s ease',
+              }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 800, color: colors[f] }}>{f}</span>
+            <span style={{ fontSize: 9, color: '#888', textAlign: 'center' }}>{labels[f]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScreeningGauge({ positive, score, max, label }: { positive: boolean; score: number; max: number; label: string }) {
+  const color = positive ? CHART_COLORS.amber : CHART_COLORS.green;
+  const pct = Math.min((score / max) * 100, 100);
+  const r = 60; const cx = 80; const cy = 80;
+  const startAngle = Math.PI; const endAngle = 2 * Math.PI;
+  const angle = startAngle + (pct / 100) * Math.PI;
+  const x1 = cx + r * Math.cos(startAngle); const y1 = cy + r * Math.sin(startAngle);
+  const x2 = cx + r * Math.cos(endAngle);   const y2 = cy + r * Math.sin(endAngle);
+  const nx = cx + r * Math.cos(angle);       const ny = cy + r * Math.sin(angle);
+  const trackPath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
+  const valuePath = `M ${x1} ${y1} A ${r} ${r} 0 ${pct > 50 ? 1 : 0} 1 ${nx} ${ny}`;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 8 }}>
+      <svg viewBox="0 0 160 90" width="160" style={{ display: 'block' }}>
+        <path d={trackPath} fill="none" stroke="#f0f0f0" strokeWidth="10" strokeLinecap="round" />
+        <path d={valuePath} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" />
+        <text x={cx} y={cy - 8} textAnchor="middle" fontSize="22" fontWeight="800" fill={color}
+          fontFamily="system-ui, sans-serif">{score}/{max}</text>
+        <text x={cx} y={cy + 8} textAnchor="middle" fontSize="9" fill="#888"
+          fontFamily="system-ui, sans-serif">{label}</text>
+      </svg>
+      <span style={{
+        fontSize: 11, fontWeight: 700, color,
+        background: positive ? '#fef3c7' : '#dcfce7',
+        padding: '3px 10px', borderRadius: 99,
+      }}>
+        {positive ? 'Screening positivo' : 'Screening negativo'}
+      </span>
+    </div>
+  );
+}
+
+function ResultChart({ instrumentId, result }: { instrumentId: string; result: any }) {
+  const dims = result.dimensiones as any[] | undefined;
+
+  if (['BIG_FIVE','DARK_TRIAD','PID_5'].includes(instrumentId) && dims?.length) {
+    const maxVal = instrumentId === 'PID_5' ? 3 : 5;
+    return <RadarChart dims={dims} maxVal={maxVal} color={CHART_COLORS.purple} />;
+  }
+  if (instrumentId === 'HEXACO_HH' && dims?.length) {
+    return <RadarChart dims={dims} maxVal={5} color={CHART_COLORS.teal} />;
+  }
+  if ((instrumentId === 'BDI_II' || instrumentId === 'BAI') && dims?.length) {
+    return <HorizontalBars dims={dims} maxVal={40} getColor={d => severityColor(d.label ?? '')} />;
+  }
+  if (instrumentId === 'NPI_40' && dims?.length) {
+    return <HorizontalBars dims={dims} maxVal={8} getColor={d => severityColor(d.label ?? '')} />;
+  }
+  if (instrumentId === 'BARON_ICE') {
+    const comps = (result.componentes || []) as any[];
+    if (comps.length) {
+      const asDims = comps.map((c: any) => ({ dimension: c.nombre, score: c.pe, label: c.label }));
+      return <HorizontalBars dims={asDims} maxVal={145} getColor={d => {
+        if (d.score >= 110) return CHART_COLORS.green;
+        if (d.score >= 90)  return CHART_COLORS.blue;
+        return CHART_COLORS.amber;
+      }} />;
+    }
+  }
+  if (instrumentId === 'DISC' && result.percentiles?.adaptado) {
+    return <DiscBarsChart percentiles={result.percentiles.adaptado} />;
+  }
+  if (instrumentId === 'ASRS_v1_1') {
+    return <ScreeningGauge positive={!!result.screeningPositivo} score={result.puntuacionBruta ?? 0} max={6} label="ítems Part A" />;
+  }
+  if (instrumentId === 'MDQ') {
+    const sumA = (result.dimensiones?.find((d: any) => d.dimension?.includes('Parte A'))?.score) ?? result.puntuacionBruta ?? 0;
+    return <ScreeningGauge positive={!!result.screeningPositivo} score={sumA} max={13} label="síntomas Parte A" />;
+  }
+  if (instrumentId === 'MSI_BPD') {
+    return <ScreeningGauge positive={!!result.screeningPositivo} score={result.puntuacionBruta ?? 0} max={10} label="criterios" />;
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -487,7 +682,6 @@ function generarInterpretacion(instrumentId: string, result: any): RichContent |
 
     case 'BARON_ICE': {
       const ce = result.ceTotal ?? 0;
-      const semaforoCE = result.semaforoCE;
       const componentes: any[] = result.componentes || [];
       const alertas = result.alertas || {};
       const valido = result.valido !== false;
@@ -506,7 +700,6 @@ function generarInterpretacion(instrumentId: string, result: any): RichContent |
         desarrollo.push(`Impresión Positiva elevada (IP = ${result.scoreIP}/35): es probable que hayas respondido de forma más favorable de lo habitual. Toma en cuenta que esto puede inflar los resultados.`);
       }
 
-      // CE Total global
       if (ce > 110) {
         fortalezas.push(`CE Total ${ce} — Capacidad Muy Desarrollada: tu inteligencia emocional y social se ubica por encima del promedio poblacional (normas Lima Metropolitana, Ugarriza 2001). Esto indica una gestión efectiva de tus emociones, relaciones y adaptación al entorno en condiciones normales y de estrés.`);
       } else if (ce >= 90) {
@@ -515,7 +708,6 @@ function generarInterpretacion(instrumentId: string, result: any): RichContent |
         desarrollo.push(`CE Total ${ce} — Área de Oportunidad: tu puntuación global se ubica por debajo del promedio poblacional. Esto no define quien eres, sino que señala habilidades emocionales que con trabajo consciente pueden desarrollarse significativamente.`);
       }
 
-      // Fortalezas por componente (PE > 110)
       const fuertes = componentes.filter(c => c.pe > 110);
       const debiles = componentes.filter(c => c.pe < 90);
       if (fuertes.length > 0) {
@@ -525,7 +717,6 @@ function generarInterpretacion(instrumentId: string, result: any): RichContent |
         desarrollo.push(`Componentes a desarrollar: ${debiles.map(c => `${c.nombre} (PE ${c.pe})`).join(', ')}. Estas áreas se ubican por debajo del promedio y representan las oportunidades de crecimiento emocional más relevantes para ti.`);
       }
 
-      // Recomendaciones por componentes débiles
       const nombresDebiles = debiles.map(c => c.clave || c.nombre);
       if (nombresDebiles.includes('IA') || nombresDebiles.includes('Intrapersonal')) {
         recomendaciones.push('Para el componente Intrapersonal (autoconciencia, asertividad, autoconcepto, autorrealización, independencia): practica la escritura reflexiva diaria (journaling). Registrar tus emociones y decisiones fortalece la autoconciencia y mejora la congruencia entre tus valores y tus acciones.');
@@ -623,26 +814,25 @@ export default function ResultadoPage() {
       setUser(u);
 
       if (resultId) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.resultado_json) {
-          clearTimeout(timer)
-          setResult(data.resultado_json)
-          setLoading(false)
-          if (typeof window !== 'undefined' && (window as any).gtag) {
-            (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
-          }
-          return
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
+            if (res.ok) {
+              const data = await res.json()
+              if (data.resultado_json) {
+                clearTimeout(timer)
+                setResult(data.resultado_json)
+                setLoading(false)
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+                }
+                return
+              }
+            }
+          } catch (_) {}
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
         }
       }
-    } catch (_) {}
-    if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
-  }
- }
-      // No se encontró resultado: mantener loading=true para que el timer de fallback dispare
     };
     init();
     return () => clearTimeout(timer);
@@ -676,8 +866,7 @@ export default function ResultadoPage() {
 
 const handleRegister = () => {
   if (token) localStorage.setItem('pendingTestToken', token)
-  const returnUrl = `/test/${rawId}/resultado?r=${resultId}&t=${token}`
-  router.push(`/registro?returnUrl=${encodeURIComponent(returnUrl)}`)
+  window.location.href = '/?registro=1'
 }
 
   if (loading) return <LoadingScreen showFallback={showFallback} onRegister={handleRegister} />;
@@ -685,13 +874,7 @@ const handleRegister = () => {
 
   const headline = cfg.headline(result);
   const subline  = cfg.subline(result);
-  const dims     = result.dimensiones as any[] | undefined;
   const rich     = generarInterpretacion(instrumentId, result);
-
-  const baronBarColor = (label?: string) =>
-    label === 'Capacidad Muy Desarrollada' ? '#4CAF50'
-    : label === 'Área de Oportunidad' ? '#FF9800'
-    : '#2196F3'
 
   const ResultCard = (
     <div ref={cardRef} style={{ ...rs.card, background: 'white', padding: 0, overflow: 'hidden' }}>
@@ -710,46 +893,10 @@ const handleRegister = () => {
         </div>
       </div>
 
-      {/* Cuerpo blanco: barras + cta */}
+      {/* Cuerpo blanco: chart + cta */}
       <div style={{ padding: '20px 28px 24px', background: 'white' }}>
-        {cfg.showDimensions && dims && dims.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {dims.slice(0, 5).map((dim, i) => {
-              const pct = Math.min(((dim.score || 0) / cfg.dimensionMax) * 100, 100);
-              const barColor = instrumentId === 'BARON_ICE' ? baronBarColor(dim.label) : CHART_PALETTE[i % CHART_PALETTE.length];
-              return (
-                <div key={i} style={rs.dimRow}>
-                  <span style={{ ...rs.dimName, color: '#444' }}>
-                    {dim.dimension?.length > 14 ? dim.dimension.slice(0,14)+'…' : dim.dimension}
-                  </span>
-                  <div style={{ ...rs.dimTrack, background: '#f0f0f0' }}>
-                    <div style={{ width:`${pct}%`, height:'100%', background: barColor, borderRadius:3, transition:'width 0.8s ease' }} />
-                  </div>
-                  <span style={{ ...rs.dimScore, color: barColor }}>
-                    {typeof dim.score === 'number' ? dim.score.toFixed(dim.score < 10 ? 1 : 0) : dim.score}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {instrumentId === 'DISC' && result.percentiles?.adaptado && (
-          <div style={rs.discBars}>
-            {(['D','I','S','C'] as const).map(f => {
-              const pct = result.percentiles.adaptado[f] || 0;
-              return (
-                <div key={f} style={rs.discBarCol}>
-                  <div style={rs.discBarTrack}>
-                    <div style={{ position:'absolute', bottom:0, left:0, right:0, height:`${pct}%`, background: DISC_COLORS[f] || cfg.accentColor, borderRadius:'4px 4px 0 0' }} />
-                  </div>
-                  <span style={{ ...rs.discBarLabel, color: '#555' }}>{f}</span>
-                  <span style={{ ...rs.discBarPct, color: DISC_COLORS[f] || cfg.accentColor }}>{pct}%</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p style={{ ...rs.cardCta, color: '#888', margin: '4px 0 2px' }}>{cfg.cta}</p>
+        <ResultChart instrumentId={instrumentId} result={result} />
+        <p style={{ ...rs.cardCta, color: '#888', margin: '12px 0 2px' }}>{cfg.cta}</p>
         <p style={{ ...rs.cardUrl, color: '#bbb' }}>girolab.net</p>
       </div>
     </div>
@@ -764,7 +911,6 @@ const handleRegister = () => {
       </ul>
       <style>{`@keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}} @media(max-width:860px){.rs-cols{flex-direction:column!important}}`}</style>
 
-      {/* ── CONTENEDOR BLANCO ── */}
       <div style={rs.wrapper}>
       <div className="rs-cols" style={rs.cols}>
         {/* IZQUIERDA: card + interpretación rica */}
@@ -812,7 +958,6 @@ const handleRegister = () => {
             </div>
           )}
 
-          {/* Fallback si no hay rich content */}
           {!rich && result.interpretacion && (
             <div style={rs.interpBox}>
               <p style={rs.interpText}>{result.interpretacion}</p>
@@ -921,13 +1066,10 @@ const rs: Record<string, React.CSSProperties> = {
   page:           { minHeight:'100vh', backgroundColor:'#421869', position:'relative', overflowX:'hidden', fontFamily:"'DM Sans', system-ui, sans-serif" },
   circles:        { position:'fixed', top:0, left:0, width:'100%', height:'100%', overflow:'hidden', margin:0, padding:0, zIndex:0, pointerEvents:'none', listStyle:'none' },
   notFound:       { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#888' },
-  // CONTENEDOR BLANCO
   wrapper:        { position:'relative', zIndex:1, maxWidth:1020, margin:'0 auto', padding:'32px 20px 60px' },
-  // TWO-COLUMN LAYOUT
   cols:           { display:'flex', flexDirection:'row', gap:24, alignItems:'flex-start' },
   colLeft:        { flex:1, display:'flex', flexDirection:'column', gap:12 },
   colRight:       { width:340, flexShrink:0, display:'flex', flexDirection:'column', gap:16 },
-  // CARD
   card:           { width:'100%', minHeight:480, borderRadius:20, padding:'32px 28px', display:'flex', flexDirection:'column', position:'relative', overflow:'hidden' },
   watermark:      { display:'flex', alignItems:'center', gap:6, marginBottom:20 },
   watermarkText:  { fontSize:13, fontWeight:800, color:'rgba(255,255,255,0.5)', letterSpacing:2, textTransform:'uppercase' },
@@ -936,22 +1078,8 @@ const rs: Record<string, React.CSSProperties> = {
   cardCenter:     { flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'16px 0' },
   cardHeadline:   { fontSize:32, fontWeight:800, margin:'0 0 8px', lineHeight:1.1, fontFamily:"'Raleway', sans-serif" },
   cardSubline:    { fontSize:14, margin:0, lineHeight:1.5 },
-  // DIMS
-  dimsArea:       { display:'flex', flexDirection:'column', gap:8, marginTop:16, borderTop:'1px solid rgba(255,255,255,0.15)', paddingTop:16 },
-  dimRow:         { display:'flex', alignItems:'center', gap:8 },
-  dimName:        { fontSize:11, width:90, flexShrink:0 },
-  dimTrack:       { flex:1, height:5, background:'rgba(255,255,255,0.15)', borderRadius:3, overflow:'hidden' },
-  dimScore:       { fontSize:11, fontWeight:800, width:28, textAlign:'right' },
-  // DISC bars
-  discBars:       { display:'flex', gap:10, marginTop:16, borderTop:'1px solid rgba(255,255,255,0.15)', paddingTop:16 },
-  discBarCol:     { flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 },
-  discBarTrack:   { width:'100%', height:60, background:'rgba(255,255,255,0.15)', borderRadius:'4px 4px 0 0', position:'relative' },
-  discBarLabel:   { fontSize:14, fontWeight:800 },
-  discBarPct:     { fontSize:11, fontWeight:700 },
-  // CARD FOOTER
   cardCta:        { fontSize:11, textAlign:'center', marginTop:20, marginBottom:4, fontStyle:'italic' },
   cardUrl:        { fontSize:10, textAlign:'center', margin:0, letterSpacing:1 },
-  // INTERPRETACIÓN RICA
   richCard:       { background:'#fff', borderRadius:20, padding:'28px 24px', display:'flex', flexDirection:'column', gap:20 },
   richSection:    { display:'flex', flexDirection:'column', gap:10 },
   richTitle:      { fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:1.2, margin:'0 0 4px', fontFamily:"'Raleway', sans-serif" },
@@ -959,27 +1087,23 @@ const rs: Record<string, React.CSSProperties> = {
   richBullet:     { width:22, height:22, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, flexShrink:0, marginTop:1 },
   richText:       { fontSize:14, color:'#374151', lineHeight:1.75, margin:0 },
   notaClinica:    { fontSize:11, color:'#6b7280', lineHeight:1.5, margin:'4px 0 0', borderTop:'1px solid #f3f4f6', paddingTop:12 },
-  // FALLBACK
   interpBox:      { background:'#fff', borderRadius:16, padding:'20px 24px', border:'1px solid #eee' },
   interpText:     { fontSize:14, color:'#444', lineHeight:1.7, margin:0 },
   notaBox:        { background:'#FFF8E1', borderRadius:12, padding:'12px 16px', border:'1px solid #FFE082' },
   notaText:       { fontSize:12, color:'#795548', margin:0, lineHeight:1.5 },
   alertBox:       { background:'#FFEBEE', borderRadius:12, padding:'12px 16px', border:'1px solid #FFCDD2' },
   alertText:      { fontSize:12, color:'#B71C1C', margin:'2px 0' },
-  // SHARE
   shareSection:   { background:'white', borderRadius:16, padding:'20px' },
   shareSectionTitle:{ fontSize:12, color:'#666', textAlign:'center', margin:'0 0 12px', textTransform:'uppercase', letterSpacing:1 },
   shareBtns:      { display:'flex', gap:10 },
   whatsappBtn:    { flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'14px', borderRadius:12, border:'none', background:'#25D366', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' },
   shareBtn:       { flex:1, padding:'14px', borderRadius:12, fontSize:14, fontWeight:700, cursor:'pointer', transition:'all 0.2s' },
-  // CTA
   ctaSection:     { },
   ctaCard:        { background:'#1a1a1a', borderRadius:20, padding:'28px 24px', textAlign:'center' },
   ctaTitle:       { fontSize:18, fontWeight:800, color:'#fff', margin:'0 0 8px', fontFamily:"'Raleway', sans-serif" },
   ctaSubtitle:    { fontSize:13, color:'rgba(255,255,255,0.6)', margin:'0 0 20px', lineHeight:1.6 },
   ctaBtn:         { width:'100%', padding:'16px', borderRadius:12, background:'#fff', color:'#1a1a1a', border:'none', fontSize:15, fontWeight:800, cursor:'pointer', marginBottom:8, fontFamily:"'Raleway', sans-serif" },
   ctaSecondary:   { width:'100%', padding:'12px', borderRadius:12, background:'none', color:'rgba(255,255,255,0.5)', border:'1px solid rgba(255,255,255,0.2)', fontSize:13, cursor:'pointer' },
-  // FOOTER
   footer:         { textAlign:'center', paddingTop:8 },
   footerText:     { fontSize:11, color:'rgba(255,255,255,0.5)', margin:0, lineHeight:1.6 },
 };
