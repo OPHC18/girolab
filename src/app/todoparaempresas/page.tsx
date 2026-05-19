@@ -601,7 +601,7 @@ function PresentacionPDF({ data }: { data: FormData }) {
             {/* Columna derecha — fundador */}
             <div>
               <div style={{ width: '100%', aspectRatio: '1', borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(135deg,#d1fae5,#e8f5e9)', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="/omar-herrera.jpg" alt="Omar Herrera" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+                <img src={typeof window !== 'undefined' ? window.location.origin + '/omar-herrera.jpg' : '/omar-herrera.jpg'} alt="Omar Herrera" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
               </div>
               <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#f6fffe)', borderRadius: 14, padding: '18px 16px' }}>
@@ -627,7 +627,7 @@ function PresentacionPDF({ data }: { data: FormData }) {
             <div style={{ fontSize: 10, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 6 }}>Propuesta personalizada para {data.empresa}</div>
             <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: '#0f2318' }}>Servicios seleccionados</h2>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {SERVICIOS_RENDER.map(s => (
               <div key={s.titulo} style={{ background: 'white', borderRadius: 16, padding: '20px 22px', borderLeft: `4px solid ${s.color}`, boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16 }}>
                 <div>
@@ -755,14 +755,14 @@ async function saveLead(data: FormData): Promise<{ error: string | null }> {
 
 export default function TodoParaEmpresasPage() {
   const [submitted, setSubmitted] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState<FormData | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     document.title = 'Todo Para Empresas — TPE · Giro Lab'
-    if (submitted) setTimeout(() => window.print(), 800)
-  }, [submitted])
+  }, [])
 
   const handleSubmit = async (data: FormData) => {
     setSaving(true)
@@ -774,7 +774,13 @@ export default function TodoParaEmpresasPage() {
       return
     }
     setFormData(data)
+    setShowModal(true)
+  }
+
+  const handleDescargar = () => {
+    setShowModal(false)
     setSubmitted(true)
+    setTimeout(() => window.print(), 600)
   }
 
   if (submitted && formData) return <PresentacionPDF data={formData} />
@@ -1039,6 +1045,47 @@ export default function TodoParaEmpresasPage() {
         <LogoTPE dark />
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Una empresa de Giro Lab · girolab.net</div>
       </footer>
+
+      {/* MODAL GRACIAS */}
+      {showModal && formData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(7,26,16,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: 'white', borderRadius: 28, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', animation: 'scaleIn 0.4s ease both' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#0f4c35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 28, fontWeight: 900, color: '#0f2318', marginBottom: 12 }}>
+              ¡Gracias, {formData.nombre.split(' ')[0]}!
+            </h2>
+            <p style={{ fontSize: 15, color: '#6b7280', lineHeight: 1.7, marginBottom: 8 }}>
+              Recibimos tu solicitud para <strong style={{ color: '#0f2318' }}>{formData.empresa}</strong>.
+            </p>
+            <p style={{ fontSize: 15, color: '#6b7280', lineHeight: 1.7, marginBottom: 32 }}>
+              Pronto estaremos en contacto — normalmente en menos de 24 horas.
+            </p>
+            <button onClick={handleDescargar} style={{
+              width: '100%', padding: '16px', borderRadius: 50,
+              background: 'linear-gradient(135deg,#1D9E75,#0f4c35)',
+              color: 'white', fontWeight: 800, fontSize: 16,
+              border: 'none', cursor: 'pointer',
+              fontFamily: 'Raleway, sans-serif',
+              boxShadow: '0 6px 20px rgba(29,158,117,0.35)',
+              marginBottom: 12,
+            }}>
+              Descargar presentación PDF
+            </button>
+            <button onClick={() => setShowModal(false)} style={{
+              width: '100%', padding: '12px',
+              background: 'none', border: 'none',
+              fontSize: 13, color: '#9ca3af', cursor: 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+            }}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
