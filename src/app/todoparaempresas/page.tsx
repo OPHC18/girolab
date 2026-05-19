@@ -724,81 +724,195 @@ export default function TodoParaEmpresasPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        input:focus, textarea:focus { border-color: #1D9E75 !important; }
         input[type=number]::-webkit-inner-spin-button { opacity: 1; }
+
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(28px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.95) } to { opacity:1; transform:scale(1) } }
+        @keyframes slideRight { from { opacity:0; transform:translateX(-24px) } to { opacity:1; transform:translateX(0) } }
+
+        .anim-fadeup    { animation: fadeUp    0.7s ease both }
+        .anim-fadein    { animation: fadeIn    0.6s ease both }
+        .anim-scalein   { animation: scaleIn   0.55s ease both }
+        .anim-slideright{ animation: slideRight 0.6s ease both }
+        .d1 { animation-delay: 0.1s } .d2 { animation-delay: 0.2s }
+        .d3 { animation-delay: 0.3s } .d4 { animation-delay: 0.4s }
+        .d5 { animation-delay: 0.5s } .d6 { animation-delay: 0.65s }
+
+        .svc-card { transition: transform 0.22s ease, box-shadow 0.22s ease }
+        .svc-card:hover { transform: translateY(-5px); box-shadow: 0 16px 40px rgba(0,0,0,0.10) !important }
+
+        input:focus, textarea:focus {
+          border-color: #1D9E75 !important;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.15) !important;
+          outline: none;
+        }
+
+        .hist-line::before {
+          content: '';
+          position: absolute;
+          left: 19px; top: 0; bottom: 0;
+          width: 2px;
+          background: linear-gradient(to bottom, #1D9E75, #421869);
+        }
       `}</style>
 
       {/* NAV */}
-      <nav style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav className="anim-fadein" style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <LogoTPE />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Una empresa de</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <img src="/favicon.svg" alt="Giro Lab" style={{ width: 20, height: 20 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-            <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 13, color: '#421869' }}>Giro Lab</span>
-          </div>
+          <span style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 900, fontSize: 14, color: '#421869', letterSpacing: 0.5 }}>Giro Lab</span>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{ background: 'linear-gradient(160deg,#071a10,#0f2318,#071a10)', padding: '80px 40px 90px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(29,158,117,0.18),transparent)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
+      <div style={{ background: 'linear-gradient(160deg,#071a10,#0f2318,#071a10)', padding: '88px 40px 96px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle,rgba(29,158,117,0.15),transparent)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(66,24,105,0.2),transparent)', top: '-10%', right: '5%', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
-          <div style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 50, background: 'rgba(29,158,117,0.15)', border: '1px solid rgba(29,158,117,0.3)', fontSize: 12, color: '#6ee7b7', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 24 }}>
+          <div className="anim-fadeup d1" style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 50, background: 'rgba(29,158,117,0.15)', border: '1px solid rgba(29,158,117,0.3)', fontSize: 12, color: '#6ee7b7', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 24 }}>
             Coaching · Uniformes · Merchandising
           </div>
-          <h1 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 52, fontWeight: 900, lineHeight: 1.1, color: 'white', marginBottom: 20 }}>
+          <h1 className="anim-fadeup d2" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 52, fontWeight: 900, lineHeight: 1.1, color: 'white', marginBottom: 20 }}>
             Todo lo que tu empresa<br />
             <span style={{ background: 'linear-gradient(135deg,#6ee7b7,#1D9E75)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>necesita en un solo lugar.</span>
           </h1>
-          <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 40px' }}>
+          <p className="anim-fadeup d3" style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 48px' }}>
             Fortalecemos equipos, vestimos organizaciones y construimos identidad de marca — con metodología comprobada y calidad que se nota.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32 }}>
+          <div className="anim-fadeup d4" style={{ display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
             {STATS.map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Raleway, sans-serif', fontSize: 28, fontWeight: 900, color: 'white' }}>{s.valor}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{s.label}</div>
+                <div style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: 'white' }}>{s.valor}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4, letterSpacing: 0.5 }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* ── HISTORIA ── */}
+      <div style={{ background: 'white', borderBottom: '1px solid #e6f7f1', padding: '80px 40px' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+
+          {/* Texto izquierdo */}
+          <div className="anim-slideright">
+            <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 12 }}>Nuestra historia</div>
+            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', lineHeight: 1.15, marginBottom: 20 }}>
+              Nacimos desde adentro.<br />
+              <span style={{ color: '#1D9E75' }}>Crecimos hacia afuera.</span>
+            </h2>
+            <p style={{ fontSize: 15, color: '#4b5563', lineHeight: 1.8, marginBottom: 16 }}>
+              Todo comenzó con talleres de coaching para empresas. Trabajando con equipos, descubrimos que la transformación interna necesitaba un reflejo externo: equipos que se sienten bien también quieren <em>verse</em> bien.
+            </p>
+            <p style={{ fontSize: 15, color: '#4b5563', lineHeight: 1.8 }}>
+              Así nació <strong style={{ color: '#0f2318' }}>Todo Para Empresas</strong> — incorporando la línea de confección de uniformes para que las organizaciones luzcan con la misma coherencia que construyen internamente. Y luego el merchandising, porque la identidad de marca no termina en la puerta de la oficina.
+            </p>
+          </div>
+
+          {/* Timeline derecha */}
+          <div className="anim-fadeup d2">
+            <div className="hist-line" style={{ position: 'relative', paddingLeft: 52, display: 'flex', flexDirection: 'column', gap: 32 }}>
+              {[
+                {
+                  año: '2015',
+                  color: '#421869',
+                  titulo: 'El primer taller',
+                  desc: 'Empezamos acompañando equipos con coaching ontológico. La metodología funcionaba — los equipos cambiaban por dentro.',
+                },
+                {
+                  año: '2020',
+                  color: '#1D9E75',
+                  titulo: 'La primera prenda',
+                  desc: 'Vimos que los equipos transformados querían también verse cohesionados. Incorporamos confección de uniformes corporativos.',
+                },
+                {
+                  año: '2024',
+                  color: '#c97c00',
+                  titulo: 'La identidad completa',
+                  desc: 'Sumamos merchandising para cerrar el ciclo: marca que se vive, se viste y se comparte.',
+                },
+                {
+                  año: '2026',
+                  color: '#0f2318',
+                  titulo: 'Todo Para Empresas',
+                  desc: 'Una sola empresa. Tres verticales. El aliado integral que cada organización necesita.',
+                },
+              ].map((h, i) => (
+                <div key={i} style={{ position: 'relative', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: h.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 0 0 4px white, 0 0 0 5px ${h.color}40`, zIndex: 1 }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: 'white', fontFamily: 'Raleway, sans-serif' }}>{h.año.slice(2)}</span>
+                  </div>
+                  <div style={{ paddingTop: 8 }}>
+                    <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: h.color, fontWeight: 700, marginBottom: 3 }}>{h.año}</div>
+                    <div style={{ fontFamily: 'Raleway, sans-serif', fontWeight: 800, fontSize: 15, color: '#0f2318', marginBottom: 4 }}>{h.titulo}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>{h.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* SERVICIOS CARDS */}
-      <div style={{ padding: '72px 40px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+      <div style={{ padding: '80px 40px', maxWidth: 1100, margin: '0 auto' }}>
+        <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 52 }}>
           <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Nuestros servicios</div>
           <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 36, fontWeight: 900, color: '#0f2318' }}>Tres verticales, un solo aliado</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
           {[
             {
-              color: '#421869', icon: '🎯', titulo: 'Coaching & Bienestar',
+              color: '#421869',
+              icon: (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#421869" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1 .46-4.54A2.5 2.5 0 0 1 9.5 2Z"/>
+                  <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0-.46-4.54A2.5 2.5 0 0 0 14.5 2Z"/>
+                </svg>
+              ),
+              titulo: 'Coaching & Bienestar',
               desc: 'Talleres vivenciales, teambuilding, habilidades blandas, liderazgo, Danza Primal y programas a medida para tu equipo.',
               items: ['Talleres Outdoor & Indoor', 'Teambuilding', 'Habilidades Blandas', 'Negociación y Ventas', 'Danza Primal'],
             },
             {
-              color: '#1D9E75', icon: '👔', titulo: 'Uniformes y Confección',
+              color: '#1D9E75',
+              icon: (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+                </svg>
+              ),
+              titulo: 'Uniformes y Confección',
               desc: 'Prendas corporativas de calidad con tu identidad de marca: desde polos hasta overoles, con bordados y serigrafía.',
               items: ['Polos y Camisas', 'Pantalones y Casacas', 'Gorros y Accesorios', 'Bordados y Serigrafía', 'Entregas garantizadas'],
             },
             {
-              color: '#c97c00', icon: '🎁', titulo: 'Merchandising Corporativo',
+              color: '#c97c00',
+              icon: (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c97c00" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 12 20 22 4 22 4 12"/>
+                  <rect x="2" y="7" width="20" height="5"/>
+                  <line x1="12" y1="22" x2="12" y2="7"/>
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                </svg>
+              ),
+              titulo: 'Merchandising Corporativo',
               desc: 'Productos de marca para eventos, clientes y colaboradores: desde libretas hasta tecnología personalizada con tu logo.',
               items: ['Papelería corporativa', 'Artículos de escritorio', 'Bolsas y empaques eco', 'Tecnología con logo', 'Kits de bienvenida'],
             },
-          ].map(s => (
-            <div key={s.titulo} style={{ background: 'white', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}>
-              <div style={{ height: 6, background: s.color }} />
+          ].map((s, idx) => (
+            <div key={s.titulo} className={`svc-card anim-scalein d${idx + 2}`} style={{ background: 'white', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}>
+              <div style={{ height: 4, background: s.color }} />
               <div style={{ padding: '28px 24px' }}>
-                <div style={{ fontSize: 36, marginBottom: 14 }}>{s.icon}</div>
+                <div style={{ marginBottom: 16 }}>{s.icon}</div>
                 <h3 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 19, fontWeight: 900, color: '#0f2318', marginBottom: 10 }}>{s.titulo}</h3>
                 <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, marginBottom: 18 }}>{s.desc}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {s.items.map(item => (
                     <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#374151' }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                       {item}
                     </div>
                   ))}
@@ -809,23 +923,54 @@ export default function TodoParaEmpresasPage() {
         </div>
       </div>
 
+      {/* CLIENTES */}
+      <div style={{ background: 'white', borderTop: '1px solid #e6f7f1', borderBottom: '1px solid #e6f7f1', padding: '72px 40px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 40 }}>
+            <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Confían en nosotros</div>
+            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: '#0f2318' }}>Más de 50 organizaciones transformadas</h2>
+          </div>
+          <div className="anim-fadeup d2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 14 }}>
+            {Array.from({ length: 23 }, (_, i) => (
+              <div key={i} style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 72, border: '1px solid #d1fae5', transition: 'border-color 0.2s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#1D9E75'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#d1fae5'}>
+                <img src={`/clientes/logo-${i + 1}.png`} alt={`Cliente ${i + 1}`}
+                  style={{ maxWidth: '100%', maxHeight: 40, objectFit: 'contain' }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.background = '#e6f7f1' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* FORMULARIO */}
-      <div style={{ background: 'white', borderTop: '1px solid #d1fae5', padding: '72px 40px' }} id="cotizar">
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+      <div style={{ background: 'linear-gradient(180deg,#f0fdf4 0%,#e6f7f1 100%)', borderTop: '1px solid #d1fae5', padding: '80px 40px' }} id="cotizar">
+        <div style={{ maxWidth: 660, margin: '0 auto' }}>
+          <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Cotiza ahora</div>
             <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', marginBottom: 12 }}>Recibe tu propuesta personalizada</h2>
             <p style={{ fontSize: 15, color: '#6b7280', lineHeight: 1.7 }}>Completa el formulario y al terminar descargas tu presentación corporativa en PDF.</p>
           </div>
-          {saveError && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 24, color: '#b91c1c', fontSize: 14 }}>
-              {saveError}
-            </div>
-          )}
-          <FormularioSection
-            onSubmit={handleSubmit}
-            saving={saving}
-          />
+
+          {/* Card contenedor del formulario */}
+          <div className="anim-scalein d2" style={{
+            background: 'white',
+            borderRadius: 24,
+            padding: '40px 40px 36px',
+            boxShadow: '0 8px 40px rgba(15,67,53,0.10), 0 2px 8px rgba(0,0,0,0.04)',
+            border: '1px solid #c6f0e2',
+          }}>
+            {saveError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 24, color: '#b91c1c', fontSize: 14 }}>
+                {saveError}
+              </div>
+            )}
+            <FormularioSection
+              onSubmit={handleSubmit}
+              saving={saving}
+            />
+          </div>
         </div>
       </div>
 
