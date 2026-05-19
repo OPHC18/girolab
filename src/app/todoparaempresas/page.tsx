@@ -85,6 +85,8 @@ function FormularioSection({ onSubmit, saving }: { onSubmit: (data: FormData) =>
     merchandising: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [otrosPrendas, setOtrosPrendas] = useState<{ nombre: string; cantidad: number }[]>([])
+  const [nuevaPrenda, setNuevaPrenda] = useState('')
 
   const toggleServicio = (s: Servicio) => {
     setForm(f => ({
@@ -286,6 +288,64 @@ function FormularioSection({ onSubmit, saving }: { onSubmit: (data: FormData) =>
                   </div>
                 </div>
               ))}
+
+              {/* Prendas extra agregadas por el usuario */}
+              {otrosPrendas.map((p, idx) => (
+                <div key={`extra-${idx}`} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 16px', borderRadius: 10,
+                  background: p.cantidad > 0 ? '#f0fdf4' : '#f9fafb',
+                  border: `1.5px solid ${p.cantidad > 0 ? '#1D9E75' : '#e5e7eb'}`,
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <input
+                      value={p.nombre}
+                      onChange={e => setOtrosPrendas(prev => prev.map((x, i) => i === idx ? { ...x, nombre: e.target.value } : x))}
+                      placeholder="Nombre de la prenda"
+                      style={{ flex: 1, padding: '4px 10px', borderRadius: 8, border: '1.5px solid #d1fae5', fontSize: 14, fontFamily: 'DM Sans, sans-serif', background: 'transparent', color: '#0f2318', outline: 'none' }}
+                    />
+                    <button onClick={() => setOtrosPrendas(prev => prev.filter((_, i) => i !== idx))}
+                      style={{ fontSize: 14, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}>✕</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 12 }}>
+                    <button onClick={() => setOtrosPrendas(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: Math.max(0, x.cantidad - 10) } : x))}
+                      style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #d1d5db', background: 'white', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
+                    <input type="number" value={p.cantidad === 0 ? '' : p.cantidad} min={0}
+                      onChange={e => setOtrosPrendas(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: parseInt(e.target.value) || 0 } : x))}
+                      placeholder="0"
+                      style={{ width: 64, textAlign: 'center', padding: '4px 8px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, fontFamily: 'DM Sans, sans-serif' }} />
+                    <button onClick={() => setOtrosPrendas(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: x.cantidad + 10 } : x))}
+                      style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #1D9E75', background: '#1D9E75', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>+</button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Agregar prenda personalizada */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <input
+                  value={nuevaPrenda}
+                  onChange={e => setNuevaPrenda(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && nuevaPrenda.trim()) {
+                      setOtrosPrendas(prev => [...prev, { nombre: nuevaPrenda.trim(), cantidad: 0 }])
+                      setNuevaPrenda('')
+                    }
+                  }}
+                  placeholder="Otra prenda (ej: Chaqueta, Corbata...)"
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #d1fae5', background: '#f9fafb', fontSize: 13, fontFamily: 'DM Sans, sans-serif', color: '#0f2318', outline: 'none' }}
+                />
+                <button
+                  onClick={() => {
+                    if (nuevaPrenda.trim()) {
+                      setOtrosPrendas(prev => [...prev, { nombre: nuevaPrenda.trim(), cantidad: 0 }])
+                      setNuevaPrenda('')
+                    }
+                  }}
+                  style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid #1D9E75', background: 'white', color: '#1D9E75', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  + Agregar
+                </button>
+              </div>
             </div>
           </div>
         )
