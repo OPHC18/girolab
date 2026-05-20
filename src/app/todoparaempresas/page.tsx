@@ -852,7 +852,7 @@ export default function TodoParaEmpresasPage() {
       `}</style>
 
       {/* NAV */}
-      <nav className="anim-fadein" className="nav-pad" style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav className="anim-fadein nav-pad" style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <LogoTPE />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Una empresa de</span>
