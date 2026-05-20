@@ -162,7 +162,7 @@ function FormularioSection({ onSubmit, saving }: { onSubmit: (data: FormData) =>
             <h3 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 26, fontWeight: 900, color: '#0f2318', marginBottom: 6 }}>Cuéntanos sobre ti</h3>
             <p style={{ color: '#6b7280', fontSize: 14 }}>Te contactaremos para coordinar los detalles.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {[
               { key: 'nombre', label: 'Tu nombre completo', type: 'text', placeholder: 'Ana García' },
               { key: 'empresa', label: 'Empresa u organización', type: 'text', placeholder: 'Empresa SAC' },
@@ -821,10 +821,38 @@ export default function TodoParaEmpresasPage() {
           width: 2px;
           background: linear-gradient(to bottom, #1D9E75, #421869);
         }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+          .hero-title { font-size: 32px !important; }
+          .hero-pad   { padding: 56px 20px 64px !important; }
+          .hero-stats { gap: 20px !important; }
+          .hero-badge { font-size: 10px !important; letter-spacing: 1px !important; }
+
+          .hist-section { padding: 48px 20px !important; }
+          .hist-grid    { grid-template-columns: 1fr !important; gap: 36px !important; }
+          .hist-title   { font-size: 26px !important; }
+
+          .svc-section  { padding: 48px 20px !important; }
+          .svc-title    { font-size: 26px !important; }
+          .svc-grid     { grid-template-columns: 1fr !important; }
+
+          .cli-section  { padding: 48px 20px !important; }
+          .cli-title    { font-size: 22px !important; }
+          .cli-grid     { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important; gap: 10px !important; }
+
+          .form-section { padding: 48px 20px !important; }
+          .form-title   { font-size: 24px !important; }
+          .form-card    { padding: 24px 20px 20px !important; border-radius: 16px !important; }
+          .form-grid    { grid-template-columns: 1fr !important; }
+
+          .nav-pad      { padding: 0 20px !important; }
+          .footer-pad   { padding: 24px 20px !important; flex-direction: column !important; gap: 8px !important; text-align: center !important; }
+        }
       `}</style>
 
       {/* NAV */}
-      <nav className="anim-fadein" style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav className="anim-fadein" className="nav-pad" style={{ background: 'white', borderBottom: '1px solid #d1fae5', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <LogoTPE />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Una empresa de</span>
@@ -833,21 +861,21 @@ export default function TodoParaEmpresasPage() {
       </nav>
 
       {/* HERO */}
-      <div style={{ background: 'linear-gradient(160deg,#071a10,#0f2318,#071a10)', padding: '88px 40px 96px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div className="hero-pad" style={{ background: 'linear-gradient(160deg,#071a10,#0f2318,#071a10)', padding: '88px 40px 96px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle,rgba(29,158,117,0.15),transparent)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(66,24,105,0.2),transparent)', top: '-10%', right: '5%', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
-          <div className="anim-fadeup d1" style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 50, background: 'rgba(29,158,117,0.15)', border: '1px solid rgba(29,158,117,0.3)', fontSize: 12, color: '#6ee7b7', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 24 }}>
+          <div className="anim-fadeup d1 hero-badge" style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 50, background: 'rgba(29,158,117,0.15)', border: '1px solid rgba(29,158,117,0.3)', fontSize: 12, color: '#6ee7b7', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 24 }}>
             Coaching · Uniformes · Merchandising
           </div>
-          <h1 className="anim-fadeup d2" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 52, fontWeight: 900, lineHeight: 1.1, color: 'white', marginBottom: 20 }}>
+          <h1 className="anim-fadeup d2 hero-title" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 52, fontWeight: 900, lineHeight: 1.1, color: 'white', marginBottom: 20 }}>
             Todo lo que tu empresa<br />
             <span style={{ background: 'linear-gradient(135deg,#6ee7b7,#1D9E75)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>necesita en un solo lugar.</span>
           </h1>
           <p className="anim-fadeup d3" style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 48px' }}>
             Fortalecemos equipos, vestimos organizaciones y construimos identidad de marca — con metodología comprobada y calidad que se nota.
           </p>
-          <div className="anim-fadeup d4" style={{ display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
+          <div className="anim-fadeup d4 hero-stats" style={{ display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
             {STATS.map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: 'white' }}>{s.valor}</div>
@@ -859,13 +887,13 @@ export default function TodoParaEmpresasPage() {
       </div>
 
       {/* ── HISTORIA ── */}
-      <div style={{ background: 'white', borderBottom: '1px solid #e6f7f1', padding: '80px 40px' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+      <div className="hist-section" style={{ background: 'white', borderBottom: '1px solid #e6f7f1', padding: '80px 40px' }}>
+        <div className="hist-grid" style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
 
           {/* Texto izquierdo */}
           <div className="anim-slideright">
             <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 12 }}>Nuestra historia</div>
-            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', lineHeight: 1.15, marginBottom: 20 }}>
+            <h2 className="hist-title" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', lineHeight: 1.15, marginBottom: 20 }}>
               Nacimos desde adentro.<br />
               <span style={{ color: '#1D9E75' }}>Crecimos hacia afuera.</span>
             </h2>
@@ -923,12 +951,12 @@ export default function TodoParaEmpresasPage() {
       </div>
 
       {/* SERVICIOS CARDS */}
-      <div style={{ padding: '80px 40px', maxWidth: 1100, margin: '0 auto' }}>
+      <div className="svc-section" style={{ padding: '80px 40px', maxWidth: 1100, margin: '0 auto' }}>
         <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 52 }}>
           <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Nuestros servicios</div>
-          <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 36, fontWeight: 900, color: '#0f2318' }}>Tres verticales, un solo aliado</h2>
+          <h2 className="svc-title" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 36, fontWeight: 900, color: '#0f2318' }}>Tres verticales, un solo aliado</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
+        <div className="svc-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
           {[
             {
               color: '#421869',
@@ -990,13 +1018,13 @@ export default function TodoParaEmpresasPage() {
       </div>
 
       {/* CLIENTES */}
-      <div style={{ background: 'white', borderTop: '1px solid #e6f7f1', borderBottom: '1px solid #e6f7f1', padding: '72px 40px' }}>
+      <div className="cli-section" style={{ background: 'white', borderTop: '1px solid #e6f7f1', borderBottom: '1px solid #e6f7f1', padding: '72px 40px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Confían en nosotros</div>
-            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: '#0f2318' }}>Más de 50 organizaciones transformadas</h2>
+            <h2 className="cli-title" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 30, fontWeight: 900, color: '#0f2318' }}>Más de 50 organizaciones transformadas</h2>
           </div>
-          <div className="anim-fadeup d2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 14 }}>
+          <div className="anim-fadeup d2 cli-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 14 }}>
             {Array.from({ length: 23 }, (_, i) => (
               <div key={i} style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 72, border: '1px solid #d1fae5', transition: 'border-color 0.2s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#1D9E75'}
@@ -1011,16 +1039,16 @@ export default function TodoParaEmpresasPage() {
       </div>
 
       {/* FORMULARIO */}
-      <div style={{ background: 'linear-gradient(180deg,#f0fdf4 0%,#e6f7f1 100%)', borderTop: '1px solid #d1fae5', padding: '80px 40px' }} id="cotizar">
+      <div className="form-section" style={{ background: 'linear-gradient(180deg,#f0fdf4 0%,#e6f7f1 100%)', borderTop: '1px solid #d1fae5', padding: '80px 40px' }} id="cotizar">
         <div style={{ maxWidth: 660, margin: '0 auto' }}>
           <div className="anim-fadeup" style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ fontSize: 11, letterSpacing: 4, textTransform: 'uppercase', color: '#1D9E75', fontWeight: 700, marginBottom: 10 }}>Cotiza ahora</div>
-            <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', marginBottom: 12 }}>Recibe tu propuesta personalizada</h2>
+            <h2 className="form-title" style={{ fontFamily: 'Raleway, sans-serif', fontSize: 34, fontWeight: 900, color: '#0f2318', marginBottom: 12 }}>Recibe tu propuesta personalizada</h2>
             <p style={{ fontSize: 15, color: '#6b7280', lineHeight: 1.7 }}>Completa el formulario y al terminar descargas tu presentación corporativa en PDF.</p>
           </div>
 
           {/* Card contenedor del formulario */}
-          <div className="anim-scalein d2" style={{
+          <div className="anim-scalein d2 form-card" style={{
             background: 'white',
             borderRadius: 24,
             padding: '40px 40px 36px',
@@ -1041,7 +1069,7 @@ export default function TodoParaEmpresasPage() {
       </div>
 
       {/* FOOTER */}
-      <footer style={{ background: '#071a10', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <footer className="footer-pad" style={{ background: '#071a10', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <LogoTPE dark />
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Una empresa de Giro Lab · girolab.net</div>
       </footer>
