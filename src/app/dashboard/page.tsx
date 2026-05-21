@@ -7563,7 +7563,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
               <div onClick={e => e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#421869', borderRadius:14, overflow:'hidden', border:'1px solid rgba(255,255,255,0.2)', minWidth:230, zIndex:200, boxShadow:'0 8px 28px rgba(0,0,0,0.35)' }}>
                 {[
                   { label:'Ir a Comunidad', action:() => { setHeaderMenuOpen(false); router.push('/comunidad') } },
-                  { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const p = (window as any)._deferredInstallPrompt; if (p) { p.prompt() } else { alert('Tu navegador no soporta instalar la app en este momento. En Chrome, usa el menú ⋮ → "Instalar app".') } } },
+                  { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent); const p = (window as any)._deferredInstallPrompt; if (isIOS) { alert('En Safari: toca el botón Compartir ↑ (cuadrado con flecha) y luego "Añadir a pantalla de inicio".') } else if (p) { p.prompt() } else { alert('En Chrome, abre el menú ⋮ y selecciona "Instalar app".') } } },
                   { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
                   { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
                 ].map(({ label, action }) => (
@@ -7622,7 +7622,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
                 <div onClick={e => e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#421869', borderRadius:14, overflow:'hidden', border:'1px solid rgba(255,255,255,0.2)', minWidth:230, zIndex:200, boxShadow:'0 8px 28px rgba(0,0,0,0.35)' }}>
                   {[
                     { label:'Ir a Comunidad', action:() => { setHeaderMenuOpen(false); router.push('/comunidad') } },
-                    { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const p = (window as any)._deferredInstallPrompt; if (p) { p.prompt() } else { alert('Tu navegador no soporta instalar la app en este momento. En Chrome, usa el menú ⋮ → "Instalar app".') } } },
+                    { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent); const p = (window as any)._deferredInstallPrompt; if (isIOS) { alert('En Safari: toca el botón Compartir ↑ (cuadrado con flecha) y luego "Añadir a pantalla de inicio".') } else if (p) { p.prompt() } else { alert('En Chrome, abre el menú ⋮ y selecciona "Instalar app".') } } },
                     { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
                     { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
                   ].map(({ label, action }) => (

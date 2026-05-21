@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { UpdateBanner } from "@/components/UpdateBanner";
@@ -8,6 +8,13 @@ import PromoModal from "@/components/PromoModal";
 import PWASetup from "@/components/PWASetup";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#421869',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -74,6 +81,10 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
+        {/* iOS PWA */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Giro Lab" />
         {/* Google Fonts — preconnect + link (no @import = no render-block) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
