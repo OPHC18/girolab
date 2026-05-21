@@ -1614,6 +1614,7 @@ await fetch('/api/auth/send-verification', {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file || !user) return
+    if (file.size > 5 * 1024 * 1024) { alert('La imagen no puede superar 5 MB'); return }
     setAvatarUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${user.id}/avatar.${ext}`
@@ -1622,6 +1623,8 @@ await fetch('/api/auth/send-verification', {
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
       setAvatarUrl(data.publicUrl + '?t=' + Date.now())
       await supabase.auth.updateUser({ data: { ...meta, avatar_url: data.publicUrl } })
+    } else {
+      alert('Error al subir la imagen: ' + (error.message || 'intenta de nuevo'))
     }
     setAvatarUploading(false)
   }
@@ -1868,6 +1871,7 @@ const fetchFeaturedMenters = async () => {
   type TourStep = { icon: IconKey; tab?: TabId; title: string; desc: string }
   const tourSteps: TourStep[] = isMenter ? [
     { icon: 'perfil',      title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar. Te mostramos las secciones clave para que puedas sacarle el máximo provecho desde el primer día.' },
+    { icon: 'comunidad',   title: 'Menú de navegación (☰)', desc: 'El ícono ☰ en la esquina superior derecha abre el menú rápido: volver a Comunidad, crear acceso directo (instalar la app), atención al cliente y cerrar sesión.' },
     { icon: 'destacados',  tab: 'perfil-pro',   title: 'Perfil Pro', desc: 'Configura tu perfil profesional: especialidades, precios, disponibilidad y enlaces. Este es el perfil que verán tus futuros clientes.' },
     { icon: 'citas',       tab: 'citas',         title: 'Agenda', desc: 'Aquí gestionas las solicitudes de cita de tus clientes: confirma, rechaza o reprograma sesiones. Las solicitudes pendientes aparecen con una notificación.' },
     { icon: 'roadmap',     tab: 'roadmap',       title: 'Roadmap', desc: 'Diseña y monitorea la ruta de bienestar de cada uno de tus clientes. Agrega objetivos e hitos para llevar un seguimiento claro del progreso.' },
@@ -1876,6 +1880,7 @@ const fetchFeaturedMenters = async () => {
     { icon: 'membresia',   tab: 'membresia',     title: '¡Elige tu plan y despega!', desc: 'Los planes Starter y Premium desbloquean instrumentos de evaluación, reportes de ingresos y más herramientas para hacer crecer tu práctica. ¡Comienza hoy!' },
   ] : meta?.role === 'empresa' ? [
     { icon: 'directorio',     title: '¡Bienvenido a Giro Lab!', desc: 'Esta es tu plataforma de bienestar organizacional. Te mostramos las secciones clave para que tu equipo empiece a transformarse.' },
+    { icon: 'comunidad',      title: 'Menú de navegación (☰)', desc: 'El ícono ☰ en la esquina superior derecha abre el menú rápido: volver a Comunidad, crear acceso directo (instalar la app), atención al cliente y cerrar sesión.' },
     { icon: 'perfil',         tab: 'perfil',               title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar la información de tu cuenta. Agrega una foto, completa tus datos y mantén tu perfil al día.' },
     { icon: 'citas',          tab: 'mis-citas',             title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones o cancelar con anticipación.' },
     { icon: 'roadmap',        tab: 'objetivos',             title: 'Objetivos Empresariales', desc: 'Define los objetivos de bienestar de tu organización, asigna colaboradores y Menters, y monitorea el avance con hitos medibles.' },
@@ -1884,6 +1889,7 @@ const fetchFeaturedMenters = async () => {
     { icon: 'directorio',     tab: 'destacados',            title: '¡Encuentra a tu Menter ideal!', desc: 'Explora el directorio de profesionales de bienestar validados. Filtra por especialidad, precio o país y agenda la primera sesión para tu equipo hoy mismo.' },
   ] : [
     { icon: 'directorio',    title: '¡Bienvenido a Giro Lab!', desc: 'Tu espacio de bienestar personal. Te mostramos las secciones clave para que comiences tu camino hacia el bienestar.' },
+    { icon: 'comunidad',     title: 'Menú de navegación (☰)', desc: 'El ícono ☰ en la esquina superior derecha abre el menú rápido: volver a Comunidad, crear acceso directo (instalar la app), atención al cliente y cerrar sesión.' },
     { icon: 'perfil',        tab: 'perfil',            title: 'Mi Perfil', desc: 'Aquí puedes ver y personalizar tu información. Agrega una foto, revisa tus insignias y accede rápidamente a tus datos.' },
     { icon: 'citas',         tab: 'mis-citas',         title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones y dejar reseñas.' },
     { icon: 'roadmap',       tab: 'roadmap',           title: 'Mi Ruta de Bienestar', desc: 'Tu Menter diseña aquí tu plan personalizado. Sigue el progreso de tus objetivos e hitos semana a semana.' },
@@ -4403,7 +4409,7 @@ const renderIngresos = () => {
           </div>
           <label style={{ position: 'absolute', bottom: 0, right: 0, background: '#ffa719', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white' }}>
             {avatarUploading ? <span style={{ fontSize: 12 }}>...</span> : <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, fill: '#2d2926' }}><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+            <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
           </label>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flex: 1, flexWrap: 'wrap', gap: 12 }}>
@@ -7604,7 +7610,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
           </div>
         </div>
         <main className="giro-main-panel" style={{ marginLeft:110, padding:'40px 40px 100px 40px', position:'relative', zIndex:10, maxWidth:1200 }}>
-          <div className="giro-desktop-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:30 }}>
+          <div className="giro-desktop-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:30, paddingRight:110 }}>
             <h1 style={{ fontFamily:'Raleway, sans-serif', fontWeight:900, fontSize:'2.5rem', color:'white', lineHeight:1.2, margin:0 }}>
               Hola, <span style={{ color:'#ffa719' }}>{firstName}</span>
             </h1>
