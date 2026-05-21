@@ -139,11 +139,9 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
     <div style={s.page}>
       {/* ── HEADER ── */}
       <header style={s.header}>
-        <button style={s.backBtn} onClick={handleBack} aria-label="Atrás">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
+        <div style={s.logoWrap}>
+          <DotLottieReact src="https://lottie.host/fc37eb39-3bb0-41db-b866-99ac7449ef1d/rpkq6ZVATl.lottie" autoplay loop style={{ width: 40, height: 40 }} />
+        </div>
 
         <div style={s.logoWrap}>
           <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 36, height: 36 }} />
@@ -250,7 +248,7 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
         </div>
       </main>
 
-      {/* ── FOOTER: botón Siguiente ── */}
+      {/* ── FOOTER: botones Regresar + Siguiente ── */}
       <footer style={s.footer}>
         {/* Dots de progreso (solo para tests cortos ≤15 ítems) */}
         {totalItems <= 15 && (
@@ -273,20 +271,29 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
           </div>
         )}
 
-        <button
-          style={{
-            ...s.nextBtn,
-            background: (selected !== null || npiChoice !== null) ? config.color : '#E0E0DA',
-            cursor:     (selected !== null || npiChoice !== null) ? 'pointer' : 'default',
-          }}
-          disabled={selected === null && npiChoice === null}
-          onClick={handleNext}
-        >
-          {isLast ? 'Ver mi resultado' : 'Siguiente'}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </button>
+        <div style={s.btnRow}>
+          <button style={s.backBtnFooter} onClick={handleBack}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Regresar
+          </button>
+
+          <button
+            style={{
+              ...s.nextBtn,
+              background: (selected !== null || npiChoice !== null) ? config.color : '#E0E0DA',
+              cursor:     (selected !== null || npiChoice !== null) ? 'pointer' : 'default',
+            }}
+            disabled={selected === null && npiChoice === null}
+            onClick={handleNext}
+          >
+            {isLast ? 'Ver resultado' : 'Siguiente'}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
 
         <p style={s.footerHint}>
           {selected !== null || npiChoice !== null
@@ -349,19 +356,6 @@ const s: Record<string, React.CSSProperties> = {
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     zIndex: 20,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    border: 'none',
-    background: '#421869',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff',
-    flexShrink: 0,
   },
   logoWrap: {
     display: 'flex',
@@ -561,14 +555,35 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 99,
     transition: 'all 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
   },
-  nextBtn: {
+  btnRow: {
+    display: 'flex',
+    gap: 10,
     width: '100%',
     maxWidth: 400,
-    padding: '16px 24px',
+  },
+  backBtnFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '14px 18px',
+    borderRadius: 16,
+    border: '1.5px solid #E0E0DA',
+    background: '#fff',
+    color: '#555',
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer',
+    flexShrink: 0,
+    fontFamily: "'DM Sans', system-ui, sans-serif",
+    transition: 'background 0.2s ease',
+  },
+  nextBtn: {
+    flex: 1,
+    padding: '14px 20px',
     borderRadius: 16,
     border: 'none',
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 700,
     display: 'flex',
     alignItems: 'center',
