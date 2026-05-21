@@ -1833,8 +1833,9 @@ const fetchFeaturedMenters = async () => {
     { id: 'roadmap',    icon: 'roadmap',    label: 'Mi Ruta'     },
     ...(meta?.role === 'empresa'
       ? [
-          { id: 'objetivos' as TabId,            icon: 'roadmap'        as IconKey, label: 'Objetivos'    },
-          { id: 'instrumentos_empresa' as TabId, icon: 'instrumentos'   as IconKey, label: 'Instrumentos' },
+          { id: 'objetivos' as TabId,            icon: 'roadmap'        as IconKey, label: 'Objetivos'      },
+          { id: 'instrumentos_empresa' as TabId, icon: 'instrumentos'   as IconKey, label: 'Instrumentos'   },
+          { id: 'resultados_tests' as TabId,     icon: 'resultados'     as IconKey, label: 'Mis Resultados' },
         ]
       : [{ id: 'resultados_tests' as TabId,      icon: 'resultados'     as IconKey, label: 'Mis Resultados' }]),
     { id: 'destacados', icon: 'directorio', label: 'Menters'     },
@@ -1861,6 +1862,7 @@ const fetchFeaturedMenters = async () => {
     { icon: 'citas',          tab: 'mis-citas',             title: 'Mis Citas', desc: 'Consulta y gestiona tus sesiones con Menters. Puedes ver el historial, solicitar reprogramaciones o cancelar con anticipación.' },
     { icon: 'roadmap',        tab: 'objetivos',             title: 'Objetivos Empresariales', desc: 'Define los objetivos de bienestar de tu organización, asigna colaboradores y Menters, y monitorea el avance con hitos medibles.' },
     { icon: 'instrumentos',   tab: 'instrumentos_empresa',  title: 'Instrumentos', desc: 'Aplica evaluaciones psicológicas validadas a tu equipo para medir clima laboral, inteligencia emocional y otras dimensiones.' },
+    { icon: 'resultados',     tab: 'resultados_tests',      title: 'Mis Resultados', desc: 'Consulta los resultados de los tests que tú mismo hayas completado. Son una guía de autoconocimiento para tu proceso personal.' },
     { icon: 'directorio',     tab: 'destacados',            title: '¡Encuentra a tu Menter ideal!', desc: 'Explora el directorio de profesionales de bienestar validados. Filtra por especialidad, precio o país y agenda la primera sesión para tu equipo hoy mismo.' },
   ] : [
     { icon: 'directorio',    title: '¡Bienvenido a Giro Lab!', desc: 'Tu espacio de bienestar personal. Te mostramos las secciones clave para que comiences tu camino hacia el bienestar.' },
