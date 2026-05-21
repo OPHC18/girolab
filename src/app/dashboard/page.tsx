@@ -1371,22 +1371,20 @@ if (missingFields.nombre || missingFields.apellidos) {
 
       setLoading(false)
 
-      // Vincular resultado de test anónimo al usuario recién registrado
-const pendingTestToken = typeof window !== 'undefined' && localStorage.getItem('pendingTestToken')
-if (pendingTestToken) {
-  try {
-    const { data: { session: authSession } } = await supabase.auth.getSession()
-    const res = await fetch('/api/assessment/link-result', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authSession?.access_token}`,
-      },
-      body: JSON.stringify({ session_token: pendingTestToken }),
-    })
-    if (res.ok) localStorage.removeItem('pendingTestToken')
-  } catch { /* non-critical */ }
-}
+      // Vincular resultados de tests anónimos al usuario (por token o por email)
+      try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        const pendingTestToken = typeof window !== 'undefined' && localStorage.getItem('pendingTestToken')
+        const res = await fetch('/api/assessment/link-result', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authSession?.access_token}`,
+          },
+          body: JSON.stringify({ session_token: pendingTestToken || null }),
+        })
+        if (res.ok && pendingTestToken) localStorage.removeItem('pendingTestToken')
+      } catch { /* non-critical */ }
 
       // Welcome email pendiente (registro con email — diferido hasta tener sesión activa)
       const pendingRaw = typeof window !== 'undefined' && localStorage.getItem('pendingWelcomeEmail')

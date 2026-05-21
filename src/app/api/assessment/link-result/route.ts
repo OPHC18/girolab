@@ -14,21 +14,40 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { session_token } = await req.json()
-  if (!session_token) return NextResponse.json({ error: 'Missing session_token' }, { status: 400 })
 
-  const { data: session } = await admin
-    .from('assessment_sessions')
-    .select('id')
-    .eq('session_token', session_token)
-    .single()
+  // 1. Vincular por session_token (flujo desde botón en resultado)
+  if (session_token) {
+    const { data: session } = await admin
+      .from('assessment_sessions')
+      .select('id')
+      .eq('session_token', session_token)
+      .single()
 
-  if (!session?.id) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    if (session?.id) {
+      await admin
+        .from('assessment_results')
+        .update({ persona_id: user.id })
+        .eq('session_id', session.id)
+        .is('persona_id', null)
+    }
+  }
 
-  await admin
-    .from('assessment_results')
-    .update({ persona_id: user.id })
-    .eq('session_id', session.id)
-    .is('persona_id', null)
+  // 2. Vincular por email (flujo donde el usuario se registró por otra ruta)
+  if (user.email) {
+    const { data: sessions } = await admin
+      .from('assessment_sessions')
+      .select('id')
+      .eq('email', user.email)
+
+    if (sessions?.length) {
+      const sessionIds = sessions.map(s => s.id)
+      await admin
+        .from('assessment_results')
+        .update({ persona_id: user.id })
+        .in('session_id', sessionIds)
+        .is('persona_id', null)
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }
