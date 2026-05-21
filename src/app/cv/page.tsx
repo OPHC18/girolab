@@ -530,7 +530,7 @@ export default function CVPage() {
               <div style={{ width:0,height:2,background:orange,margin:'14px 0 28px',animation:'lineG .8s ease both' }} />
               {/* Anillos directamente sobre blanco */}
               <div ref={toolsRef} className="rg" style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:20,justifyItems:'center' }}>
-                {HERRAMIENTAS.map((h,i) => <Ring key={h.nombre} pct={h.pct} label={h.nombre} size={78} stroke={6} dark={false} inView={toolsInView} delay={i*.08} />)}
+                {HERRAMIENTAS.map((h,i) => <Ring key={h.nombre} pct={h.pct} label={h.nombre} size={78} stroke={6} inView={toolsInView} delay={i*.08} />)}
               </div>
             </div>
 
