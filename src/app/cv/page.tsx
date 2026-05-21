@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import type { jsPDF as jsPDFType } from 'jspdf'
 
 const HERRAMIENTAS = [
   { nombre: 'Office', pct: 98 }, { nombre: 'Prezi', pct: 99 },
@@ -74,30 +75,36 @@ function useCounter(target: number, inView: boolean) {
 }
 
 // ─── RING (sin contenedor azul) ─────────────────────────────────────────────
-function Ring({ pct, label, size = 90, stroke = 7, dark = false, inView = false, delay = 0 }: {
-  pct: number; label: string; size?: number; stroke?: number; dark?: boolean; inView?: boolean; delay?: number
+function Ring({ pct, label, size = 90, stroke = 7, inView = false, delay = 0 }: {
+  pct: number; label: string; size?: number; stroke?: number; inView?: boolean; delay?: number
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
   const offset = inView ? circ - (pct / 100) * circ : circ
   const cx = size / 2
-  const trackColor = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,7,44,0.08)'
-  const fillColor  = dark ? 'rgba(255,255,255,0.8)' : '#00072C'
-  const textColor  = dark ? 'white' : '#00072C'
+  // Color del arco según porcentaje: naranja alto, azul medio, mezcla
+  const arcColor = pct >= 90 ? '#E8860A' : pct >= 75 ? '#c97020' : '#00072C'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <div style={{ position: 'relative', width: size, height: size }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={cx} cy={cx} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
-          <circle cx={cx} cy={cx} r={r} fill="none" stroke={fillColor} strokeWidth={stroke}
+          {/* Track gris muy claro */}
+          <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(0,7,44,0.07)" strokeWidth={stroke} />
+          {/* Arco de fondo (100%) levemente visible */}
+          <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(0,7,44,0.12)" strokeWidth={stroke}
+            strokeDasharray={circ} strokeDashoffset={0} />
+          {/* Arco del valor real */}
+          <circle cx={cx} cy={cx} r={r} fill="none" stroke={arcColor} strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
             style={{ transition: `stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1) ${delay}s` }} />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontFamily: "'DM Serif Display',serif", fontSize: size * 0.17, color: textColor, fontStyle: 'italic' }}>{pct}<span style={{ fontSize: size * 0.1 }}>%</span></span>
+          <span style={{ fontFamily: "'DM Serif Display',serif", fontSize: size * 0.17, color: arcColor, fontStyle: 'italic' }}>
+            {pct}<span style={{ fontSize: size * 0.1 }}>%</span>
+          </span>
         </div>
       </div>
-      <span style={{ fontFamily: "'Instrument Sans',sans-serif", fontSize: 10, color: dark ? 'rgba(255,255,255,0.5)' : '#334466', textAlign: 'center', letterSpacing: 0.5, maxWidth: size }}>{label}</span>
+      <span style={{ fontFamily: "'Instrument Sans',sans-serif", fontSize: 10, color: '#1a2a4a', textAlign: 'center', letterSpacing: 0.5, maxWidth: size, fontWeight: 600 }}>{label}</span>
     </div>
   )
 }
@@ -254,8 +261,17 @@ export default function CVPage() {
   }, [])
 
   const scrollTo = (id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); setMenuOpen(false) }
-  const handlePrint = () => { setPrinting(true); setTimeout(() => { window.print(); setPrinting(false) }, 300) }
-  if (printing) return <PrintCV />
+  const handlePrint = async () => {
+    setPrinting(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      await generarPDF(jsPDF)
+    } catch (e) {
+      console.error('jsPDF error:', e)
+      window.print()
+    }
+    setPrinting(false)
+  }
 
   const NAV = [['experiencia','Experiencia'],['servicios','Servicios'],['formacion','Formación'],['clientes','Clientes'],['contacto','Contacto']]
   const navy = '#00072C', orange = '#E8860A'
@@ -585,244 +601,376 @@ export default function CVPage() {
 }
 
 // ─── PDF ─────────────────────────────────────────────────────────────────────
-function PrintCV() {
-  useEffect(() => { setTimeout(() => window.print(), 400) }, [])
-  const navy='#00072C', orange='#E8860A', dark='#1a2a4a'
+// ─── jsPDF GENERATOR ─────────────────────────────────────────────────────────
 
-  return (
-    <div style={{ fontFamily:"'Instrument Sans',sans-serif", background:'#ddd' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .pp {
-          width: 210mm;
-          height: 297mm;
-          margin: 0 auto 16px;
-          background: white;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          position: relative;
-        }
-        @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          @page { margin: 0; size: A4 portrait; }
-          body { background: white !important; }
-          .np { display: none !important; }
-          .pp {
-            margin: 0;
-            page-break-after: always;
-            page-break-inside: avoid;
-          }
-          .pp:last-child { page-break-after: avoid; }
-        }
-      `}</style>
+async function generarPDF(jsPDF: any) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-      {/* Botón guardar */}
-      <div className="np" style={{ position:'fixed',bottom:24,right:24,zIndex:100 }}>
-        <button onClick={() => window.print()} style={{ padding:'12px 28px',background:orange,color:'white',fontWeight:700,fontSize:13,border:'none',cursor:'pointer',letterSpacing:1,fontFamily:'Instrument Sans,sans-serif' }}>
-          Guardar PDF
-        </button>
-      </div>
+  const W = 210, H = 297
+  const navy = [0, 7, 44] as [number,number,number]
+  const orange = [232, 134, 10] as [number,number,number]
+  const white = [255, 255, 255] as [number,number,number]
+  const dark = [26, 42, 74] as [number,number,number]
+  const light = [240, 244, 252] as [number,number,number]
 
-      {/* ══ PÁGINA 1 ══ */}
-      <div className="pp">
-        {/* Header azul — nombre + foto side by side */}
-        <div style={{ background:navy, display:'flex', gap:0, flexShrink:0 }}>
-          {/* Columna izquierda — texto */}
-          <div style={{ flex:1, padding:'28px 36px 24px' }}>
-            <div style={{ fontSize:8,letterSpacing:4,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>
-              Coach · Facilitador · Mentor
-            </div>
-            <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:38,color:'white',lineHeight:1.0,marginBottom:6 }}>
-              Omar <em style={{color:orange}}>Herrera</em>
-            </div>
-            <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:13,fontStyle:'italic',color:'rgba(255,255,255,0.7)',marginBottom:14,lineHeight:1.4 }}>
-              "Convicción y no Condición."
-            </div>
-            <div style={{ fontSize:9,color:'rgba(255,255,255,0.45)',marginBottom:3 }}>42 años · 18 · 09 · 1983</div>
-            <div style={{ display:'flex',flexDirection:'column',gap:3,marginBottom:16 }}>
-              {['omar@girolab.net','+51 922 213 800','girolab.net'].map(t=>(
-                <div key={t} style={{ fontSize:9,color:'rgba(255,255,255,0.5)' }}>{t}</div>
-              ))}
-            </div>
-            {/* Stats en línea */}
-            <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:14 }}>
-              {[{v:'9+',l:'Años'},{v:'50+',l:'Empresas'},{v:'1,000+',l:'Personas'},{v:'9',l:'Certif.'}].map(s=>(
-                <div key={s.l}>
-                  <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:18,color:orange,fontStyle:'italic',lineHeight:1 }}>{s.v}</div>
-                  <div style={{ fontSize:7,letterSpacing:1.5,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',marginTop:2 }}>{s.l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Foto */}
-          <div style={{ width:170,flexShrink:0,position:'relative',overflow:'hidden' }}>
-            <img src={typeof window!=='undefined'?window.location.origin+'/omar-herrera.jpg':'/omar-herrera.jpg'}
-              alt="Omar Herrera"
-              style={{ width:'100%',height:'100%',objectFit:'cover',objectPosition:'top center',display:'block' }}
-              onError={e=>{ (e.currentTarget as HTMLImageElement).style.display='none' }} />
-            <div style={{ position:'absolute',inset:0,background:'linear-gradient(to right,rgba(0,7,44,0.4),transparent 40%)' }} />
-            {/* Acento naranja */}
-            <div style={{ position:'absolute',bottom:0,left:0,right:0,height:2,background:orange }} />
-          </div>
-        </div>
+  const setColor = (rgb: [number,number,number]) => doc.setTextColor(rgb[0], rgb[1], rgb[2])
+  const setFill  = (rgb: [number,number,number]) => doc.setFillColor(rgb[0], rgb[1], rgb[2])
+  const setDraw  = (rgb: [number,number,number]) => doc.setDrawColor(rgb[0], rgb[1], rgb[2])
 
-        {/* Acento naranja */}
-        <div style={{ height:2,background:`linear-gradient(90deg,${orange},rgba(232,134,10,0.2))`,flexShrink:0 }} />
+  // ── Cargar foto ──────────────────────────────────────────────────────────
+  let fotoData: string | null = null
+  try {
+    const res = await fetch('/omar-herrera.jpg')
+    const blob = await res.blob()
+    fotoData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch { /* foto opcional */ }
 
-        {/* Body — dos columnas */}
-        <div style={{ flex:1,padding:'16px 36px 12px',display:'grid',gridTemplateColumns:'1fr 172px',gap:22,minHeight:0 }}>
+  // ─────────────────────────────────────────────────────────────────────────
+  // PÁGINA 1
+  // ─────────────────────────────────────────────────────────────────────────
 
-          {/* Columna principal — experiencia */}
-          <div style={{ minHeight:0,overflow:'hidden' }}>
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Experiencia</div>
-            <div style={{ display:'flex',flexDirection:'column',gap:9 }}>
-              {EXPERIENCIA.map((e,i)=>(
-                <div key={i} style={{ borderLeft:`2px solid ${i===0?orange:'rgba(0,7,44,0.12)'}`,paddingLeft:10 }}>
-                  <div style={{ fontSize:8,letterSpacing:2,color:i===0?orange:dark,textTransform:'uppercase',marginBottom:1 }}>{e.periodo}</div>
-                  <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,color:navy,fontStyle:i===0?'italic':'normal',marginBottom:1,lineHeight:1.2 }}>{e.rol}</div>
-                  <div style={{ fontSize:8,color:i===0?orange:'rgba(0,7,44,0.4)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,marginBottom:2 }}>{e.empresa}</div>
-                  <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{e.desc}</p>
-                </div>
-              ))}
-            </div>
+  // Header azul
+  setFill(navy); doc.rect(0, 0, W, 58, 'F')
 
-            {/* Reconocimientos */}
-            <div style={{ marginTop:12,padding:'10px 12px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${orange}` }}>
-              <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Reconocimientos</div>
-              {[{a:'2016→',t:'Mallas de talleres con resultados en +50 empresas'},{a:'2014',t:'Premio colaborador del año — Telvicom'},{a:'2012',t:'Premio colaborador del año — Telvicom'},{a:'2009',t:'1er puesto creatividad comercial — Interbank'},{a:'2009',t:'1er puesto fondos mutuos — Interbank'}].map((l,i)=>(
-                <div key={i} style={{ display:'flex',gap:12,borderBottom:'1px solid rgba(0,7,44,0.05)',paddingBottom:5,marginBottom:5 }}>
-                  <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:orange,fontStyle:'italic',minWidth:38,flexShrink:0 }}>{l.a}</span>
-                  <span style={{ fontSize:9,color:dark,lineHeight:1.4 }}>{l.t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+  // Foto lado derecho
+  if (fotoData) {
+    doc.addImage(fotoData, 'JPEG', W - 48, 0, 48, 58)
+    // overlay sutil
+    setFill([0,7,44]); doc.setGState(new (doc as any).GState({ opacity: 0.35 }))
+    doc.rect(W - 48, 0, 48, 58, 'F')
+    doc.setGState(new (doc as any).GState({ opacity: 1 }))
+  }
 
-          {/* Columna derecha */}
-          <div style={{ minHeight:0,overflow:'hidden' }}>
-            {/* Habilidades */}
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Habilidades</div>
-            <div style={{ display:'flex',flexWrap:'wrap',gap:3,marginBottom:12 }}>
-              {HABILIDADES_RADAR.map(h=>(
-                <span key={h.label} style={{ fontSize:7.5,padding:'2px 6px',border:'1px solid rgba(0,7,44,0.14)',color:dark,fontWeight:500 }}>{h.label}</span>
-              ))}
-            </div>
+  // Nombre
+  doc.setFont('helvetica', 'bold')
+  setColor(white); doc.setFontSize(28); doc.text('Omar', 14, 18)
+  setColor(orange); doc.setFontSize(28); doc.text('Herrera', 14, 28)
 
-            {/* Herramientas */}
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Herramientas</div>
-            {HERRAMIENTAS.map(h=>(
-              <div key={h.nombre} style={{ marginBottom:4 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:1.5 }}>
-                  <span style={{ fontSize:8.5,color:dark,fontWeight:500 }}>{h.nombre}</span>
-                  <span style={{ fontSize:8,color:orange,fontWeight:700 }}>{h.pct}%</span>
-                </div>
-                <div style={{ height:2.5,background:'rgba(0,7,44,0.08)',borderRadius:1.5 }}>
-                  <div style={{ height:'100%',width:h.pct+'%',background:navy,borderRadius:1.5 }} />
-                </div>
-              </div>
-            ))}
+  // Tagline
+  doc.setFont('helvetica', 'italic')
+  setColor([232, 134, 10]); doc.setFontSize(8)
+  doc.text('"Convicción y no Condición."', 14, 36)
 
-            {/* IA */}
-            <div style={{ marginTop:10,fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Inteligencia Artificial</div>
-            {IA_TOOLS.map(h=>(
-              <div key={h.nombre} style={{ marginBottom:5 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:1.5 }}>
-                  <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:navy,fontStyle:'italic' }}>{h.nombre}</span>
-                  <span style={{ fontSize:8,color:orange,fontWeight:700 }}>{h.pct}%</span>
-                </div>
-                <div style={{ height:2.5,background:'rgba(0,7,44,0.08)',borderRadius:1.5 }}>
-                  <div style={{ height:'100%',width:h.pct+'%',background:`linear-gradient(90deg,${navy},${orange})`,borderRadius:1.5 }} />
-                </div>
-              </div>
-            ))}
+  // Info personal
+  doc.setFont('helvetica', 'normal')
+  setColor([180, 180, 200]); doc.setFontSize(7.5)
+  doc.text('Coach · Facilitador · Mentor  ·  42 años  ·  18/09/1983', 14, 42)
+  doc.text('omar@girolab.net  ·  +51 922 213 800  ·  girolab.net', 14, 48)
 
-            {/* Idiomas */}
-            <div style={{ marginTop:10,fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:6 }}>Idiomas</div>
-            <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
-              <span style={{ fontSize:8,padding:'2px 8px',border:`1px solid ${navy}`,color:navy,fontWeight:600 }}>Inglés Reading B</span>
-              <span style={{ fontSize:8,padding:'2px 8px',border:'1px solid rgba(0,7,44,0.2)',color:dark }}>Speaking A</span>
-            </div>
-          </div>
-        </div>
+  // Línea naranja
+  setFill(orange); doc.rect(0, 58, W, 1.5, 'F')
 
-        {/* Footer p1 */}
-        <div style={{ padding:'7px 36px',borderTop:`1px solid rgba(0,7,44,0.08)`,display:'flex',justifyContent:'space-between',flexShrink:0 }}>
-          <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:navy,fontStyle:'italic' }}>Omar Herrera</span>
-          <span style={{ fontSize:8,color:dark }}>1 / 2</span>
-        </div>
-      </div>
+  // Stats
+  setFill(navy); doc.rect(0, 59.5, W, 16, 'F')
+  const stats = [['9+','Años exp.'],['50+','Empresas'],['1,000+','Personas'],['9','Certific.']]
+  stats.forEach(([v, l], i) => {
+    const x = 14 + i * 46
+    doc.setFont('helvetica', 'bold')
+    setColor(orange); doc.setFontSize(12); doc.text(v, x, 68)
+    doc.setFont('helvetica', 'normal')
+    setColor([140,150,180]); doc.setFontSize(6); doc.text(l.toUpperCase(), x, 72.5)
+  })
 
-      {/* ══ PÁGINA 2 ══ */}
-      <div className="pp">
-        <div style={{ height:2,background:`linear-gradient(90deg,${orange},rgba(232,134,10,0.2))`,flexShrink:0 }} />
+  // Línea divisora gris muy claro
+  setFill([220,224,236]); doc.rect(0, 75.5, W, 0.3, 'F')
 
-        <div style={{ flex:1,padding:'18px 36px 12px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,minHeight:0,overflow:'hidden' }}>
+  // ── Cuerpo p1: 2 columnas ────────────────────────────────────────────────
+  const colL = 14, colR = 148, colW1 = 128, colW2 = 50
+  let yL = 82, yR = 82
 
-          {/* Columna izquierda — Servicios */}
-          <div>
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Servicios para organizaciones</div>
-            {SERVICIOS.filter(s=>s.cat==='org').map((s,i)=>(
-              <div key={i} style={{ padding:'7px 10px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${navy}`,marginBottom:7 }}>
-                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:11,color:navy,marginBottom:2 }}>{s.titulo}</div>
-                <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{s.desc}</p>
-              </div>
-            ))}
+  // === COLUMNA IZQUIERDA: Experiencia ===
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('EXPERIENCIA', colL, yL)
+  yL += 5
 
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10,marginTop:14 }}>Servicios para personas</div>
-            {SERVICIOS.filter(s=>s.cat==='per').map((s,i)=>(
-              <div key={i} style={{ padding:'7px 10px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${orange}`,marginBottom:7 }}>
-                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:11,color:navy,marginBottom:2 }}>{s.titulo}</div>
-                <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{s.desc}</p>
-              </div>
-            ))}
+  const experiencia = [
+    { periodo: '2014 — Presente', rol: 'Coach & Facilitador', empresa: 'Giro Lab / Independiente', desc: 'Talleres de habilidades blandas. Outdoor experiencial. Coaching individual y organizacional para +50 empresas.', hot: true },
+    { periodo: '2018 — 2019', rol: 'Capacitador Corporativo', empresa: 'Farmacias Peruanas', desc: 'Malla de capacitación y talleres experienciales para activar habilidades blandas.', hot: false },
+    { periodo: '2014', rol: 'Supervisor & Capacitador', empresa: 'Lima Celular SAC', desc: 'Técnicas de cierre, manejo de objeciones y fases de venta para equipos comerciales.', hot: false },
+    { periodo: '2011 — 2013', rol: 'Supervisor de Ventas', empresa: 'Telvicom S.A.', desc: 'Gestión de equipo de ventas. Premio colaborador del año 2012 y 2014.', hot: false },
+    { periodo: '2010 — 2011', rol: 'Asesor de Servicio', empresa: 'Nissan Maquinarias S.A.', desc: 'Atención al cliente y venta de productos del concesionario.', hot: false },
+    { periodo: '2007 — 2010', rol: 'Representante Financiero', empresa: 'Interbank', desc: '1er puesto fondos mutuos (Oct–Dic 2009) y creatividad comercial 2009.', hot: false },
+  ]
 
-            {/* Contacto al fondo */}
-            <div style={{ marginTop:'auto',paddingTop:16 }}>
-              <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:8 }}>Contacto</div>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:13,color:navy,fontStyle:'italic',marginBottom:4 }}>omar@girolab.net</div>
-              <div style={{ fontSize:9,color:dark,marginBottom:2 }}>+51 922 213 800</div>
-              <div style={{ fontSize:9,color:dark }}>girolab.net/cv</div>
-            </div>
-          </div>
+  experiencia.forEach(e => {
+    // Barra izquierda
+    setFill(e.hot ? orange : [200, 205, 220])
+    doc.rect(colL, yL, 1.5, 16, 'F')
 
-          {/* Columna derecha — Formación */}
-          <div>
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Formación</div>
-            <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:16 }}>
-              {FORMACION.map((f,i)=>(
-                <div key={i} style={{ display:'flex',gap:10,borderLeft:'1px solid rgba(0,7,44,0.1)',paddingLeft:10,position:'relative' }}>
-                  <div style={{ position:'absolute',left:-3,top:4,width:5,height:5,borderRadius:'50%',background:i%2===0?orange:navy }} />
-                  <span style={{ fontSize:8,color:orange,fontStyle:'italic',minWidth:26,fontFamily:"'DM Serif Display',serif" }}>{f.año}</span>
-                  <div>
-                    <div style={{ fontSize:10,color:navy,fontWeight:600,lineHeight:1.3 }}>{f.titulo}</div>
-                    <div style={{ fontSize:8,color:dark }}>{f.inst}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+    doc.setFont('helvetica', 'bold')
+    setColor(e.hot ? orange : dark); doc.setFontSize(6.5)
+    doc.text(e.periodo.toUpperCase(), colL + 4, yL + 3.5)
 
-            {/* Clientes — logos en grid */}
-            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Clientes</div>
-            <div style={{ display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:6 }}>
-              {Array.from({length:18},(_,i)=>(
-                <div key={i} style={{ display:'flex',alignItems:'center',justifyContent:'center',height:28,background:'rgba(0,7,44,0.03)',border:'1px solid rgba(0,7,44,0.06)' }}>
-                  <img src={typeof window!=='undefined'?window.location.origin+`/clientes/logo-${i+1}.png`:`/clientes/logo-${i+1}.png`}
-                    alt="" style={{ maxWidth:'100%',maxHeight:18,objectFit:'contain',filter:'grayscale(1) opacity(0.6)' }}
-                    onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none'}} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+    doc.setFont('helvetica', 'bold')
+    setColor(navy); doc.setFontSize(9)
+    doc.text(e.rol, colL + 4, yL + 7.5)
 
-        {/* Footer p2 */}
-        <div style={{ padding:'7px 36px',borderTop:`1px solid rgba(0,7,44,0.08)`,display:'flex',justifyContent:'space-between',background:'rgba(0,7,44,0.02)',flexShrink:0 }}>
-          <span style={{ fontSize:8,color:dark }}>omar@girolab.net · +51 922 213 800 · girolab.net</span>
-          <span style={{ fontSize:8,color:dark }}>2 / 2</span>
-        </div>
-      </div>
-    </div>
-  )
+    doc.setFont('helvetica', 'bold')
+    setColor(e.hot ? orange : [100,110,140]); doc.setFontSize(6.5)
+    doc.text(e.empresa.toUpperCase(), colL + 4, yL + 11)
+
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(7)
+    const lines = doc.splitTextToSize(e.desc, colW1 - 6)
+    doc.text(lines[0], colL + 4, yL + 14.5)
+
+    yL += 19
+  })
+
+  // Reconocimientos
+  setFill(light); doc.rect(colL, yL, colW1, 28, 'F')
+  setFill(orange); doc.rect(colL, yL, 1.5, 28, 'F')
+  yL += 4
+
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(6.5); doc.text('RECONOCIMIENTOS', colL + 4, yL)
+  yL += 4
+
+  const recs = [
+    ['2016→','Mallas de talleres con resultados en +50 empresas'],
+    ['2014','Premio colaborador del año — Telvicom'],
+    ['2012','Premio colaborador del año — Telvicom'],
+    ['2009','1er puesto creatividad comercial — Interbank'],
+    ['2009','1er puesto fondos mutuos — Interbank'],
+  ]
+  recs.forEach(([a, t]) => {
+    doc.setFont('helvetica', 'bold')
+    setColor(orange); doc.setFontSize(7); doc.text(a, colL + 4, yL)
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(7); doc.text(t, colL + 22, yL)
+    yL += 4.2
+  })
+
+  // === COLUMNA DERECHA ===
+  // Habilidades
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('HABILIDADES', colR, yR)
+  yR += 5
+
+  const habs = ['Comunicación','Liderazgo','Empatía','Tenacidad','Creatividad','Análisis','Trabajo en equipo','Proactividad']
+  habs.forEach((h, i) => {
+    const xh = colR + (i % 2) * 26
+    const yh = yR + Math.floor(i / 2) * 5
+    setFill([230, 234, 245]); doc.rect(xh, yh - 3, 24, 4, 'F')
+    setColor(dark); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal')
+    doc.text(h, xh + 1.5, yh)
+  })
+  yR += 24
+
+  // Herramientas
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('HERRAMIENTAS', colR, yR)
+  yR += 5
+
+  const herr = [
+    { nombre: 'Office', pct: 98 },{ nombre: 'Prezi', pct: 99 },
+    { nombre: 'Elementor', pct: 99 },{ nombre: 'Camtasia', pct: 99 },
+    { nombre: 'Illustrator', pct: 80 },{ nombre: 'WordPress', pct: 90 },
+    { nombre: 'Audition', pct: 70 },{ nombre: 'Photoshop', pct: 60 },
+  ]
+  herr.forEach(h => {
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(7); doc.text(h.nombre, colR, yR)
+    setColor(orange); doc.text(h.pct + '%', colR + 44, yR, { align: 'right' })
+    // barra track
+    setFill([220, 224, 236]); doc.rect(colR, yR + 0.8, 44, 1.5, 'F')
+    // barra fill — naranja si >= 90, azul si < 90
+    const barColor: [number,number,number] = h.pct >= 90 ? orange : navy
+    setFill(barColor); doc.rect(colR, yR + 0.8, 44 * h.pct / 100, 1.5, 'F')
+    yR += 5
+  })
+
+  // IA
+  yR += 2
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('INTELIGENCIA ARTIFICIAL', colR, yR)
+  yR += 5
+
+  const ia = [
+    { nombre: 'Claude', pct: 95 },{ nombre: 'ChatGPT', pct: 92 },
+    { nombre: 'Gemini', pct: 88 },{ nombre: 'Artlist AI', pct: 85 },
+  ]
+  ia.forEach(h => {
+    doc.setFont('helvetica', 'italic')
+    setColor(navy); doc.setFontSize(7); doc.text(h.nombre, colR, yR)
+    setColor(orange); doc.text(h.pct + '%', colR + 44, yR, { align: 'right' })
+    setFill([220, 224, 236]); doc.rect(colR, yR + 0.8, 44, 1.5, 'F')
+    // degradado manual: azul a naranja proporcional
+    const splitX = 44 * h.pct / 100
+    setFill(navy); doc.rect(colR, yR + 0.8, splitX * 0.5, 1.5, 'F')
+    setFill(orange); doc.rect(colR + splitX * 0.5, yR + 0.8, splitX * 0.5, 1.5, 'F')
+    yR += 5
+  })
+
+  // Idiomas
+  yR += 2
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('IDIOMAS', colR, yR)
+  yR += 4
+  setFill(light); doc.rect(colR, yR - 3, 22, 5, 'F')
+  setDraw(navy); doc.setLineWidth(0.3); doc.rect(colR, yR - 3, 22, 5)
+  setColor(navy); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.text('Inglés Reading B', colR + 1.5, yR)
+  yR += 5
+  setFill(light); doc.rect(colR, yR - 3, 20, 5, 'F')
+  setDraw([180,185,200]); doc.rect(colR, yR - 3, 20, 5)
+  setColor(dark); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text('Speaking A', colR + 1.5, yR)
+
+  // Footer p1
+  setFill([245, 246, 250]); doc.rect(0, H - 8, W, 8, 'F')
+  setFill([220, 224, 236]); doc.rect(0, H - 8, W, 0.3, 'F')
+  setColor(dark); doc.setFont('helvetica', 'italic'); doc.setFontSize(7)
+  doc.text('Omar Herrera  ·  Coach & Facilitador', 14, H - 3.5)
+  doc.text('1 / 2', W - 14, H - 3.5, { align: 'right' })
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PÁGINA 2
+  // ─────────────────────────────────────────────────────────────────────────
+  doc.addPage()
+
+  // Acento top
+  setFill(orange); doc.rect(0, 0, W, 2, 'F')
+  setFill(navy); doc.rect(0, 2, W, 12, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  setColor(white); doc.setFontSize(10); doc.text('Omar ', 14, 10)
+  setColor(orange); doc.text('Herrera', 14 + doc.getTextWidth('Omar '), 10)
+  setColor([160,165,190]); doc.setFontSize(7)
+  doc.text('omar@girolab.net  ·  +51 922 213 800  ·  girolab.net', W - 14, 10, { align: 'right' })
+
+  setFill([220, 224, 236]); doc.rect(0, 14, W, 0.3, 'F')
+
+  const p2L = 14, p2R = 112, p2W = 90
+  let y2L = 22, y2R = 22
+
+  // === COL IZQ P2: Servicios ===
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('SERVICIOS PARA ORGANIZACIONES', p2L, y2L)
+  y2L += 5
+
+  const serviciosOrg = [
+    { titulo: 'Talleres Vivenciales', desc: 'Liderazgo, comunicación, IE. Metodología activa, resultados medibles.' },
+    { titulo: 'Teambuilding & Outdoor', desc: 'Cohesión real. Dinámicas que rompen estructuras rígidas y construyen equipos.' },
+    { titulo: 'Mentoría & Asesoría', desc: 'Acompañamiento estratégico con claridad, dirección y resultados.' },
+  ]
+  serviciosOrg.forEach(s => {
+    setFill([240, 244, 252]); doc.rect(p2L, y2L - 2, p2W, 12, 'F')
+    setFill(navy); doc.rect(p2L, y2L - 2, 1.5, 12, 'F')
+    doc.setFont('helvetica', 'bold')
+    setColor(navy); doc.setFontSize(8.5); doc.text(s.titulo, p2L + 4, y2L + 2)
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(7)
+    const lines = doc.splitTextToSize(s.desc, p2W - 6)
+    doc.text(lines, p2L + 4, y2L + 6.5)
+    y2L += 14
+  })
+
+  y2L += 4
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('SERVICIOS PARA PERSONAS', p2L, y2L)
+  y2L += 5
+
+  const serviciosPer = [
+    { titulo: 'Coaching Ontológico', desc: 'Transformación desde el lenguaje, las emociones y el cuerpo.' },
+    { titulo: 'Coaching Sistémico', desc: 'Trabajo con los sistemas relacionales que te limitan.' },
+    { titulo: 'Coaching Organizacional', desc: 'Líderes y equipos: alineación, propósito y cultura.' },
+  ]
+  serviciosPer.forEach(s => {
+    setFill([255, 248, 240]); doc.rect(p2L, y2L - 2, p2W, 12, 'F')
+    setFill(orange); doc.rect(p2L, y2L - 2, 1.5, 12, 'F')
+    doc.setFont('helvetica', 'bold')
+    setColor(navy); doc.setFontSize(8.5); doc.text(s.titulo, p2L + 4, y2L + 2)
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(7)
+    const lines = doc.splitTextToSize(s.desc, p2W - 6)
+    doc.text(lines, p2L + 4, y2L + 6.5)
+    y2L += 14
+  })
+
+  // Contacto al final col izq
+  y2L = Math.max(y2L, 210)
+  setFill(navy); doc.rect(p2L, y2L, p2W, 28, 'F')
+  setFill(orange); doc.rect(p2L, y2L, p2W, 1.5, 'F')
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(8); doc.text('HABLEMOS', p2L + 4, y2L + 8)
+  doc.setFont('helvetica', 'italic')
+  setColor(white); doc.setFontSize(9); doc.text('omar@girolab.net', p2L + 4, y2L + 15)
+  doc.setFont('helvetica', 'normal')
+  setColor([160,170,200]); doc.setFontSize(7.5)
+  doc.text('+51 922 213 800  ·  girolab.net', p2L + 4, y2L + 21)
+
+  // === COL DER P2: Formación ===
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('FORMACIÓN', p2R, y2R)
+  y2R += 5
+
+  const formacion = [
+    { año: '2021', titulo: 'Coaching Ontológico', inst: 'Axon Training' },
+    { año: '2021', titulo: 'Coaching Sistémico', inst: 'Marcelo Brosky' },
+    { año: '2019', titulo: 'Design Thinking + Storytelling', inst: 'Crehana' },
+    { año: '2019', titulo: 'Diseño Web / Front End / WordPress', inst: 'Crehana' },
+    { año: '2018', titulo: 'Marketing Digital', inst: 'Next U' },
+    { año: '2017', titulo: 'Coaching Org. · Maestría Liderazgo · Outdoor Trainer', inst: 'Coaching Global' },
+    { año: '2016', titulo: 'Diplomado Coaching — Equipos Alto Rendimiento', inst: 'ISIL' },
+    { año: '2013', titulo: 'Diplomado Dirección y Gestión Comercial', inst: 'ISIL' },
+    { año: '2005', titulo: 'Ciencias de la Comunicación', inst: 'IST Cepea' },
+  ]
+  formacion.forEach((f, i) => {
+    // dot
+    setFill(i % 2 === 0 ? orange : navy)
+    doc.circle(p2R + 1.5, y2R - 1, 1.2, 'F')
+    setFill([220, 224, 236]); doc.rect(p2R + 1.2, y2R, 0.6, 6, 'F') // línea
+
+    doc.setFont('helvetica', 'bold')
+    setColor(i % 2 === 0 ? orange : navy); doc.setFontSize(7); doc.text(f.año, p2R + 5, y2R)
+    doc.setFont('helvetica', 'bold')
+    setColor(navy); doc.setFontSize(8)
+    const tlines = doc.splitTextToSize(f.titulo, p2W - 18)
+    doc.text(tlines[0], p2R + 18, y2R)
+    doc.setFont('helvetica', 'normal')
+    setColor(dark); doc.setFontSize(6.5); doc.text(f.inst, p2R + 18, y2R + 4)
+    y2R += 9
+  })
+
+  // Clientes — grid de logos
+  y2R += 6
+  doc.setFont('helvetica', 'bold')
+  setColor(orange); doc.setFontSize(7); doc.text('CONFÍAN EN MÍ', p2R, y2R)
+  y2R += 5
+
+  // Intentar cargar logos — si falla, solo poner celdas grises
+  const logoW = 18, logoH = 10, logoGap = 2
+  const logosPerRow = 5
+  for (let i = 0; i < 15; i++) {
+    const col = i % logosPerRow
+    const row = Math.floor(i / logosPerRow)
+    const lx = p2R + col * (logoW + logoGap)
+    const ly = y2R + row * (logoH + logoGap)
+    setFill([240, 244, 252]); doc.rect(lx, ly, logoW, logoH, 'F')
+    setDraw([210, 215, 230]); doc.setLineWidth(0.2); doc.rect(lx, ly, logoW, logoH)
+    try {
+      const res = await fetch(`/clientes/logo-${i + 1}.png`)
+      const blob = await res.blob()
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      doc.addImage(b64, lx + 1, ly + 1, logoW - 2, logoH - 2, undefined, 'NONE')
+    } catch { /* celda vacía */ }
+  }
+
+  // Footer p2
+  setFill([245, 246, 250]); doc.rect(0, H - 8, W, 8, 'F')
+  setFill([220, 224, 236]); doc.rect(0, H - 8, W, 0.3, 'F')
+  setColor(dark); doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+  doc.text('omar@girolab.net  ·  +51 922 213 800  ·  girolab.net', 14, H - 3.5)
+  doc.text('2 / 2', W - 14, H - 3.5, { align: 'right' })
+
+  doc.save('CV-Omar-Herrera.pdf')
 }
