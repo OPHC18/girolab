@@ -132,10 +132,16 @@ function Radar({ data, inView }: { data: { label: string; value: number }[]; inV
     <svg viewBox="0 0 340 340" style={{ width: '100%', maxWidth: 340 }}>
       {grids.map((g, i) => <polygon key={i} points={g} fill="none" stroke="rgba(0,7,44,0.08)" strokeWidth="1" />)}
       {data.map((_, i) => <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(angle(i))} y2={cy + r * Math.sin(angle(i))} stroke="rgba(0,7,44,0.08)" strokeWidth="1" />)}
-      <polygon points={poly} fill="rgba(232,134,10,0.12)" stroke="#E8860A" strokeWidth="1.5"
+      {/* Capa azul — relleno base */}
+      <polygon points={poly} fill="rgba(0,7,44,0.06)" stroke="#00072C" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.5"
+        style={{ transition: 'all 1.5s cubic-bezier(0.4,0,0.2,1)' }} />
+      {/* Capa naranja — contorno principal */}
+      <polygon points={poly} fill="rgba(232,134,10,0.1)" stroke="#E8860A" strokeWidth="2"
         style={{ transition: 'all 1.5s cubic-bezier(0.4,0,0.2,1)' }} />
       {pts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="4" fill="#E8860A"
+        <circle key={i} cx={p.x} cy={p.y} r="5"
+          fill={i % 2 === 0 ? "#E8860A" : "#00072C"}
+          stroke="white" strokeWidth="1.5"
           style={{ transition: `all 1.5s cubic-bezier(0.4,0,0.2,1) ${i * 0.06}s` }} />
       ))}
       {lpts.map((p, i) => {
@@ -196,20 +202,21 @@ function ClientesCarrusel() {
   }, [])
 
   return (
-    <div style={{ overflow: 'hidden', width: '100%', position: 'relative' }}>
-      {/* fade edges */}
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 80, background: 'linear-gradient(to right,#00072C,transparent)', zIndex: 2, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: 'linear-gradient(to left,#00072C,transparent)', zIndex: 2, pointerEvents: 'none' }} />
-      <div ref={trackRef} style={{ display: 'flex', gap: 0, willChange: 'transform' }}>
-        {logos.map((src, i) => (
-          <div key={i} style={{ flexShrink: 0, width: 160, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-            <img src={src} alt={`Cliente ${i + 1}`}
-              style={{ maxWidth: 110, maxHeight: 50, objectFit: 'contain', filter: 'brightness(0) invert(0.5)', transition: 'filter 0.3s' }}
-              onMouseEnter={e => (e.currentTarget as HTMLImageElement).style.filter = 'brightness(0) invert(0.85)'}
-              onMouseLeave={e => (e.currentTarget as HTMLImageElement).style.filter = 'brightness(0) invert(0.5)'}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-          </div>
-        ))}
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 40px' }}>
+      <div style={{ overflow: 'hidden', position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 60, background: 'linear-gradient(to right,#00072C,transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 60, background: 'linear-gradient(to left,#00072C,transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div ref={trackRef} style={{ display: 'flex', gap: 0, willChange: 'transform' }}>
+          {logos.map((src, i) => (
+            <div key={i} style={{ flexShrink: 0, width: 200, height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+              <img src={src} alt={`Cliente ${i + 1}`}
+                style={{ maxWidth: 145, maxHeight: 65, objectFit: 'contain', filter: 'brightness(0) invert(0.5)', transition: 'filter 0.3s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLImageElement).style.filter = 'brightness(0) invert(0.9)'}
+                onMouseLeave={e => (e.currentTarget as HTMLImageElement).style.filter = 'brightness(0) invert(0.5)'}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -364,9 +371,9 @@ export default function CVPage() {
             </div>
             {/* Badge: edad y fecha de nacimiento */}
             <div style={{ position:'absolute',bottom:-18,right:-18,background:orange,padding:'14px 18px',animation:'float 4s ease-in-out infinite',zIndex:3,minWidth:110 }}>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:28,color:'white',lineHeight:1,fontStyle:'italic' }}>41</div>
+              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:28,color:'white',lineHeight:1,fontStyle:'italic' }}>42</div>
               <div style={{ fontSize:9,letterSpacing:1.5,color:'rgba(255,255,255,0.9)',marginTop:2,textTransform:'uppercase',fontWeight:600 }}>años</div>
-              <div style={{ fontSize:10,color:'rgba(255,255,255,0.75)',marginTop:3,fontWeight:500 }}>14 · 03 · 1984</div>
+              <div style={{ fontSize:10,color:'rgba(255,255,255,0.75)',marginTop:3,fontWeight:500 }}>18 · 09 · 1983</div>
             </div>
           </div>
         </div>
@@ -594,7 +601,7 @@ function PrintCV() {
             <div>
               <div style={{ fontSize:9,letterSpacing:4,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Coach · Facilitador · Mentor</div>
               <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:40,color:'white',lineHeight:1.0 }}>Omar <em style={{color:orange}}>Herrera</em></div>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,fontStyle:'italic',color:'rgba(255,255,255,0.4)',marginTop:5 }}>"Convicción y no Condición." · 41 años · 14.03.1984</div>
+              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,fontStyle:'italic',color:'rgba(255,255,255,0.4)',marginTop:5 }}>"Convicción y no Condición." · 42 años · 18.09.1983</div>
             </div>
             <div style={{ textAlign:'right' }}>{['omar@girolab.net','+51 922 213 800','girolab.net'].map(t=><div key={t} style={{ fontSize:10,color:'rgba(255,255,255,0.45)',marginBottom:2 }}>{t}</div>)}</div>
           </div>
