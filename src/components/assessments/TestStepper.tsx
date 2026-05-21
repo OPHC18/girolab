@@ -143,10 +143,6 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
           <DotLottieReact src="https://lottie.host/fc37eb39-3bb0-41db-b866-99ac7449ef1d/rpkq6ZVATl.lottie" autoplay loop style={{ width: 40, height: 40 }} />
         </div>
 
-        <div style={s.logoWrap}>
-          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width: 36, height: 36 }} />
-        </div>
-
         <span style={s.counterText}>{itemIndex + 1}<span style={s.counterOf}>/{totalItems}</span></span>
       </header>
 
