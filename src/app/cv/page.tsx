@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import type { jsPDF as jsPDFType } from 'jspdf'
 
 const HERRAMIENTAS = [
   { nombre: 'Office', pct: 98 }, { nombre: 'Prezi', pct: 99 },
