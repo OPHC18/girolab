@@ -767,8 +767,9 @@ supabase.from('events')
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {!resenaDraft && (<>
+                      <div style={{ display: 'flex', gap: 8 }}>
                       <label style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'foto' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'foto' ? '#f3e8ff' : 'white', color: postForm.tipo === 'foto' ? '#421869' : '#666' }}>
                         📷 Foto
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
@@ -791,6 +792,8 @@ supabase.from('events')
                         style={{ padding: '6px 12px', borderRadius: 20, border: `0.5px solid ${postForm.tipo === 'video' ? '#421869' : '#e0e0e0'}`, fontSize: 12, cursor: 'pointer', fontWeight: 600, background: postForm.tipo === 'video' ? '#f3e8ff' : 'white', color: postForm.tipo === 'video' ? '#421869' : '#666' }}>
                         🎥 Video
                       </button>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#aaa', paddingLeft: 4 }}>Foto máx. 5 MB · Video máx. 50 MB</span>
                     </>)}
                   </div>
                   <button

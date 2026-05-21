@@ -230,6 +230,7 @@ export default function Dashboard() {
   const [modalCancelar, setModalCancelar] = useState<any | null>(null)
   const [cancelarLoading, setCancelarLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [modalReprogramar, setModalReprogramar] = useState<any | null>(null)
   const [reprogramarFecha, setReprogramarFecha] = useState('')
   const [reprogramarHoraInicio, setReprogramarHoraInicio] = useState('')
@@ -1237,6 +1238,16 @@ const cargarRutaEmpresas = async () => {
   }
   if (!session) { window.location.href = '/'; return }
 
+  // Cerrar sesión si el usuario eligió "no recordar" y ya no hay sessionStorage activo
+  const noRemember = localStorage.getItem('giro_no_remember')
+  const activeSession = sessionStorage.getItem('giro_session_active')
+  if (noRemember && !activeSession) {
+    await supabase.auth.signOut()
+    localStorage.removeItem('giro_no_remember')
+    window.location.href = '/'
+    return
+  }
+
   // Validar que el usuario sigue activo en el servidor (detecta cuentas eliminadas/baneadas)
   const { data: { user: freshUser }, error: authError } = await supabase.auth.getUser()
   if (authError || !freshUser || freshUser.app_metadata?.deleted) {
@@ -1448,6 +1459,13 @@ if (missingFields.nombre || missingFields.apellidos) {
     }
     init()
   }, [])
+
+  useEffect(() => {
+    if (!headerMenuOpen) return
+    const close = () => setHeaderMenuOpen(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [headerMenuOpen])
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleLogout = async () => { await supabase.auth.signOut(); window.location.href = '/' }
@@ -7528,12 +7546,34 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
                 {sidebarOpen?<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>:<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>}
               </svg>
             </button>
-            <div>
-              <div style={{ color:'white', fontFamily:'Raleway, sans-serif', fontWeight:700, fontSize:15 }}>Hola, <span style={{ color:'#ffa719' }}>{firstName}</span></div>
-              <button onClick={handleLogout} style={{ background:'none', border:'none', color:'rgba(255,255,255,.7)', fontSize:11, textDecoration:'underline', cursor:'pointer', padding:0, marginTop:2 }}>Cerrar Sesión</button>
-            </div>
+            <div style={{ color:'white', fontFamily:'Raleway, sans-serif', fontWeight:700, fontSize:15 }}>Hola, <span style={{ color:'#ffa719' }}>{firstName}</span></div>
           </div>
-          <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width:50, height:50 }} />
+          <div style={{ display:'flex', alignItems:'center', gap:8, position:'relative' }}>
+            <DotLottieReact src="https://lottie.host/af470ece-482e-4ab8-bb0f-487a0fac67b4/SBuCRKGYwc.lottie" autoplay loop style={{ width:50, height:50 }} />
+            <button
+              onClick={e => { e.stopPropagation(); setHeaderMenuOpen(o => !o) }}
+              style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:10, width:40, height:40, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', padding:8 }}
+              aria-label="Menú"
+            >
+              <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+              <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+              <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+            </button>
+            {headerMenuOpen && (
+              <div onClick={e => e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#421869', borderRadius:14, overflow:'hidden', border:'1px solid rgba(255,255,255,0.2)', minWidth:230, zIndex:200, boxShadow:'0 8px 28px rgba(0,0,0,0.35)' }}>
+                {[
+                  { label:'Ir a Comunidad', action:() => { setHeaderMenuOpen(false); router.push('/comunidad') } },
+                  { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const p = (window as any)._deferredInstallPrompt; if (p) { p.prompt() } else { alert('Tu navegador no soporta instalar la app en este momento. En Chrome, usa el menú ⋮ → "Instalar app".') } } },
+                  { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
+                  { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
+                ].map(({ label, action }) => (
+                  <button key={label} onClick={action} style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={`giro-sidebar${sidebarOpen?' open':''}`} style={{ position:'fixed', left:20, top:100, bottom:30, zIndex:100, display:'flex', flexDirection:'column', alignItems:'center', gap:10, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none', width:70, transition:'transform 0.3s ease' }}>
@@ -7564,10 +7604,36 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
           </div>
         </div>
         <main className="giro-main-panel" style={{ marginLeft:110, padding:'40px 40px 100px 40px', position:'relative', zIndex:10, maxWidth:1200 }}>
-          <h1 className="giro-desktop-header" style={{ fontFamily:'Raleway, sans-serif', fontWeight:900, fontSize:'2.5rem', marginBottom:30, color:'white', lineHeight:1.2 }}>
-            Hola, <span style={{ color:'#ffa719' }}>{firstName}</span>
-            <button onClick={handleLogout} style={{ fontSize:16, color:'#ccc', background:'none', border:'none', cursor:'pointer', marginLeft:12, fontFamily:'DM Sans, sans-serif', fontWeight:400 }}>Cerrar Sesión</button>
-          </h1>
+          <div className="giro-desktop-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:30 }}>
+            <h1 style={{ fontFamily:'Raleway, sans-serif', fontWeight:900, fontSize:'2.5rem', color:'white', lineHeight:1.2, margin:0 }}>
+              Hola, <span style={{ color:'#ffa719' }}>{firstName}</span>
+            </h1>
+            <div style={{ position:'relative' }}>
+              <button
+                onClick={e => { e.stopPropagation(); setHeaderMenuOpen(o => !o) }}
+                style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:10, width:44, height:44, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', padding:8 }}
+                aria-label="Menú"
+              >
+                <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+                <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+                <span style={{ display:'block', width:20, height:2, background:'white', borderRadius:2 }} />
+              </button>
+              {headerMenuOpen && (
+                <div onClick={e => e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#421869', borderRadius:14, overflow:'hidden', border:'1px solid rgba(255,255,255,0.2)', minWidth:230, zIndex:200, boxShadow:'0 8px 28px rgba(0,0,0,0.35)' }}>
+                  {[
+                    { label:'Ir a Comunidad', action:() => { setHeaderMenuOpen(false); router.push('/comunidad') } },
+                    { label:'Crear acceso directo', action:() => { setHeaderMenuOpen(false); const p = (window as any)._deferredInstallPrompt; if (p) { p.prompt() } else { alert('Tu navegador no soporta instalar la app en este momento. En Chrome, usa el menú ⋮ → "Instalar app".') } } },
+                    { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
+                    { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
+                  ].map(({ label, action }) => (
+                    <button key={label} onClick={action} style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="giro-content-card" style={{ background:'white', borderRadius:20, padding:40, color:'#2d2926', boxShadow:'0 10px 40px rgba(0,0,0,.2)' }}>
             <h2 style={{ fontFamily:'Raleway, sans-serif', color:'#421869', marginTop:0, borderBottom:'2px solid #f0f0f0', paddingBottom:20, marginBottom:20 }}>{current.title}</h2>
             {current.content}

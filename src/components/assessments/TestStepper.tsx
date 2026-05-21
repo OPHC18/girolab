@@ -94,8 +94,7 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
   const handleSelect = useCallback((valor: number) => {
     if (selected !== null) return; // evita doble clic
     setSelected(valor);
-    autoTimer.current = setTimeout(() => advance(valor), autoAvance);
-  }, [selected, advance, autoAvance]);
+  }, [selected]);
 
   const handleNext = () => {
     if (selected === null && npiChoice === null) return;
@@ -115,8 +114,6 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
   const handleNPI = (choice: 'A' | 'B') => {
     if (npiChoice !== null) return;
     setNpiChoice(choice);
-    const valor = choice === 'A' ? 1 : 0;
-    autoTimer.current = setTimeout(() => advance(valor), autoAvance);
   };
 
   // MDQ-C: escala 0-3 especial
@@ -293,7 +290,7 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
 
         <p style={s.footerHint}>
           {selected !== null || npiChoice !== null
-            ? 'Avanzando automáticamente…'
+            ? 'Presiona Siguiente para continuar'
             : 'Selecciona una opción para continuar'}
         </p>
       </footer>
@@ -357,13 +354,13 @@ const s: Record<string, React.CSSProperties> = {
     width: 38,
     height: 38,
     borderRadius: 12,
-    border: '1.5px solid #E8E8E4',
-    background: '#fff',
+    border: 'none',
+    background: '#421869',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    color: '#555',
+    color: '#fff',
     flexShrink: 0,
   },
   logoWrap: {

@@ -171,6 +171,7 @@ export default function Home() {
 const [loginPassword, setLoginPassword] = useState('')
 const [loginError, setLoginError] = useState('')
 const [loginLoading, setLoginLoading] = useState(false)
+const [rememberMe, setRememberMe] = useState(true)
   const [preguntaIndex, setPreguntaIndex] = useState(0)
   const [respuestas, setRespuestas] = useState<Record<string, string[]>>({})
   const [hovered, setHovered] = useState<string | null>(null)
@@ -362,10 +363,14 @@ const toggleOpcion = (opcion: string) => {
       setLoginError('Correo o contraseña incorrectos')
     }
   } else {
-    console.log('Login exitoso ✓')
-    const params = new URLSearchParams(window.location.search)
-const returnUrl = params.get('returnUrl')
-window.location.href = returnUrl || '/comunidad'
+    if (rememberMe) {
+      localStorage.removeItem('giro_no_remember')
+      sessionStorage.removeItem('giro_session_active')
+    } else {
+      localStorage.setItem('giro_no_remember', '1')
+      sessionStorage.setItem('giro_session_active', '1')
+    }
+    window.location.href = '/comunidad'
   }
 }
 
@@ -1277,6 +1282,16 @@ const handleGoogleAuth = async () => {
                 </button>
               </div>
             </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#ffa719', cursor: 'pointer' }}
+              />
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>Mantener sesión iniciada</span>
+            </label>
 
 {loginError && (
   <div style={{ width: '100%', backgroundColor: 'rgba(255,80,80,0.15)', border: '1px solid rgba(255,80,80,0.4)', borderRadius: 12, padding: '12px 16px', marginBottom: 12 }}>
