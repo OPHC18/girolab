@@ -268,7 +268,7 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
         )}
 
         <div style={s.btnRow}>
-          <button style={s.backBtnFooter} onClick={handleBack}>
+          <button style={s.backBtnFooter} className="giro-test-back" onClick={handleBack}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
@@ -276,10 +276,12 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
           </button>
 
           <button
+            className="giro-test-next"
             style={{
               ...s.nextBtn,
               background: (selected !== null || npiChoice !== null) ? config.color : '#E0E0DA',
               cursor:     (selected !== null || npiChoice !== null) ? 'pointer' : 'default',
+              ['--btn-color' as any]: config.color,
             }}
             disabled={selected === null && npiChoice === null}
             onClick={handleNext}
@@ -321,6 +323,14 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
         @keyframes dotExpand {
           from { width: 6px; }
           to   { width: 20px; }
+        }
+        .giro-test-back:hover {
+          background: #f0e8f8 !important;
+          border-color: #995bd5 !important;
+          color: #421869 !important;
+        }
+        .giro-test-next:not(:disabled):hover {
+          filter: brightness(0.88);
         }
       `}</style>
     </div>

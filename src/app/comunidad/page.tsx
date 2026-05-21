@@ -553,7 +553,7 @@ supabase.from('events')
                   { label: 'Ver tour de la comunidad', action: () => { setHeaderMenuOpen(false); localStorage.removeItem('giro_comunidad_tour_done'); setTourStep(0); setTourActive(true) } },
                   { label: 'Cerrar sesión', action: async () => { await supabase.auth.signOut(); router.push('/') } },
                 ].map(({ label, action }) => (
-                  <button key={label} onClick={action} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <button key={label} onClick={action} className="giro-menu-btn" style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '13px 18px', fontSize: 14, fontWeight: 600, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     {label}
                   </button>
                 ))}
@@ -568,6 +568,7 @@ supabase.from('events')
           .comunidad-grid { grid-template-columns: 1fr !important; }
           .comunidad-sidebar { display: none !important; }
         }
+        .giro-menu-btn:hover { background: #995bd5 !important; }
       `}</style>
 
       <div className="comunidad-grid" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '260px 1fr 260px', gap: 24, alignItems: 'start' }}>

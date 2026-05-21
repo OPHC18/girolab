@@ -7539,6 +7539,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
             .giro-filtros-box{padding:12px!important}
           }
           @media(min-width:901px){.giro-mobile-header{display:none!important}}
+          .giro-menu-btn:hover{background:#995bd5!important}
         `}</style>
 
         <div className="giro-lottie-desktop" style={{ position:'fixed', top:30, right:15, width:100, height:100, zIndex:50, pointerEvents:'none', opacity:scrolled?0:1, transition:'opacity 0.4s ease' }}>
@@ -7573,7 +7574,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
                   { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
                   { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
                 ].map(({ label, action }) => (
-                  <button key={label} onClick={action} style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
+                  <button key={label} onClick={action} className="giro-menu-btn" style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
                     {label}
                   </button>
                 ))}
@@ -7632,7 +7633,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
                     { label:'Atención al cliente', action:() => { setHeaderMenuOpen(false); switchTab('soporte') } },
                     { label:'Cerrar sesión', action:() => { setHeaderMenuOpen(false); handleLogout() } },
                   ].map(({ label, action }) => (
-                    <button key={label} onClick={action} style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    <button key={label} onClick={action} className="giro-menu-btn" style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px solid rgba(255,255,255,0.08)', color:'white', padding:'13px 18px', fontSize:14, fontWeight:600, textAlign:'left', cursor:'pointer', whiteSpace:'nowrap' }}>
                       {label}
                     </button>
                   ))}
