@@ -401,7 +401,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    padding: '32px 20px 20px',
+    padding: '16px 20px 12px',
     overflowY: 'auto',
   },
   questionWrap: {
@@ -411,10 +411,10 @@ const s: Record<string, React.CSSProperties> = {
 
   // ICONO INSTRUMENTO
   instIconWrap: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   instIcon: {
-    fontSize: 36,
+    fontSize: 30,
     display: 'block',
     animation: 'fadeUp 0.4s ease forwards',
   },
@@ -431,11 +431,11 @@ const s: Record<string, React.CSSProperties> = {
 
   // PREGUNTA
   questionText: {
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: 700,
     color: '#1a1a1a',
-    lineHeight: 1.45,
-    margin: '0 0 28px',
+    lineHeight: 1.4,
+    margin: '0 0 16px',
     fontFamily: "'Raleway', sans-serif",
   },
 
@@ -443,13 +443,13 @@ const s: Record<string, React.CSSProperties> = {
   optionsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
+    gap: 8,
   },
   optionBtn: {
     display: 'flex',
     alignItems: 'center',
     gap: 14,
-    padding: '16px 18px',
+    padding: '12px 16px',
     borderRadius: 16,
     border: '1.5px solid',
     cursor: 'pointer',
