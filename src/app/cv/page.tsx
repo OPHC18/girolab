@@ -588,116 +588,239 @@ export default function CVPage() {
 function PrintCV() {
   useEffect(() => { setTimeout(() => window.print(), 400) }, [])
   const navy='#00072C', orange='#E8860A', dark='#1a2a4a'
+
   return (
-    <div style={{ fontFamily:"'Instrument Sans',sans-serif",background:'#e5e5e5' }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}.pp{width:210mm;min-height:297mm;margin:0 auto 20px;background:white}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{margin:0;size:A4}body{background:white!important}.np{display:none!important}.pp{width:210mm;height:297mm;min-height:unset;margin:0;overflow:hidden;page-break-after:always;page-break-inside:avoid}.pp:last-child{page-break-after:avoid}}`}</style>
+    <div style={{ fontFamily:"'Instrument Sans',sans-serif", background:'#ddd' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .pp {
+          width: 210mm;
+          height: 297mm;
+          margin: 0 auto 16px;
+          background: white;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          position: relative;
+        }
+        @media print {
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          @page { margin: 0; size: A4 portrait; }
+          body { background: white !important; }
+          .np { display: none !important; }
+          .pp {
+            margin: 0;
+            page-break-after: always;
+            page-break-inside: avoid;
+          }
+          .pp:last-child { page-break-after: avoid; }
+        }
+      `}</style>
+
+      {/* Botón guardar */}
       <div className="np" style={{ position:'fixed',bottom:24,right:24,zIndex:100 }}>
-        <button onClick={() => window.print()} style={{ padding:'12px 24px',background:orange,color:'white',fontWeight:700,fontSize:13,border:'none',cursor:'pointer',letterSpacing:1 }}>Guardar PDF</button>
+        <button onClick={() => window.print()} style={{ padding:'12px 28px',background:orange,color:'white',fontWeight:700,fontSize:13,border:'none',cursor:'pointer',letterSpacing:1,fontFamily:'Instrument Sans,sans-serif' }}>
+          Guardar PDF
+        </button>
       </div>
-      {/* P1 */}
-      <div className="pp" style={{ display:'flex',flexDirection:'column' }}>
-        <div style={{ background:navy,padding:'30px 44px 22px' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-end' }}>
-            <div>
-              <div style={{ fontSize:9,letterSpacing:4,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Coach · Facilitador · Mentor</div>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:40,color:'white',lineHeight:1.0 }}>Omar <em style={{color:orange}}>Herrera</em></div>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,fontStyle:'italic',color:'rgba(255,255,255,0.4)',marginTop:5 }}>"Convicción y no Condición." · 42 años · 18.09.1983</div>
+
+      {/* ══ PÁGINA 1 ══ */}
+      <div className="pp">
+        {/* Header azul — nombre + foto side by side */}
+        <div style={{ background:navy, display:'flex', gap:0, flexShrink:0 }}>
+          {/* Columna izquierda — texto */}
+          <div style={{ flex:1, padding:'28px 36px 24px' }}>
+            <div style={{ fontSize:8,letterSpacing:4,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>
+              Coach · Facilitador · Mentor
             </div>
-            <div style={{ textAlign:'right' }}>{['omar@girolab.net','+51 922 213 800','girolab.net'].map(t=><div key={t} style={{ fontSize:10,color:'rgba(255,255,255,0.45)',marginBottom:2 }}>{t}</div>)}</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:38,color:'white',lineHeight:1.0,marginBottom:6 }}>
+              Omar <em style={{color:orange}}>Herrera</em>
+            </div>
+            <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:13,fontStyle:'italic',color:'rgba(255,255,255,0.7)',marginBottom:14,lineHeight:1.4 }}>
+              "Convicción y no Condición."
+            </div>
+            <div style={{ fontSize:9,color:'rgba(255,255,255,0.45)',marginBottom:3 }}>42 años · 18 · 09 · 1983</div>
+            <div style={{ display:'flex',flexDirection:'column',gap:3,marginBottom:16 }}>
+              {['omar@girolab.net','+51 922 213 800','girolab.net'].map(t=>(
+                <div key={t} style={{ fontSize:9,color:'rgba(255,255,255,0.5)' }}>{t}</div>
+              ))}
+            </div>
+            {/* Stats en línea */}
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:14 }}>
+              {[{v:'9+',l:'Años'},{v:'50+',l:'Empresas'},{v:'1,000+',l:'Personas'},{v:'9',l:'Certif.'}].map(s=>(
+                <div key={s.l}>
+                  <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:18,color:orange,fontStyle:'italic',lineHeight:1 }}>{s.v}</div>
+                  <div style={{ fontSize:7,letterSpacing:1.5,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',marginTop:2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Foto */}
+          <div style={{ width:170,flexShrink:0,position:'relative',overflow:'hidden' }}>
+            <img src={typeof window!=='undefined'?window.location.origin+'/omar-herrera.jpg':'/omar-herrera.jpg'}
+              alt="Omar Herrera"
+              style={{ width:'100%',height:'100%',objectFit:'cover',objectPosition:'top center',display:'block' }}
+              onError={e=>{ (e.currentTarget as HTMLImageElement).style.display='none' }} />
+            <div style={{ position:'absolute',inset:0,background:'linear-gradient(to right,rgba(0,7,44,0.4),transparent 40%)' }} />
+            {/* Acento naranja */}
+            <div style={{ position:'absolute',bottom:0,left:0,right:0,height:2,background:orange }} />
           </div>
         </div>
-        <div style={{ height:2,background:`linear-gradient(90deg,${orange},${navy})` }} />
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',background:navy }}>
-          {[{v:'9+',l:'Años'},{v:'50+',l:'Empresas'},{v:'1,000+',l:'Personas'},{v:'9',l:'Certificaciones'}].map((s,i)=>(
-            <div key={s.l} style={{ padding:'10px 12px',textAlign:'center',borderRight:i<3?'1px solid rgba(255,255,255,0.05)':'none' }}>
-              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:20,color:orange,fontStyle:'italic' }}>{s.v}</div>
-              <div style={{ fontSize:8,letterSpacing:2,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',marginTop:2 }}>{s.l}</div>
+
+        {/* Acento naranja */}
+        <div style={{ height:2,background:`linear-gradient(90deg,${orange},rgba(232,134,10,0.2))`,flexShrink:0 }} />
+
+        {/* Body — dos columnas */}
+        <div style={{ flex:1,padding:'16px 36px 12px',display:'grid',gridTemplateColumns:'1fr 172px',gap:22,minHeight:0 }}>
+
+          {/* Columna principal — experiencia */}
+          <div style={{ minHeight:0,overflow:'hidden' }}>
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Experiencia</div>
+            <div style={{ display:'flex',flexDirection:'column',gap:9 }}>
+              {EXPERIENCIA.map((e,i)=>(
+                <div key={i} style={{ borderLeft:`2px solid ${i===0?orange:'rgba(0,7,44,0.12)'}`,paddingLeft:10 }}>
+                  <div style={{ fontSize:8,letterSpacing:2,color:i===0?orange:dark,textTransform:'uppercase',marginBottom:1 }}>{e.periodo}</div>
+                  <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,color:navy,fontStyle:i===0?'italic':'normal',marginBottom:1,lineHeight:1.2 }}>{e.rol}</div>
+                  <div style={{ fontSize:8,color:i===0?orange:'rgba(0,7,44,0.4)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5,marginBottom:2 }}>{e.empresa}</div>
+                  <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{e.desc}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div style={{ flex:1,padding:'20px 44px',display:'grid',gridTemplateColumns:'1fr 190px',gap:24 }}>
-          <div>
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:12 }}>Experiencia</div>
-            {EXPERIENCIA.map((e,i)=>(
-              <div key={i} style={{ borderLeft:`2px solid ${i===0?orange:'rgba(0,7,44,0.1)'}`,paddingLeft:12,marginBottom:11 }}>
-                <div style={{ fontSize:8,letterSpacing:2,color:i===0?orange:dark,textTransform:'uppercase',marginBottom:1 }}>{e.periodo}</div>
-                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:13,color:navy,fontStyle:i===0?'italic':'normal',marginBottom:2 }}>{e.rol}</div>
-                <div style={{ fontSize:9,color:orange,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,marginBottom:3,opacity:i===0?1:.7 }}>{e.empresa}</div>
-                <p style={{ fontSize:10,color:dark,lineHeight:1.5 }}>{e.desc}</p>
-              </div>
-            ))}
+
+            {/* Reconocimientos */}
+            <div style={{ marginTop:12,padding:'10px 12px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${orange}` }}>
+              <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Reconocimientos</div>
+              {[{a:'2016→',t:'Mallas de talleres con resultados en +50 empresas'},{a:'2014',t:'Premio colaborador del año — Telvicom'},{a:'2012',t:'Premio colaborador del año — Telvicom'},{a:'2009',t:'1er puesto creatividad comercial — Interbank'},{a:'2009',t:'1er puesto fondos mutuos — Interbank'}].map((l,i)=>(
+                <div key={i} style={{ display:'flex',gap:12,borderBottom:'1px solid rgba(0,7,44,0.05)',paddingBottom:5,marginBottom:5 }}>
+                  <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:orange,fontStyle:'italic',minWidth:38,flexShrink:0 }}>{l.a}</span>
+                  <span style={{ fontSize:9,color:dark,lineHeight:1.4 }}>{l.t}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:8 }}>Habilidades</div>
-            <div style={{ display:'flex',flexWrap:'wrap',gap:3,marginBottom:14 }}>
-              {HABILIDADES_RADAR.map(h=><span key={h.label} style={{ fontSize:8,padding:'2px 7px',border:'1px solid rgba(0,7,44,0.15)',color:dark,fontWeight:500 }}>{h.label}</span>)}
+
+          {/* Columna derecha */}
+          <div style={{ minHeight:0,overflow:'hidden' }}>
+            {/* Habilidades */}
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Habilidades</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:3,marginBottom:12 }}>
+              {HABILIDADES_RADAR.map(h=>(
+                <span key={h.label} style={{ fontSize:7.5,padding:'2px 6px',border:'1px solid rgba(0,7,44,0.14)',color:dark,fontWeight:500 }}>{h.label}</span>
+              ))}
             </div>
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:8 }}>Herramientas</div>
+
+            {/* Herramientas */}
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Herramientas</div>
             {HERRAMIENTAS.map(h=>(
-              <div key={h.nombre} style={{ marginBottom:5 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:2 }}><span style={{ fontSize:9,color:dark,fontWeight:500 }}>{h.nombre}</span><span style={{ fontSize:9,color:orange,fontWeight:700 }}>{h.pct}%</span></div>
-                <div style={{ height:3,background:'rgba(0,7,44,0.08)',borderRadius:2 }}><div style={{ height:'100%',width:h.pct+'%',background:navy,borderRadius:2 }} /></div>
+              <div key={h.nombre} style={{ marginBottom:4 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:1.5 }}>
+                  <span style={{ fontSize:8.5,color:dark,fontWeight:500 }}>{h.nombre}</span>
+                  <span style={{ fontSize:8,color:orange,fontWeight:700 }}>{h.pct}%</span>
+                </div>
+                <div style={{ height:2.5,background:'rgba(0,7,44,0.08)',borderRadius:1.5 }}>
+                  <div style={{ height:'100%',width:h.pct+'%',background:navy,borderRadius:1.5 }} />
+                </div>
               </div>
             ))}
-            <div style={{ marginTop:12,fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:6 }}>IA</div>
+
+            {/* IA */}
+            <div style={{ marginTop:10,fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:7 }}>Inteligencia Artificial</div>
             {IA_TOOLS.map(h=>(
               <div key={h.nombre} style={{ marginBottom:5 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:2 }}><span style={{ fontSize:9,color:dark,fontWeight:500 }}>{h.nombre}</span><span style={{ fontSize:9,color:orange,fontWeight:700 }}>{h.pct}%</span></div>
-                <div style={{ height:3,background:'rgba(0,7,44,0.08)',borderRadius:2 }}><div style={{ height:'100%',width:h.pct+'%',background:`linear-gradient(90deg,${navy},${orange})`,borderRadius:2 }} /></div>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:1.5 }}>
+                  <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:navy,fontStyle:'italic' }}>{h.nombre}</span>
+                  <span style={{ fontSize:8,color:orange,fontWeight:700 }}>{h.pct}%</span>
+                </div>
+                <div style={{ height:2.5,background:'rgba(0,7,44,0.08)',borderRadius:1.5 }}>
+                  <div style={{ height:'100%',width:h.pct+'%',background:`linear-gradient(90deg,${navy},${orange})`,borderRadius:1.5 }} />
+                </div>
               </div>
             ))}
+
+            {/* Idiomas */}
+            <div style={{ marginTop:10,fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:6 }}>Idiomas</div>
+            <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
+              <span style={{ fontSize:8,padding:'2px 8px',border:`1px solid ${navy}`,color:navy,fontWeight:600 }}>Inglés Reading B</span>
+              <span style={{ fontSize:8,padding:'2px 8px',border:'1px solid rgba(0,7,44,0.2)',color:dark }}>Speaking A</span>
+            </div>
           </div>
         </div>
-        <div style={{ padding:'8px 44px',borderTop:'1px solid rgba(0,7,44,0.08)',display:'flex',justifyContent:'space-between' }}>
-          <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:10,color:navy,fontStyle:'italic' }}>Omar Herrera</span>
-          <span style={{ fontSize:9,color:dark }}>1 / 2</span>
+
+        {/* Footer p1 */}
+        <div style={{ padding:'7px 36px',borderTop:`1px solid rgba(0,7,44,0.08)`,display:'flex',justifyContent:'space-between',flexShrink:0 }}>
+          <span style={{ fontFamily:"'DM Serif Display',serif",fontSize:9,color:navy,fontStyle:'italic' }}>Omar Herrera</span>
+          <span style={{ fontSize:8,color:dark }}>1 / 2</span>
         </div>
       </div>
-      {/* P2 */}
-      <div className="pp" style={{ display:'flex',flexDirection:'column' }}>
-        <div style={{ height:2,background:`linear-gradient(90deg,${orange},${navy})` }} />
-        <div style={{ flex:1,padding:'26px 44px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28 }}>
+
+      {/* ══ PÁGINA 2 ══ */}
+      <div className="pp">
+        <div style={{ height:2,background:`linear-gradient(90deg,${orange},rgba(232,134,10,0.2))`,flexShrink:0 }} />
+
+        <div style={{ flex:1,padding:'18px 36px 12px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,minHeight:0,overflow:'hidden' }}>
+
+          {/* Columna izquierda — Servicios */}
           <div>
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:12 }}>Servicios — Organizaciones</div>
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Servicios para organizaciones</div>
             {SERVICIOS.filter(s=>s.cat==='org').map((s,i)=>(
-              <div key={i} style={{ padding:'8px 12px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${navy}`,marginBottom:8 }}>
-                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,color:navy,marginBottom:2 }}>{s.titulo}</div>
-                <p style={{ fontSize:10,color:dark,lineHeight:1.5 }}>{s.desc}</p>
+              <div key={i} style={{ padding:'7px 10px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${navy}`,marginBottom:7 }}>
+                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:11,color:navy,marginBottom:2 }}>{s.titulo}</div>
+                <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{s.desc}</p>
               </div>
             ))}
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10,marginTop:16 }}>Servicios — Personas</div>
+
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10,marginTop:14 }}>Servicios para personas</div>
             {SERVICIOS.filter(s=>s.cat==='per').map((s,i)=>(
-              <div key={i} style={{ padding:'8px 12px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${orange}`,marginBottom:8 }}>
-                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:12,color:navy,marginBottom:2 }}>{s.titulo}</div>
-                <p style={{ fontSize:10,color:dark,lineHeight:1.5 }}>{s.desc}</p>
+              <div key={i} style={{ padding:'7px 10px',background:'rgba(0,7,44,0.03)',borderLeft:`2px solid ${orange}`,marginBottom:7 }}>
+                <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:11,color:navy,marginBottom:2 }}>{s.titulo}</div>
+                <p style={{ fontSize:9,color:dark,lineHeight:1.45 }}>{s.desc}</p>
               </div>
             ))}
-          </div>
-          <div>
-            <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:12 }}>Formación</div>
-            {FORMACION.map((f,i)=>(
-              <div key={i} style={{ display:'flex',gap:10,borderLeft:'1px solid rgba(0,7,44,0.1)',paddingLeft:10,marginBottom:9,position:'relative' }}>
-                <div style={{ position:'absolute',left:-3,top:5,width:5,height:5,borderRadius:'50%',background:orange }} />
-                <span style={{ fontSize:9,color:orange,fontStyle:'italic',minWidth:28 }}>{f.año}</span>
-                <div><div style={{ fontSize:10,color:navy,fontWeight:600,lineHeight:1.3 }}>{f.titulo}</div><div style={{ fontSize:8,color:dark,fontWeight:500 }}>{f.inst}</div></div>
-              </div>
-            ))}
-            <div style={{ marginTop:14,padding:'12px 14px',background:'rgba(232,134,10,0.05)',borderLeft:`2px solid ${orange}` }}>
-              <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:5 }}>Inteligencia Artificial</div>
-              <p style={{ fontSize:10,color:dark,lineHeight:1.6 }}>Claude · Gemini · ChatGPT · Artlist AI — diseño de talleres y producción de contenido.</p>
+
+            {/* Contacto al fondo */}
+            <div style={{ marginTop:'auto',paddingTop:16 }}>
+              <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:8 }}>Contacto</div>
+              <div style={{ fontFamily:"'DM Serif Display',serif",fontSize:13,color:navy,fontStyle:'italic',marginBottom:4 }}>omar@girolab.net</div>
+              <div style={{ fontSize:9,color:dark,marginBottom:2 }}>+51 922 213 800</div>
+              <div style={{ fontSize:9,color:dark }}>girolab.net/cv</div>
             </div>
-            <div style={{ marginTop:12 }}>
-              <div style={{ fontSize:9,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:6 }}>Idiomas</div>
-              <div style={{ display:'flex',gap:6 }}>
-                <span style={{ fontSize:9,padding:'2px 10px',border:`1px solid ${navy}`,color:navy,fontWeight:600 }}>Inglés Reading B</span>
-                <span style={{ fontSize:9,padding:'2px 10px',border:'1px solid rgba(0,7,44,0.2)',color:dark }}>Speaking A</span>
-              </div>
+          </div>
+
+          {/* Columna derecha — Formación */}
+          <div>
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Formación</div>
+            <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:16 }}>
+              {FORMACION.map((f,i)=>(
+                <div key={i} style={{ display:'flex',gap:10,borderLeft:'1px solid rgba(0,7,44,0.1)',paddingLeft:10,position:'relative' }}>
+                  <div style={{ position:'absolute',left:-3,top:4,width:5,height:5,borderRadius:'50%',background:i%2===0?orange:navy }} />
+                  <span style={{ fontSize:8,color:orange,fontStyle:'italic',minWidth:26,fontFamily:"'DM Serif Display',serif" }}>{f.año}</span>
+                  <div>
+                    <div style={{ fontSize:10,color:navy,fontWeight:600,lineHeight:1.3 }}>{f.titulo}</div>
+                    <div style={{ fontSize:8,color:dark }}>{f.inst}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Clientes — logos en grid */}
+            <div style={{ fontSize:8,letterSpacing:3,color:orange,fontWeight:700,textTransform:'uppercase',marginBottom:10 }}>Clientes</div>
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:6 }}>
+              {Array.from({length:18},(_,i)=>(
+                <div key={i} style={{ display:'flex',alignItems:'center',justifyContent:'center',height:28,background:'rgba(0,7,44,0.03)',border:'1px solid rgba(0,7,44,0.06)' }}>
+                  <img src={typeof window!=='undefined'?window.location.origin+`/clientes/logo-${i+1}.png`:`/clientes/logo-${i+1}.png`}
+                    alt="" style={{ maxWidth:'100%',maxHeight:18,objectFit:'contain',filter:'grayscale(1) opacity(0.6)' }}
+                    onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none'}} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
-        <div style={{ padding:'8px 44px',borderTop:'1px solid rgba(0,7,44,0.08)',display:'flex',justifyContent:'space-between',background:'rgba(0,7,44,0.02)' }}>
-          <span style={{ fontSize:9,color:dark }}>omar@girolab.net · +51 922 213 800 · girolab.net</span>
-          <span style={{ fontSize:9,color:dark }}>2 / 2</span>
+
+        {/* Footer p2 */}
+        <div style={{ padding:'7px 36px',borderTop:`1px solid rgba(0,7,44,0.08)`,display:'flex',justifyContent:'space-between',background:'rgba(0,7,44,0.02)',flexShrink:0 }}>
+          <span style={{ fontSize:8,color:dark }}>omar@girolab.net · +51 922 213 800 · girolab.net</span>
+          <span style={{ fontSize:8,color:dark }}>2 / 2</span>
         </div>
       </div>
     </div>
