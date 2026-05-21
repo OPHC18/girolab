@@ -742,14 +742,14 @@ supabase.from('events')
                         if (file.size > 50 * 1024 * 1024) { setAlertMsg('El video no puede superar 50MB'); return }
                         const ext = file.name.split('.').pop()
                         const path = `videos/${user!.id}/${Date.now()}.${ext}`
-                        const { error } = await supabase.storage.from('community').upload(path, file)
+                        const { error } = await supabase.storage.from('community').upload(path, file, { upsert: true })
                         if (!error) {
                           const { data } = supabase.storage.from('community').getPublicUrl(path)
                           setPostForm(p => ({ ...p, media_url: data.publicUrl }))
                           setToastMsg('✅ Video subido')
                           setTimeout(() => setToastMsg(null), 3000)
                         } else {
-                          setAlertMsg('Error al subir el video. Intenta con un link de YouTube.')
+                          setAlertMsg('Error al subir el video: ' + (error.message || JSON.stringify(error)))
                         }
                       }} />
                     </label>
@@ -779,12 +779,12 @@ supabase.from('events')
                           const ext = file.name.split('.').pop()
                           const path = `imagenes/${user!.id}/${Date.now()}.${ext}`
                           setPosting(true)
-                          const { error } = await supabase.storage.from('community').upload(path, file)
+                          const { error } = await supabase.storage.from('community').upload(path, file, { upsert: true })
                           setPosting(false)
                           if (!error) {
                             const { data } = supabase.storage.from('community').getPublicUrl(path)
                             setPostForm(p => ({ ...p, media_url: data.publicUrl, tipo: 'foto' }))
-                          } else { setAlertMsg('Error al subir la imagen. Intenta de nuevo.') }
+                          } else { setAlertMsg('Error al subir la imagen: ' + (error.message || JSON.stringify(error))) }
                         }} />
                       </label>
                       <button
