@@ -762,6 +762,9 @@ export default function TodoParaEmpresasPage() {
 
   useEffect(() => {
     document.title = 'Todo Para Empresas — TPE · Giro Lab'
+    if (typeof (window as any).gtag === 'function') {
+      ;(window as any).gtag('event', 'page_view', { page_title: 'Todo Para Empresas', page_location: window.location.href })
+    }
   }, [])
 
   const handleSubmit = async (data: FormData) => {
@@ -773,11 +776,17 @@ export default function TodoParaEmpresasPage() {
       setSaveError('Hubo un problema al guardar tu solicitud. Por favor intenta de nuevo.')
       return
     }
+    if (typeof (window as any).gtag === 'function') {
+      ;(window as any).gtag('event', 'generate_lead', { event_category: 'TPE', servicios: data.servicios.join(',') })
+    }
     setFormData(data)
     setShowModal(true)
   }
 
   const handleDescargar = () => {
+    if (typeof (window as any).gtag === 'function') {
+      ;(window as any).gtag('event', 'download_presentation', { event_category: 'TPE' })
+    }
     setShowModal(false)
     setSubmitted(true)
     setTimeout(() => window.print(), 600)

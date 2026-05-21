@@ -810,8 +810,8 @@ export default function ResultadoPage() {
     const timer = setTimeout(() => setShowFallback(true), 8000);
 
     const init = async () => {
-      const { data: { user: u } } = await supabase.auth.getUser();
-      setUser(u);
+      // Arrancan en paralelo: getSession (caché local, sin red) + primer fetch del resultado
+      const sessionPromise = supabase.auth.getSession()
 
       if (resultId) {
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -823,6 +823,8 @@ export default function ResultadoPage() {
                 clearTimeout(timer)
                 setResult(data.resultado_json)
                 setLoading(false)
+                const { data: { session } } = await sessionPromise
+                setUser(session?.user ?? null)
                 if (typeof window !== 'undefined' && (window as any).gtag) {
                   (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
                 }
@@ -830,9 +832,12 @@ export default function ResultadoPage() {
               }
             }
           } catch (_) {}
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
+          if (attempt < 2) await new Promise(r => setTimeout(r, 300))
         }
       }
+
+      const { data: { session } } = await sessionPromise
+      setUser(session?.user ?? null)
     };
     init();
     return () => clearTimeout(timer);

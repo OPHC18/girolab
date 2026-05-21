@@ -252,6 +252,9 @@ export default function CVPage() {
 
   useEffect(() => {
     document.title = 'Omar Herrera — Coach & Facilitador'
+    if (typeof (window as any).gtag === 'function') {
+      ;(window as any).gtag('event', 'page_view', { page_title: 'CV Omar Herrera', page_location: window.location.href })
+    }
     const obs = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id) }),
       { threshold: 0.2 }
@@ -263,6 +266,9 @@ export default function CVPage() {
   const scrollTo = (id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); setMenuOpen(false) }
   const handlePrint = async () => {
     setPrinting(true)
+    if (typeof (window as any).gtag === 'function') {
+      ;(window as any).gtag('event', 'download_cv', { event_category: 'CV', page_title: 'CV Omar Herrera' })
+    }
     try {
       const { jsPDF } = await import('jspdf')
       await generarPDF(jsPDF)
