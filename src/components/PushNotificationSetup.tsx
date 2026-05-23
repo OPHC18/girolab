@@ -8,7 +8,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
 }
 
-export default function PushNotificationSetup({ userId }: { userId: string }) {
+export default function PushNotificationSetup({ userId: _userId }: { userId: string }) {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [subscribed, setSubscribed] = useState(false)
   const [dismissed, setDismissed] = useState(false)
@@ -42,10 +42,14 @@ export default function PushNotificationSetup({ userId }: { userId: string }) {
       applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
     })
 
+    const { data: { session } } = await (await import('@/app/lib/supabase')).supabase.auth.getSession()
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), user_id: userId }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token ?? ''}`,
+      },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
     })
     if (res.ok) setSubscribed(true)
   }

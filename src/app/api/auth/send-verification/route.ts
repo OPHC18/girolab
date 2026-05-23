@@ -27,9 +27,20 @@ export async function POST(req: NextRequest) {
 
   if (existingError) return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   if (existing?.verified) return NextResponse.json({ already_verified: true })
+
+  // Si el usuario ya confirmó su email vía Supabase, marcarlo como verificado automáticamente.
+  // Evita la doble verificación: Supabase ya envió su propio email de confirmación.
+  if (user.email_confirmed_at) {
+    await admin.from('email_verifications').upsert(
+      { user_id: user.id, email: user.email!, code: '', verified: true, created_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+    return NextResponse.json({ already_verified: true })
+  }
+
   if (existing && Date.now() - new Date(existing.created_at).getTime() < 2 * 60 * 1000) {
-  return NextResponse.json({ ok: true, cooldown: true })
-}
+    return NextResponse.json({ ok: true, cooldown: true })
+  }
 
   const code = Math.floor(100000 + Math.random() * 900000).toString()
 
@@ -40,10 +51,13 @@ export async function POST(req: NextRequest) {
   if (upsertError) return NextResponse.json({ error: 'No se pudo guardar el código. Contacta soporte.' }, { status: 500 })
 
   const nombre = user.user_metadata?.nombre || user.email!.split('@')[0]
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
 
- const { emailVerificacionCodigo } = await import('@/lib/email/templates/auth')
-await emailVerificacionCodigo({ email: user.email!, nombre, code })
+  const { emailVerificacionCodigo } = await import('@/lib/email/templates/auth')
+  const emailResult = await emailVerificacionCodigo({ email: user.email!, nombre, code })
+  if (!emailResult.ok) {
+    console.error('[send-verification] Brevo error:', emailResult.error)
+    return NextResponse.json({ error: 'No se pudo enviar el código. Intenta de nuevo más tarde.' }, { status: 500 })
+  }
 
-return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true })
 }

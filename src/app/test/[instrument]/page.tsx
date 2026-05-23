@@ -236,7 +236,7 @@ export default function TestPage() {
       try {
         const { data: session } = await supabase
           .from('assessment_sessions')
-          .select('menter_id, persona_nombre, persona_email')
+          .select('menter_id, persona_nombre, persona_email, candidato_nombre, candidato_email')
           .eq('session_token', sessionToken)
           .single()
         if (session?.menter_id) {
@@ -254,8 +254,8 @@ export default function TestPage() {
                 data: {
                   menter_id: session.menter_id,
                   menterNombre: (menterProfile as any).nombre,
-                  personaNombre: session.persona_nombre || 'Un usuario',
-                  personaEmail: session.persona_email || '',
+                  personaNombre: session.persona_nombre || session.candidato_nombre || 'Un usuario',
+                  personaEmail: session.persona_email || session.candidato_email || '',
                   instrumentoNombre: inst.nombre,
                   resultadoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`,
                 },
@@ -306,7 +306,7 @@ export default function TestPage() {
 
   // ── DATOS ANÓNIMO ──
   if (phase === 'datos') {
-    const valid = anonNombre.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(anonEmail);
+    const valid = !!sessionToken && anonNombre.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(anonEmail);
     return (
       <PageShell>
         <div style={{ flex: 1, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', fontFamily: "'DM Sans', system-ui" }}>
@@ -346,7 +346,7 @@ export default function TestPage() {
               onClick={handleDatosConfirm}
               disabled={!valid}
               style={{ width: '100%', marginTop: 24, padding: '14px', background: valid ? '#421869' : '#e0e0e0', color: valid ? 'white' : '#999', border: 'none', borderRadius: 30, fontWeight: 700, fontSize: 15, cursor: valid ? 'pointer' : 'not-allowed', fontFamily: 'Raleway, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}>
-              Continuar al test →
+              {!sessionToken ? 'Preparando…' : 'Continuar al test →'}
             </button>
             <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 16 }}>
               Tus datos son confidenciales y no se compartirán con terceros.
