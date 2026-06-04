@@ -144,12 +144,12 @@ export default function TestPage() {
       }));
 
   // Detectar si el usuario es anónimo para mostrar formulario de datos
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) setIsAnon(true);
-      setAuthChecked(true);
-    });
-  }, []);
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setIsAnon(!session?.user);
+    setAuthChecked(true);
+  });
+}, []);
 
   // Crear sesión si no hay token (usuario llega directo desde anuncio)
   useEffect(() => {
@@ -233,44 +233,29 @@ export default function TestPage() {
 
     if (data?.result_id) {
       // Notify menter if this test was initiated from a menter's link
-      try {
-        const { data: session } = await supabase
-          .from('assessment_sessions')
-          .select('menter_id, persona_nombre, persona_email')
-          .eq('session_token', sessionToken)
-          .single()
-        if (session?.menter_id) {
-          const { data: menterProfile } = await supabase
-            .from('menter_public_profiles')
-            .select('nombre')
-            .eq('id', session.menter_id)
-            .single()
-          if (menterProfile) {
-            await fetch('/api/email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                tipo: 'resultado_test_menter',
-                data: {
-                  menter_id: session.menter_id,
-                  menterNombre: (menterProfile as any).nombre,
-                  personaNombre: session.persona_nombre || 'Un usuario',
-                  personaEmail: session.persona_email || '',
-                  instrumentoNombre: inst.nombre,
-                  resultadoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`,
-                },
-              }),
-            })
-          }
-        }
-      } catch { /* Non-critical — proceed to result page */ }
+      
+      // Notificar al Menter via API (usa service role, bypasa RLS)
+try {
+  await fetch('/api/assessment/notify-menter', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_token: sessionToken,
+      result_id: data.result_id,
+      instrument_name: inst.nombre,
+      raw_id: rawId,
+    }),
+  })
+} catch { /* non-critical */ }
 
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
-      }
-      router.push(`/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`);
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
     }
-  };
+
+    await new Promise(resolve => setTimeout(resolve, 800))
+    router.push(`/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`)
+  }
+}
 
   // ── DISCO: stepper especial con DISCStepperAdapter ──
   // Para DISC, cada "respuesta" del Stepper es el índice del adjetivo
@@ -294,11 +279,14 @@ export default function TestPage() {
           instruccion={INSTRUMENT_INSTRUCTIONS[instrumentId] || ''}
           authChecked={authChecked}
           onStart={() => {
-            if (typeof window !== 'undefined' && (window as any).gtag) {
-              (window as any).gtag('event', 'test_iniciado', { instrument: instrumentId, menter_id: menterId || undefined });
-            }
-            isAnon ? setPhase('datos') : setPhase('test');
-          }}
+  if (!authChecked) return  // ya está, pero agregar esto también:
+  // Forzar formulario si viene de link de menter (tiene token)
+  if (isAnon || (token && !supabase.auth.getUser)) {
+    setPhase('datos')
+  } else {
+    setPhase('test')
+  }
+}}
         />
       </PageShell>
     );
