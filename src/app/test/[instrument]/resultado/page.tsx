@@ -325,7 +325,7 @@ function ScreeningGauge({ positive, score, max, label }: { positive: boolean; sc
   const x2 = cx + r * Math.cos(endAngle);   const y2 = cy + r * Math.sin(endAngle);
   const nx = cx + r * Math.cos(angle);       const ny = cy + r * Math.sin(angle);
   const trackPath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
-  const valuePath = `M ${x1} ${y1} A ${r} ${r} 0 ${pct > 50 ? 1 : 0} 1 ${nx} ${ny}`;
+  const valuePath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${nx} ${ny}`;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 8 }}>
       <svg viewBox="0 0 160 90" width="160" style={{ display: 'block' }}>
