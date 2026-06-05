@@ -318,22 +318,28 @@ function DiscBarsChart({ percentiles }: { percentiles: Record<string, number> })
 function ScreeningGauge({ positive, score, max, label }: { positive: boolean; score: number; max: number; label: string }) {
   const color = positive ? CHART_COLORS.amber : CHART_COLORS.green;
   const pct = Math.min((score / max) * 100, 100);
-  const r = 60; const cx = 80; const cy = 80;
-  const startAngle = Math.PI; const endAngle = 2 * Math.PI;
-  const angle = startAngle + (pct / 100) * Math.PI;
-  const x1 = cx + r * Math.cos(startAngle); const y1 = cy + r * Math.sin(startAngle);
-  const x2 = cx + r * Math.cos(endAngle);   const y2 = cy + r * Math.sin(endAngle);
-  const nx = cx + r * Math.cos(angle);       const ny = cy + r * Math.sin(angle);
-  const trackPath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
-  const valuePath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${nx} ${ny}`;
+  const r = 56; const cx = 80; const cy = 76;
+  const circ = 2 * Math.PI * r;
+  const half = circ / 2;
+  const filled = (pct / 100) * half;
+  // strokeDashoffset=half shifts the start of the dash pattern to the LEFT endpoint (9 o'clock),
+  // making the visible arc go clockwise through the TOP — no transform needed.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 8 }}>
-      <svg viewBox="0 0 160 90" width="160" style={{ display: 'block' }}>
-        <path d={trackPath} fill="none" stroke="#f0f0f0" strokeWidth="10" strokeLinecap="round" />
-        <path d={valuePath} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" />
-        <text x={cx} y={cy - 8} textAnchor="middle" fontSize="22" fontWeight="800" fill={color}
+      <svg viewBox="0 0 160 88" width="160" height="88" style={{ display: 'block', overflow: 'hidden' }}>
+        <circle cx={cx} cy={cy} r={r}
+          fill="none" stroke="#f0f0f0" strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${half} ${half}`}
+          strokeDashoffset={half}
+        />
+        <circle cx={cx} cy={cy} r={r}
+          fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ - filled}`}
+          strokeDashoffset={half}
+        />
+        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="22" fontWeight="800" fill={color}
           fontFamily="system-ui, sans-serif">{score}/{max}</text>
-        <text x={cx} y={cy + 8} textAnchor="middle" fontSize="9" fill="#888"
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="9" fill="#888"
           fontFamily="system-ui, sans-serif">{label}</text>
       </svg>
       <span style={{
