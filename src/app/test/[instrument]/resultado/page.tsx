@@ -797,12 +797,34 @@ export default function ResultadoPage() {
   const [sharing, setSharing]     = useState(false);
   const [shared, setShared]       = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const cacheHandledRef = useRef(false);
 
   const inst = INSTRUMENTS[instrumentId as InstrumentId] ||
                EMPRESA_INSTRUMENTS[instrumentId as EmpresaInstrumentId];
   const cfg  = CARD_CONFIGS[instrumentId];
 
   useEffect(() => {
+    // Fast path: use sessionStorage result from just-completed test.
+    // Must run BEFORE setResult(null)/setLoading(true) so Strict Mode's second
+    // invocation doesn't wipe the result set by the first.
+    if (!cacheHandledRef.current && typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('girolab_pending_result')
+        if (raw) {
+          const cached = JSON.parse(raw)
+          if (cached.instrumentId === instrumentId && Date.now() - cached.savedAt < 600_000) {
+            cacheHandledRef.current = true
+            sessionStorage.removeItem('girolab_pending_result')
+            setResult(cached.result)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (_) {}
+    }
+    // If cache was already handled (Strict Mode second run), just skip entirely
+    if (cacheHandledRef.current) return
+
     setLoading(true);
     setResult(null);
     setShowFallback(false);
@@ -810,34 +832,55 @@ export default function ResultadoPage() {
     const timer = setTimeout(() => setShowFallback(true), 8000);
 
     const init = async () => {
-      // Arrancan en paralelo: getSession (caché local, sin red) + primer fetch del resultado
       const sessionPromise = supabase.auth.getSession()
 
-      if (resultId) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
-            if (res.ok) {
-              const data = await res.json()
-              if (data.resultado_json) {
-                clearTimeout(timer)
-                setResult(data.resultado_json)
-                setLoading(false)
-                const { data: { session } } = await sessionPromise
-                setUser(session?.user ?? null)
-                if (typeof window !== 'undefined' && (window as any).gtag) {
-                  (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+      try {
+        if (resultId) {
+          for (let attempt = 0; attempt < 5; attempt++) {
+            try {
+              const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
+              if (res.ok) {
+                const json = await res.json()
+                if (json.resultado_json) {
+                  setResult(json.resultado_json)
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('girolab_pending_result')
+                    if ((window as any).gtag) {
+                      (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+                    }
+                  }
+                  return
                 }
+              } else {
+                console.warn('[resultado] API status', res.status, 'attempt', attempt + 1)
+              }
+            } catch (e) {
+              console.warn('[resultado] fetch error attempt', attempt + 1, e)
+            }
+            if (attempt < 4) await new Promise(r => setTimeout(r, attempt < 2 ? 500 : 1500))
+          }
+        }
+
+        // Fallback: result saved to sessionStorage before redirect (handles API failures and missing ?r=)
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = sessionStorage.getItem('girolab_pending_result')
+            if (raw) {
+              const cached = JSON.parse(raw)
+              if (cached.instrumentId === instrumentId && Date.now() - cached.savedAt < 600_000) {
+                sessionStorage.removeItem('girolab_pending_result')
+                setResult(cached.result)
                 return
               }
             }
           } catch (_) {}
-          if (attempt < 2) await new Promise(r => setTimeout(r, 300))
         }
+      } finally {
+        clearTimeout(timer)
+        const { data: { session } } = await sessionPromise
+        setUser(session?.user ?? null)
+        setLoading(false)
       }
-
-      const { data: { session } } = await sessionPromise
-      setUser(session?.user ?? null)
     };
     init();
     return () => clearTimeout(timer);
@@ -875,7 +918,7 @@ const handleRegister = () => {
 }
 
   if (loading) return <LoadingScreen showFallback={showFallback} onRegister={handleRegister} />;
-  if (!result || !inst || !cfg) return <div style={rs.notFound}>Resultado no encontrado.</div>;
+  if (!result || !inst || !cfg) return <ErrorScreen onRetry={() => window.location.reload()} />;
 
   const headline = cfg.headline(result);
   const subline  = cfg.subline(result);
@@ -1035,6 +1078,25 @@ const handleRegister = () => {
         </div>
       </div>
       </div>
+    </div>
+  );
+}
+
+function ErrorScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div style={{ minHeight:'100vh', background:'#421869', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+      <p style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 18, margin: 0 }}>
+        No pudimos cargar tu resultado
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.6)', fontFamily: "'DM Sans', system-ui", fontSize: 15, margin: 0, lineHeight: 1.5, maxWidth: 300 }}>
+        Puede ser un problema temporal. Intenta recargar la página.
+      </p>
+      <button
+        onClick={onRetry}
+        style={{ marginTop: 8, padding: '13px 32px', borderRadius: 12, background: '#fff', color: '#421869', border: 'none', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: "'Raleway', sans-serif" }}
+      >
+        Recargar
+      </button>
     </div>
   );
 }

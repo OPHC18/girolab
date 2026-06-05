@@ -200,75 +200,101 @@ export default function TestPage() {
     let screening: boolean | undefined;
     let severidad: string | undefined;
 
-    if (isDisc) {
-      result   = scoreDISC(discResponses);
-    } else if (isHexaco) {
-      result   = scoreHEXACO(responses as HEXACOResponses);
-      pb       = result.scoreTotal;
-      severidad = result.nivelIntegridad;
-    } else if (isBarOn) {
-      result   = scoreBarOn(responses);
-      pb       = result.puntuacionBruta;
-      severidad = result.severidadLabel;
-    } else {
-      const parsed = isNPI ? parseNPIResponses(responses as any) : responses;
-      result    = scoreInstrument(instrumentId as InstrumentId, parsed);
-      pb        = result.puntuacionBruta;
-      screening = result.screeningPositivo;
-      severidad = result.severidadLabel;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { data } = await supabase.rpc('save_assessment_result', {
-      p_session_token:      sessionToken,
-      p_persona_id:         user?.id || null,
-      p_instrument_id:      instrumentId,
-      p_puntuacion_bruta:   pb ?? null,
-      p_resultado_json:     result,
-      p_screening_positivo: screening ?? null,
-      p_severidad_label:    severidad ?? null,
-      p_tags_menters:       result.tagsMenters || [],
-    });
-
-    if (data?.result_id) {
-      // Notify menter if this test was initiated from a menter's link
-      try {
-        const { data: session } = await supabase
-          .from('assessment_sessions')
-          .select('menter_id, persona_nombre, persona_email, candidato_nombre, candidato_email')
-          .eq('session_token', sessionToken)
-          .single()
-        if (session?.menter_id) {
-          const { data: menterProfile } = await supabase
-            .from('menter_public_profiles')
-            .select('nombre')
-            .eq('id', session.menter_id)
-            .single()
-          if (menterProfile) {
-            await fetch('/api/email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                tipo: 'resultado_test_menter',
-                data: {
-                  menter_id: session.menter_id,
-                  menterNombre: (menterProfile as any).nombre,
-                  personaNombre: session.persona_nombre || session.candidato_nombre || 'Un usuario',
-                  personaEmail: session.persona_email || session.candidato_email || '',
-                  instrumentoNombre: inst.nombre,
-                  resultadoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'}/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`,
-                },
-              }),
-            })
-          }
-        }
-      } catch { /* Non-critical — proceed to result page */ }
-
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
+    try {
+      if (isDisc) {
+        result   = scoreDISC(discResponses);
+      } else if (isHexaco) {
+        result   = scoreHEXACO(responses as HEXACOResponses);
+        pb       = result.scoreTotal;
+        severidad = result.nivelIntegridad;
+      } else if (isBarOn) {
+        result   = scoreBarOn(responses);
+        pb       = result.puntuacionBruta;
+        severidad = result.severidadLabel;
+      } else {
+        const parsed = isNPI ? parseNPIResponses(responses as any) : responses;
+        result    = scoreInstrument(instrumentId as InstrumentId, parsed);
+        pb        = result.puntuacionBruta;
+        screening = result.screeningPositivo;
+        severidad = result.severidadLabel;
       }
-      router.push(`/test/${rawId}/resultado?r=${data.result_id}&t=${sessionToken}`);
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 1. Try RPC (may fail due to RLS or missing DB function)
+      let resultId: string | null = null;
+      const { data: rpcData } = await supabase.rpc('save_assessment_result', {
+        p_session_token:      sessionToken,
+        p_persona_id:         user?.id || null,
+        p_instrument_id:      instrumentId,
+        p_puntuacion_bruta:   pb ?? null,
+        p_resultado_json:     result,
+        p_screening_positivo: screening ?? null,
+        p_severidad_label:    severidad ?? null,
+        p_tags_menters:       result.tagsMenters || [],
+      });
+      if (rpcData?.result_id) {
+        resultId = rpcData.result_id;
+      } else {
+        // 2. Fallback: save via server-side API route using service key (bypasses RLS)
+        try {
+          const res = await fetch('/api/assessment/save-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_token:      sessionToken,
+              persona_id:         user?.id || null,
+              instrument_id:      instrumentId,
+              puntuacion_bruta:   pb ?? null,
+              resultado_json:     result,
+              screening_positivo: screening ?? null,
+              severidad_label:    severidad ?? null,
+              tags_menters:       result.tagsMenters || [],
+            }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            resultId = json.result_id || null;
+          }
+        } catch (_) {}
+      }
+
+      // Always cache client-side — resultado page shows this instantly while API loads
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('girolab_pending_result', JSON.stringify({
+            instrumentId,
+            result,
+            savedAt: Date.now(),
+          }));
+        } catch (_) {}
+      }
+
+      if (resultId) {
+        // Notify menter via server-side route (has service key, handles candidato data)
+        try {
+          await fetch('/api/assessment/notify-menter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_token:   sessionToken,
+              result_id:       resultId,
+              instrument_name: inst.nombre,
+              raw_id:          rawId,
+            }),
+          });
+        } catch { /* Non-critical */ }
+
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
+        }
+        router.push(`/test/${rawId}/resultado?r=${resultId}&t=${sessionToken}`);
+      } else {
+        // No result_id — still redirect, sessionStorage fallback shows the result on screen
+        router.push(`/test/${rawId}/resultado?t=${sessionToken}`);
+      }
+    } catch {
+      router.push(`/test/${rawId}/resultado?t=${sessionToken}`);
     }
   };
 

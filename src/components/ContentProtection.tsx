@@ -8,7 +8,7 @@ export function ContentProtection() {
 
     // Deshabilitar atajos de teclado para inspeccionar / guardar fuente
     const onKeyDown = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase()
+      const k = (e.key ?? '').toLowerCase()
       // F12
       if (e.key === 'F12') { e.preventDefault(); return }
       // Ctrl+S, Ctrl+U, Ctrl+P
