@@ -5471,6 +5471,12 @@ const renderBlogModal = () => {
   setBlogComments(commentsData || [])
 }
 
+const abrirEvento = async (evento: any) => {
+  const { sanitizeHtml } = await import('@/lib/sanitize')
+  const safeDesc = await sanitizeHtml(evento.description || '')
+  setEventoModal({ ...evento, description: safeDesc })
+}
+
 const renderGrillaPostsPublicos = (posts: any[]) => {
   if (blogPostsPublicosLoading) return <p style={{ color: '#999' }}>Cargando posts...</p>
   
@@ -5540,7 +5546,7 @@ const renderGrillaEventosPublicos = (eventosLista: any[]) => {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
       {eventosLista.slice(0, eventosComunidadLimit).map(evento => (
-        <div key={evento.id} onClick={() => setEventoModal(evento)}
+        <div key={evento.id} onClick={() => abrirEvento(evento)}
           style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f0f0f0', cursor: 'pointer' }}>
           {evento.cover_image && (
             <img src={evento.cover_image} style={{ width: '100%', height: 140, objectFit: 'cover' as const }} />
