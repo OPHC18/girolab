@@ -795,7 +795,13 @@ export default function ResultadoPage() {
       : rawNormalized.toUpperCase();
   const resultId   = searchParams?.get('r') || '';
   const token      = searchParams?.get('t') || '';
+  // Link de evaluación multiuso: encadena la siguiente evaluación pendiente
+  const participanteToken = searchParams?.get('p') || '';
+  const linkToken         = searchParams?.get('e') || '';
 
+  const [siguiente, setSiguiente] = useState<{ instrument_id: string; nombre: string; session_token: string } | null>(null);
+  const [restantes, setRestantes] = useState(0);
+  const [totalLink, setTotalLink] = useState(0);
   const [result, setResult]       = useState<any>(null);
   const [loading, setLoading]     = useState(true);
   const [showFallback, setShowFallback] = useState(false);
@@ -892,6 +898,38 @@ export default function ResultadoPage() {
     return () => clearTimeout(timer);
   }, [resultId, token]);
 
+  // ── Encadenado de evaluaciones de un link multiuso ──────────────────────
+  // Al terminar la última se cierra el recorrido y se avisa una sola vez a
+  // quien generó el link.
+  useEffect(() => {
+    if (!participanteToken || !linkToken) return;
+    let cancelado = false;
+
+    (async () => {
+      try {
+        const res  = await fetch(`/api/evaluacion/${linkToken}?p=${participanteToken}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelado) return;
+
+        const progreso: { completado: boolean }[] = json.progreso ?? [];
+        setTotalLink(progreso.length);
+        setRestantes(progreso.filter(p => !p.completado).length);
+        setSiguiente(json.siguiente ?? null);
+
+        if (progreso.length > 0 && !json.siguiente) {
+          await fetch(`/api/evaluacion/${linkToken}/finalizar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participante_token: participanteToken }),
+          });
+        }
+      } catch { /* el resultado ya se muestra; el encadenado es complementario */ }
+    })();
+
+    return () => { cancelado = true; };
+  }, [participanteToken, linkToken, resultId]);
+
   const handleShare = async () => {
     if (!cfg || !result) return;
     setSharing(true);
@@ -966,6 +1004,33 @@ const handleRegister = () => {
       <style>{`@keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}} @media(max-width:860px){.rs-cols{flex-direction:column!important}}`}</style>
 
       <div style={rs.wrapper}>
+      {/* Barra de avance del link multiuso */}
+      {totalLink > 0 && (
+        <div style={rs.linkBar}>
+          {siguiente ? (
+            <>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <p style={rs.linkBarTitle}>
+                  Te {restantes === 1 ? 'queda 1 evaluación' : `quedan ${restantes} evaluaciones`}
+                </p>
+                <p style={rs.linkBarSub}>Sigue: {siguiente.nombre}</p>
+              </div>
+              <button
+                style={rs.linkBarBtn}
+                onClick={() => router.push(
+                  `/test/${siguiente.instrument_id}?t=${siguiente.session_token}&p=${participanteToken}&e=${linkToken}`
+                )}>
+                Continuar →
+              </button>
+            </>
+          ) : (
+            <div style={{ flex: 1 }}>
+              <p style={rs.linkBarTitle}>Completaste todas las evaluaciones</p>
+              <p style={rs.linkBarSub}>Quien te envió el enlace ya puede ver tus resultados.</p>
+            </div>
+          )}
+        </div>
+      )}
       <div className="rs-cols" style={rs.cols}>
         {/* IZQUIERDA: card + interpretación rica */}
         <div style={rs.colLeft}>
@@ -1140,6 +1205,10 @@ const rs: Record<string, React.CSSProperties> = {
   circles:        { position:'fixed', top:0, left:0, width:'100%', height:'100%', overflow:'hidden', margin:0, padding:0, zIndex:0, pointerEvents:'none', listStyle:'none' },
   notFound:       { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#888' },
   wrapper:        { position:'relative', zIndex:1, maxWidth:1020, margin:'0 auto', padding:'32px 20px 60px' },
+  linkBar:        { display:'flex', alignItems:'center', gap:16, flexWrap:'wrap', background:'#fff', borderRadius:16, padding:'16px 20px', marginBottom:20, boxShadow:'0 4px 16px rgba(0,0,0,0.12)' },
+  linkBarTitle:   { fontSize:15, fontWeight:800, color:'#421869', margin:0, fontFamily:"'Raleway', sans-serif" },
+  linkBarSub:     { fontSize:13, color:'#777', margin:'3px 0 0' },
+  linkBarBtn:     { padding:'12px 26px', borderRadius:30, background:'#421869', color:'#fff', border:'none', fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:"'Raleway', sans-serif", flexShrink:0 },
   cols:           { display:'flex', flexDirection:'row', gap:24, alignItems:'flex-start' },
   colLeft:        { flex:1, display:'flex', flexDirection:'column', gap:12 },
   colRight:       { width:340, flexShrink:0, display:'flex', flexDirection:'column', gap:16 },

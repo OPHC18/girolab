@@ -18,38 +18,13 @@ import {
   scoreDISC,
   scoreHEXACO,
   DISC_ITEMS,
+  HEXACO_ITEMS,
   type EmpresaInstrumentId,
   type DISCGroupResponse,
   type HEXACOResponses,
 } from '@/lib/assessments/instruments_empresa';
 import { ITEMS, INSTRUMENT_INSTRUCTIONS } from '@/lib/assessments/items';
-
-// ─────────────────────────────────────────────────────────────
-// WRAPPER: fondo institucional con círculos animados
-// ─────────────────────────────────────────────────────────────
-const CIRCLES = [
-  {left:'25%',size:80,delay:0,dur:25},{left:'10%',size:20,delay:2,dur:12},
-  {left:'70%',size:20,delay:4,dur:25},{left:'40%',size:60,delay:8,dur:20},
-  {left:'85%',size:30,delay:1,dur:18},
-];
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ backgroundColor: '#421869', minHeight: '100vh', position: 'relative', overflowX: 'hidden' }}>
-      <ul style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden', margin: 0, padding: 0, zIndex: 0, pointerEvents: 'none', listStyle: 'none' }}>
-        {CIRCLES.map((c, i) => (
-          <li key={i} style={{ position: 'absolute', display: 'block', width: c.size, height: c.size, background: 'rgba(255,255,255,0.05)', bottom: -150, left: c.left, borderRadius: '50%', animation: `animateUp ${c.dur}s linear ${c.delay}s infinite` }} />
-        ))}
-      </ul>
-      <style>{`@keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}}`}</style>
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'center', minHeight: '100vh' }}>
-        <div style={{ width: '100%', maxWidth: 640, background: 'white', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
+import PageShell from '@/components/assessments/PageShell';
 
 // ─────────────────────────────────────────────────────────────
 // CONSTRUIR CONFIGURACIÓN DEL STEPPER POR INSTRUMENTO
@@ -114,6 +89,13 @@ export default function TestPage() {
       : rawNormalized.toUpperCase();
   const token        = searchParams?.get('t') || '';
   const menterId     = searchParams?.get('ref') || null;
+  // Link de evaluación multiuso: la persona ya se identificó en /e/[token]
+  const participanteToken = searchParams?.get('p') || '';
+  const linkToken         = searchParams?.get('e') || '';
+  // Se arrastran en la URL para poder encadenar la siguiente evaluación
+  const sufijoLink = participanteToken && linkToken
+    ? `&p=${participanteToken}&e=${linkToken}`
+    : '';
 
   const [phase, setPhase]               = useState<'intro' | 'datos' | 'test' | 'submitting'>('intro');
   const [sessionToken, setSessionToken] = useState(token);
@@ -133,23 +115,32 @@ export default function TestPage() {
                  EMPRESA_INSTRUMENTS[instrumentId as EmpresaInstrumentId];
   const config = buildStepperConfig(instrumentId);
 
-  // Items listos para el Stepper
+  // Items listos para el Stepper.
+  // HEXACO guarda los suyos en instruments_empresa (HEXACO_ITEMS), no en ITEMS:
+  // sin este caso el stepper recibía una lista vacía y reventaba al renderizar.
   const stepperItems: StepperItem[] = isNPI
     ? buildNPIItems()
-    : (ITEMS[instrumentId as InstrumentId] || []).map(item => ({
-        numero: item.numero,
-        texto:  item.texto,
-        instruccion: item.instruccion,
-        tipo: instrumentId === 'MDQ' && item.numero === 15 ? 'mdq_c' : 'likert',
-      }));
+    : isHexaco
+      ? HEXACO_ITEMS.map(item => ({
+          numero: item.numero,
+          texto:  item.texto,
+          tipo:   'likert' as const,
+        }))
+      : (ITEMS[instrumentId as InstrumentId] || []).map(item => ({
+          numero: item.numero,
+          texto:  item.texto,
+          instruccion: item.instruccion,
+          tipo: instrumentId === 'MDQ' && item.numero === 15 ? 'mdq_c' : 'likert',
+        }));
 
-  // Detectar si el usuario es anónimo para mostrar formulario de datos
+  // Detectar si el usuario es anónimo para mostrar formulario de datos.
+  // Si viene de un link multiuso ya dio sus datos en /e/[token]: no se repiten.
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) setIsAnon(true);
+      if (!data.user && !participanteToken) setIsAnon(true);
       setAuthChecked(true);
     });
-  }, []);
+  }, [participanteToken]);
 
   // Crear sesión si no hay token (usuario llega directo desde anuncio)
   useEffect(() => {
@@ -221,42 +212,53 @@ export default function TestPage() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // 1. Try RPC (may fail due to RLS or missing DB function)
-      let resultId: string | null = null;
-      const { data: rpcData } = await supabase.rpc('save_assessment_result', {
-        p_session_token:      sessionToken,
-        p_persona_id:         user?.id || null,
-        p_instrument_id:      instrumentId,
-        p_puntuacion_bruta:   pb ?? null,
-        p_resultado_json:     result,
-        p_screening_positivo: screening ?? null,
-        p_severidad_label:    severidad ?? null,
-        p_tags_menters:       result.tagsMenters || [],
-      });
-      if (rpcData?.result_id) {
-        resultId = rpcData.result_id;
-      } else {
-        // 2. Fallback: save via server-side API route using service key (bypasses RLS)
+      const payload = {
+        session_token:      sessionToken,
+        persona_id:         user?.id || null,
+        instrument_id:      instrumentId,
+        puntuacion_bruta:   pb ?? null,
+        resultado_json:     result,
+        screening_positivo: screening ?? null,
+        severidad_label:    severidad ?? null,
+        tags_menters:       result.tagsMenters || [],
+      };
+
+      // La ruta del servidor es la que calcula el match con el perfil de puesto
+      // y cobra el crédito del test. Las evaluaciones que vienen de un link
+      // pasan siempre por ahí; la RPC no hace ninguna de esas dos cosas.
+      const guardarEnServidor = async (): Promise<string | null> => {
         try {
           const res = await fetch('/api/assessment/save-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session_token:      sessionToken,
-              persona_id:         user?.id || null,
-              instrument_id:      instrumentId,
-              puntuacion_bruta:   pb ?? null,
-              resultado_json:     result,
-              screening_positivo: screening ?? null,
-              severidad_label:    severidad ?? null,
-              tags_menters:       result.tagsMenters || [],
-            }),
+            body: JSON.stringify(payload),
           });
-          if (res.ok) {
-            const json = await res.json();
-            resultId = json.result_id || null;
-          }
-        } catch (_) {}
+          if (!res.ok) return null;
+          const json = await res.json();
+          return json.result_id || null;
+        } catch {
+          return null;
+        }
+      };
+
+      let resultId: string | null = null;
+
+      if (participanteToken) {
+        resultId = await guardarEnServidor();
+      } else {
+        // Tráfico suelto (anuncios, enlace directo): se mantiene la RPC como
+        // camino principal, con la ruta del servidor como respaldo.
+        const { data: rpcData } = await supabase.rpc('save_assessment_result', {
+          p_session_token:      sessionToken,
+          p_persona_id:         user?.id || null,
+          p_instrument_id:      instrumentId,
+          p_puntuacion_bruta:   pb ?? null,
+          p_resultado_json:     result,
+          p_screening_positivo: screening ?? null,
+          p_severidad_label:    severidad ?? null,
+          p_tags_menters:       result.tagsMenters || [],
+        });
+        resultId = rpcData?.result_id ?? await guardarEnServidor();
       }
 
       // Always cache client-side — resultado page shows this instantly while API loads
@@ -288,13 +290,13 @@ export default function TestPage() {
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'test_completado', { instrument: instrumentId, menter_id: menterId || undefined });
         }
-        router.push(`/test/${rawId}/resultado?r=${resultId}&t=${sessionToken}`);
+        router.push(`/test/${rawId}/resultado?r=${resultId}&t=${sessionToken}${sufijoLink}`);
       } else {
         // No result_id — still redirect, sessionStorage fallback shows the result on screen
-        router.push(`/test/${rawId}/resultado?t=${sessionToken}`);
+        router.push(`/test/${rawId}/resultado?t=${sessionToken}${sufijoLink}`);
       }
     } catch {
-      router.push(`/test/${rawId}/resultado?t=${sessionToken}`);
+      router.push(`/test/${rawId}/resultado?t=${sessionToken}${sufijoLink}`);
     }
   };
 
@@ -308,6 +310,25 @@ export default function TestPage() {
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#888', fontFamily:'system-ui' }}>
         Test no encontrado.
       </div>
+    );
+  }
+
+  // Un instrumento sin ítems cargados hacía reventar el stepper con una
+  // pantalla en blanco. Mejor decirlo que romperse delante del evaluado.
+  if (!isDisc && stepperItems.length === 0) {
+    return (
+      <PageShell>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'40px 28px', textAlign:'center', fontFamily:"'DM Sans', system-ui" }}>
+          <div style={{ fontSize:44 }}>🛠️</div>
+          <h2 style={{ fontFamily:'Raleway, sans-serif', color:'#421869', fontSize:20, fontWeight:900, margin:0 }}>
+            Esta evaluación no está disponible
+          </h2>
+          <p style={{ color:'#777', fontSize:14, lineHeight:1.6, margin:0, maxWidth:340 }}>
+            Hubo un problema al preparar <strong>{inst.nombre}</strong>. Avísale a quien te
+            envió el enlace para que lo revise.
+          </p>
+        </div>
+      </PageShell>
     );
   }
 

@@ -6,13 +6,19 @@ export async function POST(req: NextRequest) {
   
   const supabase = createSupabaseAdmin()
   
+  // persona_nombre/persona_email no existen en assessment_sessions: pedirlas
+  // hacía fallar el select entero y el Menter nunca recibía el aviso.
   const { data: session } = await supabase
     .from('assessment_sessions')
-    .select('menter_id, persona_nombre, persona_email, candidato_nombre, candidato_email')
+    .select('menter_id, candidato_nombre, candidato_email, link_id')
     .eq('session_token', session_token)
     .single()
 
   if (!session?.menter_id) return NextResponse.json({ ok: false })
+
+  // En un link multiuso el aviso se manda una sola vez, al terminar todas las
+  // evaluaciones (/api/evaluacion/[token]/finalizar), no una por instrumento.
+  if (session.link_id) return NextResponse.json({ ok: true, omitido: 'link_multiuso' })
 
   const { data: menterProfile } = await supabase
     .from('menter_public_profiles')
@@ -30,8 +36,8 @@ export async function POST(req: NextRequest) {
       data: {
         menter_id: session.menter_id,
         menterNombre: menterProfile.nombre,
-        personaNombre: session.persona_nombre || session.candidato_nombre || 'Un usuario',
-        personaEmail: session.persona_email || session.candidato_email || '',
+        personaNombre: session.candidato_nombre || 'Un usuario',
+        personaEmail: session.candidato_email || '',
         instrumentoNombre: instrument_name,
         resultadoUrl: `${process.env.NEXT_PUBLIC_APP_URL}/test/${raw_id}/resultado?r=${result_id}&t=${session_token}`,
       },

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getPayPalToken } from '@/lib/paypal'
+import { CREDIT_PACKS_BY_ID } from '@/lib/creditos'
 
 const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox'
 const PAYPAL_BASE = PAYPAL_MODE === 'live'
@@ -12,14 +13,6 @@ const PAYPAL_BASE = PAYPAL_MODE === 'live'
   : 'https://api-m.sandbox.paypal.com'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://girolab.net'
-
-// Packs de créditos disponibles
-export const CREDIT_PACKS: Record<string, { creditos: number; precio: number; label: string }> = {
-  pack_1:  { creditos: 1,  precio: 5,  label: '1 evaluación'  },
-  pack_5:  { creditos: 5,  precio: 20, label: '5 evaluaciones' },
-  pack_10: { creditos: 10, precio: 35, label: '10 evaluaciones' },
-  pack_20: { creditos: 20, precio: 60, label: '20 evaluaciones' },
-}
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -32,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const { pack_id } = await req.json()
-  const pack = CREDIT_PACKS[pack_id]
+  const pack = CREDIT_PACKS_BY_ID[pack_id]
   if (!pack) return NextResponse.json({ error: 'Pack inválido' }, { status: 400 })
 
   const token = await getPayPalToken()

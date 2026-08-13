@@ -64,18 +64,16 @@ export async function POST(req: NextRequest) {
 
   const supabase = createSupabaseAdmin()
 
-  // Agregar créditos: upsert con incremento
-  const { data: existing } = await supabase
-    .from('instrumento_creditos')
-    .select('creditos')
-    .eq('empresa_id', user.id)
-    .single()
+  // Acreditar de forma atómica (evita perder créditos si hay capturas simultáneas)
+  const { data: nuevosCreditos, error: creditoError } = await supabase.rpc('ajustar_creditos', {
+    p_user_id: user.id,
+    p_delta:   creditos,
+  })
 
-  const nuevosCreditos = (existing?.creditos || 0) + creditos
-
-  await supabase
-    .from('instrumento_creditos')
-    .upsert({ empresa_id: user.id, creditos: nuevosCreditos, updated_at: new Date().toISOString() }, { onConflict: 'empresa_id' })
+  if (creditoError) {
+    console.error('[capture-order] No se pudieron acreditar los créditos:', creditoError)
+    return NextResponse.json({ error: 'No se pudieron acreditar los créditos' }, { status: 500 })
+  }
 
   // Registrar la compra
   await supabase.from('instrumento_compras').insert({

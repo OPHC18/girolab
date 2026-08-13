@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/app/lib/supabase'
 import { getRecaptchaToken, verifyRecaptcha } from '@/lib/recaptcha'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
@@ -230,6 +230,23 @@ export default function Dashboard() {
   const [modalCancelar, setModalCancelar] = useState<any | null>(null)
   const [cancelarLoading, setCancelarLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // El menú lateral scrollea pero oculta su barra (scrollbarWidth:'none'). En
+  // móvil no caben los 15 ítems de un Menter, así que sin una señal visual la
+  // gente cree que las opciones de abajo no existen.
+  const sidebarRef = useRef<HTMLDivElement | null>(null)
+  const [hayMasMenu, setHayMasMenu] = useState(false)
+
+  const revisarScrollMenu = useCallback(() => {
+    const el = sidebarRef.current
+    if (!el) return
+    setHayMasMenu(el.scrollHeight - el.clientHeight - el.scrollTop > 12)
+  }, [])
+
+  useEffect(() => {
+    revisarScrollMenu()
+    window.addEventListener('resize', revisarScrollMenu)
+    return () => window.removeEventListener('resize', revisarScrollMenu)
+  }, [revisarScrollMenu, sidebarOpen])
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [modalReprogramar, setModalReprogramar] = useState<any | null>(null)
   const [reprogramarFecha, setReprogramarFecha] = useState('')
@@ -1517,7 +1534,9 @@ if (missingFields.nombre || missingFields.apellidos) {
 
     const params = new URLSearchParams(window.location.search)
     const tabParam = params.get('tab')
-    if (tabParam && ['perfil','editar','mis-citas','roadmap','destacados','escribir','eventos','comunidad','compras','objetivos','membresia'].includes(tabParam)) {
+    // Las de instrumentos son destino de los correos de evaluación (resumen de
+    // resultados y aviso de créditos): sin ellas el enlace caía en otra pestaña.
+    if (tabParam && ['perfil','editar','mis-citas','roadmap','destacados','escribir','eventos','comunidad','compras','objetivos','membresia','instrumentos','instrumentos_empresa','resultados_tests'].includes(tabParam)) {
       setActiveTab(tabParam as TabId)
     }
     // PayPal redirect de vuelta tras aprobar suscripción
@@ -7680,7 +7699,7 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
           </div>
         </div>
 
-        <div className={`giro-sidebar${sidebarOpen?' open':''}`} style={{ position:'fixed', left:20, top:100, bottom:30, zIndex:100, display:'flex', flexDirection:'column', alignItems:'center', gap:10, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none', width:70, transition:'transform 0.3s ease' }}>
+        <div ref={sidebarRef} onScroll={revisarScrollMenu} className={`giro-sidebar${sidebarOpen?' open':''}`} style={{ position:'fixed', left:20, top:100, bottom:30, zIndex:100, display:'flex', flexDirection:'column', alignItems:'center', gap:10, overflowY:'auto', overflowX:'hidden', scrollbarWidth:'none', width:70, transition:'transform 0.3s ease' }}>
           {menuItems.map(item => {
   const badgeCount = 
     (item.id === 'citas' && isMenter && citasPendientesCount > 0) ||
@@ -7706,6 +7725,14 @@ escribir: { title: 'Blog', content: isMenter && canPremium ? renderBlogMenter() 
               <span style={{ fontSize:8, fontWeight:700, textAlign:'center', lineHeight:1.2, maxWidth:54 }}>Soporte</span>
             </div>
           </div>
+
+          {/* Señal de que el menú sigue hacia abajo. Se pega al borde inferior
+              mientras quede contenido y desaparece al llegar al final. */}
+          {hayMasMenu && (
+            <div aria-hidden="true" style={{ position:'sticky', bottom:0, flexShrink:0, display:'flex', justifyContent:'center', width:'100%', paddingTop:4, pointerEvents:'none' }}>
+              <span style={{ width:26, height:26, borderRadius:'50%', background:'rgba(255,255,255,0.22)', backdropFilter:'blur(4px)', color:'#fff', fontSize:13, lineHeight:'26px', textAlign:'center', fontWeight:800, boxShadow:'0 2px 8px rgba(0,0,0,0.25)' }}>▾</span>
+            </div>
+          )}
         </div>
         <main className="giro-main-panel" style={{ marginLeft:110, padding:'40px 40px 100px 40px', position:'relative', zIndex:10, maxWidth:1200 }}>
           <div className="giro-desktop-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:30, paddingRight:110 }}>

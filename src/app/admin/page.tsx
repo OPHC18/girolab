@@ -7,10 +7,10 @@ import Chart from 'chart.js/auto'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 const ADMIN_EMAILS = [
-  'omar@girolab.net',     
+  'omar@girolab.net',
   'admin@girolab.net',
-  'luana@girolab.net', 
-  'daniela@girolab.net', 
+  'luana@girolab.net',
+  'daniela@girolab.net',
   'omarphc@hotmail.com',
 ]
 
@@ -113,6 +113,8 @@ export default function AdminPage() {
   // ── Lead scores ────────────────────────────────────────────────────────────
   const [leadScores, setLeadScores] = useState<Record<string, { score: number; factores: Record<string, number> }>>({})
   const [scoringLoading, setScoringLoading] = useState(false)
+  const [creditosMap, setCreditosMap] = useState<Record<string, number>>({})
+  const [ajustandoCreditos, setAjustandoCreditos] = useState<string | null>(null)
 
   const cargarLeadScores = async (role: 'menter' | 'empresa', userIds: string[]) => {
     if (!userIds.length) return
@@ -127,6 +129,37 @@ export default function AdminPage() {
       if (scores) setLeadScores(prev => ({ ...prev, ...scores }))
     } finally {
       setScoringLoading(false)
+    }
+  }
+
+  // ── Créditos de evaluación ──────────────────────────────────────────────
+  // Permiten que Menters y Empresas generen links de evaluación sin pagar,
+  // por ejemplo para que prueben la plataforma.
+  const cargarCreditos = async (userIds: string[]) => {
+    if (!userIds.length) return
+    try {
+      const res = await fetch(`/api/admin/creditos?ids=${userIds.join(',')}`)
+      const { saldos } = await res.json()
+      if (saldos) setCreditosMap(prev => ({ ...prev, ...saldos }))
+    } catch { /* el saldo se muestra como — */ }
+  }
+
+  const ajustarCreditos = async (userId: string, delta: number, nombre: string) => {
+    setAjustandoCreditos(userId)
+    try {
+      const res = await fetch('/api/admin/creditos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, delta, nota: `Asignación manual desde el panel (${nombre})` }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast(`Error: ${json.error}`); return }
+      setCreditosMap(prev => ({ ...prev, [userId]: json.creditos }))
+      toast(`${delta > 0 ? '+' : ''}${delta} crédito(s) · ${nombre} ahora tiene ${json.creditos}`)
+    } catch {
+      toast('No se pudieron actualizar los créditos')
+    } finally {
+      setAjustandoCreditos(null)
     }
   }
 
@@ -487,7 +520,9 @@ const cargarEmpresas = async () => {
     respuestas: { ...(u.respuestas || {}), ...(perfilesMap[u.id] || {}) },
   }))
   setEmpresas(soloEmpresas)
-  cargarLeadScores('empresa', soloEmpresas.map((e: any) => e.id))
+  const empresaIds = soloEmpresas.map((e: any) => e.id)
+  cargarLeadScores('empresa', empresaIds)
+  cargarCreditos(empresaIds)
 
   // Stats de países
   const paises = contarCampo(soloEmpresas, 'pais')
@@ -574,6 +609,7 @@ const cargarMenters = async () => {
 })
   setMenters(mentersCompletos)
   cargarLeadScores('menter', menterIds)
+  cargarCreditos(menterIds)
 
   // Stats de citas por menter
   const stats: Record<string, any> = {}
@@ -1224,6 +1260,32 @@ const confirmarCambioPlan = async () => {
     return <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: c.bg, color: c.color }}>{c.label}</span>
   }
 
+  // Saldo de créditos de evaluación + asignación rápida
+  const CreditosControl = ({ userId, nombre }: { userId: string; nombre: string }) => {
+    const saldo   = creditosMap[userId]
+    const ocupado = ajustandoCreditos === userId
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const }}>
+        <span title="Créditos de evaluación disponibles"
+          style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: (saldo ?? 0) > 0 ? '#f3e8ff' : '#f5f5f5', color: (saldo ?? 0) > 0 ? '#421869' : '#999' }}>
+          🎫 {saldo ?? '—'} créditos
+        </span>
+        {[1, 5, 10].map(n => (
+          <button key={n} disabled={ocupado} onClick={() => ajustarCreditos(userId, n, nombre)}
+            style={{ padding: '3px 9px', borderRadius: 8, border: '1px solid #c7d2fe', background: '#eef2ff', fontSize: 11, fontWeight: 700, color: '#4338ca', cursor: ocupado ? 'wait' : 'pointer' }}>
+            +{n}
+          </button>
+        ))}
+        {(saldo ?? 0) > 0 && (
+          <button disabled={ocupado} onClick={() => ajustarCreditos(userId, -1, nombre)}
+            style={{ padding: '3px 9px', borderRadius: 8, border: '1px solid #eee', background: 'white', fontSize: 11, fontWeight: 700, color: '#999', cursor: ocupado ? 'wait' : 'pointer' }}>
+            −1
+          </button>
+        )}
+      </div>
+    )
+  }
+
   const KpiCard = ({ emoji, label, value, color, onClick }: any) => (
     <div onClick={onClick} style={{
       background: 'white', borderRadius: 16, padding: '20px',
@@ -1767,6 +1829,9 @@ const confirmarCambioPlan = async () => {
                 Eliminar
               </button>
             </div>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
+              <CreditosControl userId={u.id} nombre={u.empresa || u.nombre || 'Empresa'} />
+            </div>
           </div>
         )})}
 
@@ -1777,7 +1842,7 @@ const confirmarCambioPlan = async () => {
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
         <thead>
           <tr style={{ background: '#f8f9fa' }}>
-            {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', ''].map(h => (
+            {['Contacto', 'Empresa', 'Cargo', 'Email', 'País', 'Teléfono', 'Registro', 'UUID', 'Créditos', ''].map(h => (
               <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase' as const }}>{h}</th>
             ))}
           </tr>
@@ -1806,6 +1871,9 @@ const confirmarCambioPlan = async () => {
                     style={{ padding: '3px 8px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 10, cursor: 'pointer', color: '#999', fontFamily: 'monospace' }}>
                     {u.id?.slice(0, 8)}...
                   </button>
+                </td>
+                <td style={{ padding: '10px 16px' }}>
+                  <CreditosControl userId={u.id} nombre={u.empresa || u.nombre || 'Empresa'} />
                 </td>
                 <td style={{ padding: '10px 16px' }}>
                   <button onClick={() => eliminarUsuarioAdmin(u.id, u.email, `${u.nombre || ''} ${u.apellidos || ''}`.trim())}
@@ -2003,6 +2071,14 @@ const confirmarCambioPlan = async () => {
                             style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#fff5f5', fontSize: 11, cursor: 'pointer', color: '#c62828', fontWeight: 600 }}>
                             Eliminar cuenta
                           </button>
+                        </div>
+
+                        {/* Créditos de evaluación — Premium y Master generan links sin costo */}
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                          <CreditosControl userId={m.menter_id} nombre={`${m.nombre || ''} ${m.apellidos || ''}`.trim() || 'Menter'} />
+                          {['premium', 'master'].includes(plan) && (
+                            <span style={{ fontSize: 10, color: '#999' }}>Su plan ya genera links sin consumir créditos</span>
+                          )}
                         </div>
                       </div>
                     )

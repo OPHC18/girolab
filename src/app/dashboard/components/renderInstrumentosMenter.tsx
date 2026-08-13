@@ -1,6 +1,6 @@
 // src/app/dashboard/components/renderInstrumentosMenter.tsx
-// Tab "Instrumentos" exclusivo para Menters Premium y Master
-// Permite ver todos los tests, generar links compartibles, y ver resultados de sus Personas
+// Tab "Instrumentos" del Menter: genera links de evaluación reutilizables
+// (uno o varios instrumentos por link) y muestra los resultados de sus Personas.
 
 'use client';
 
@@ -8,8 +8,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { INSTRUMENTS, InstrumentId } from '@/lib/assessments/instruments';
 import type { AssessmentResult } from '@/lib/assessments/instruments';
+import { CATALOG_LIST } from '@/lib/assessments/catalog';
+import GeneradorLinkEvaluacion from './GeneradorLinkEvaluacion';
+import ModalComprarCreditos from './ModalComprarCreditos';
+import { useCreditos } from './useCreditos';
 
-interface ShareLink { token: string; url: string; copied: boolean; }
 interface PersonaResult {
   id: string;
   candidato_nombre: string | null;
@@ -35,23 +38,24 @@ interface Props {
 
 export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) {
   const [activeTab, setActiveTab] = useState<'biblioteca' | 'resultados'>('biblioteca');
-  const [shareLinks, setShareLinks] = useState<Record<InstrumentId, ShareLink | null>>({} as any);
-  const [loadingLink, setLoadingLink] = useState<InstrumentId | null>(null);
   const [resultados, setResultados] = useState<PersonaResult[]>([]);
   const [loadingResultados, setLoadingResultados] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PersonaResult | null>(null);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [vinculandoId, setVinculandoId] = useState<string | null>(null);
   const [objetivoSeleccionado, setObjetivoSeleccionado] = useState<string>('');
-  const [creditos, setCreditos]         = useState<number | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
-  const [buyingPack, setBuyingPack]     = useState<string | null>(null);
-  const [buyMsg, setBuyMsg]             = useState<string | null>(null);
 
+  // Free y Starter generan links pagando créditos; Premium y Master, sin costo
   const isFreeStarter = !['premium', 'master'].includes(menterPlan);
+  const { creditos, setCreditos, mensaje: buyMsg } = useCreditos(userId, isFreeStarter);
 
-  const canAccess = (plan: ('master' | 'premium')[]) =>
-    menterPlan === 'master' || (menterPlan === 'premium' && !plan.every(p => p === 'master'));
+  // Instrumentos reservados a Master, deshabilitados para Premium
+  const bloqueados = Object.fromEntries(
+    CATALOG_LIST
+      .filter(i => menterPlan === 'premium' && i.planesMenter.every(p => p === 'master'))
+      .map(i => [i.id, 'Solo Master'])
+  );
 
   // Cargar resultados de personas
   useEffect(() => {
@@ -81,88 +85,6 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
           .then(({ data }) => setObjetivos(data || []));
       });
   }, [selectedResult, userId]);
-
-  useEffect(() => {
-    if (!isFreeStarter) return;
-    supabase.from('instrumento_creditos').select('creditos').eq('empresa_id', userId).maybeSingle()
-      .then(({ data }) => setCreditos(data?.creditos ?? 0));
-  }, [userId, isFreeStarter]);
-
-  useEffect(() => {
-    if (!isFreeStarter) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('pp') === 'ok') {
-      const orderId = sessionStorage.getItem('paypal_order_id');
-      if (orderId) {
-        sessionStorage.removeItem('paypal_order_id');
-        fetch('/api/paypal/capture-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order_id: orderId }),
-        })
-          .then(r => r.json())
-          .then(d => { if (d.ok) { setCreditos(d.creditos_nuevos); setBuyMsg('¡Créditos acreditados!'); } });
-      }
-    }
-  }, [isFreeStarter]);
-
-  // Generar link compartible
-  const handleGenerarLink = async (instrumentId: InstrumentId) => {
-    if (isFreeStarter) {
-      if (!creditos || creditos <= 0) { setShowBuyModal(true); return; }
-    } else if (!canAccess(INSTRUMENTS[instrumentId].planesMenter)) {
-      return;
-    }
-    setLoadingLink(instrumentId);
-    const { data, error } = await supabase.rpc('create_assessment_link', {
-      p_instrument_id: instrumentId,
-      p_menter_id: userId,
-    });
-    if (!error && data) {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net';
-      const url = `${origin}/test/${instrumentId}?t=${data.token}`;
-      setShareLinks(prev => ({ ...prev, [instrumentId]: { token: data.token, url, copied: false } }));
-      if (isFreeStarter) {
-        const nuevos = (creditos || 0) - 1;
-        await supabase.from('instrumento_creditos').upsert(
-          { empresa_id: userId, creditos: nuevos, updated_at: new Date().toISOString() },
-          { onConflict: 'empresa_id' }
-        );
-        setCreditos(nuevos);
-      }
-    }
-    setLoadingLink(null);
-  };
-
-  // Copiar link
-  const handleCopiarLink = (instrumentId: InstrumentId) => {
-    const link = shareLinks[instrumentId];
-    if (!link) return;
-    navigator.clipboard.writeText(link.url);
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'enlace_test_copiado', { instrument: instrumentId })
-    }
-    setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: true } }));
-    setTimeout(() => setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: false } })), 2000);
-  };
-
-  const handleComprar = async (packId: string) => {
-    setBuyingPack(packId);
-    setBuyMsg(null);
-    const res = await fetch('/api/paypal/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack_id: packId }),
-    });
-    const d = await res.json();
-    if (d.approve_url) {
-      sessionStorage.setItem('paypal_order_id', d.order_id);
-      window.location.href = d.approve_url;
-    } else {
-      setBuyMsg('Error al iniciar el pago. Intenta de nuevo.');
-      setBuyingPack(null);
-    }
-  };
 
   // Vincular resultado al Roadmap
   const handleVincular = async (resultId: string) => {
@@ -196,7 +118,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       <div style={s.header}>
         <div>
           <h2 style={s.titulo}>Instrumentos Psicométricos</h2>
-          <p style={s.subtitulo}>Comparte tests validados con tus personas y visualiza sus resultados</p>
+          <p style={s.subtitulo}>Genera un link con las evaluaciones que necesites y compártelo con tus personas</p>
         </div>
         <span style={{ ...s.planBadge, background: menterPlan === 'master' ? '#FFF3E0' : '#E8EAF6', color: menterPlan === 'master' ? '#E65100' : '#3949AB' }}>
           {menterPlan.charAt(0).toUpperCase() + menterPlan.slice(1)}
@@ -206,7 +128,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       {isFreeStarter && (
         <div style={s.creditBanner}>
           <span style={s.creditBannerText}>
-            {creditos === null ? '...' : creditos} crédito{creditos !== 1 ? 's' : ''} disponibles
+            {creditos === null
+              ? '...'
+              : creditos < 0
+                ? `Sin créditos · ${Math.abs(creditos)} evaluación${Math.abs(creditos) !== 1 ? 'es' : ''} pendiente${Math.abs(creditos) !== 1 ? 's' : ''} de pago`
+                : `${creditos} crédito${creditos !== 1 ? 's' : ''} disponible${creditos !== 1 ? 's' : ''}`}
           </span>
           <button style={s.creditBannerBtn} onClick={() => setShowBuyModal(true)}>+ Comprar</button>
         </div>
@@ -222,89 +148,19 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
         {(['biblioteca', 'resultados'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ ...s.tabBtn, ...(activeTab === tab ? s.tabBtnActive : {}) }}>
-            {tab === 'biblioteca' ? 'Biblioteca' : 'Resultados de personas'}
+            {tab === 'biblioteca' ? 'Enviar evaluaciones' : 'Resultados de personas'}
           </button>
         ))}
       </div>
 
-      {/* ── BIBLIOTECA ── */}
+      {/* ── GENERAR LINK ── */}
       {activeTab === 'biblioteca' && (
-        <div style={s.grid}>
-          {(Object.values(INSTRUMENTS) as typeof INSTRUMENTS[InstrumentId][]).map(inst => {
-            const acceso = canAccess(inst.planesMenter);
-            const link = shareLinks[inst.id];
-            const isLoading = loadingLink === inst.id;
-            const soloMaster = inst.planesMenter.every((p: string) => p === 'master');
-
-            return (
-              <div key={inst.id} style={{ ...s.card, opacity: isFreeStarter ? 0.88 : acceso ? 1 : 0.6 }}>
-                {/* Badge Master-only */}
-                {soloMaster && menterPlan === 'premium' && (
-                  <span style={s.masterOnlyBadge}>Solo Master</span>
-                )}
-                {/* Ícono + nombre */}
-                <div style={s.cardHeader}>
-                  <span style={{ fontSize: 28 }}>{inst.icono}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={s.cardTitle}>{inst.nombre}</p>
-                    <p style={s.cardDesc}>{inst.descripcion}</p>
-                  </div>
-                </div>
-
-                {/* Meta */}
-                <div style={s.metaRow}>
-                  <span style={s.meta}>{inst.totalItems} ítems</span>
-                  <span style={s.meta}>~{inst.tiempoMinutos} min</span>
-                  <span style={s.meta}>{inst.referencia}</span>
-                </div>
-
-                {/* Tags */}
-                <div style={s.tagsRow}>
-                  {inst.tagsMenters.map((tag: string) => (
-                    <span key={tag} style={{ ...s.tag, background: `${inst.color}22`, color: inst.color }}>{tag}</span>
-                  ))}
-                </div>
-
-                {/* Link generado */}
-                {link && (
-                  <div style={s.linkBox}>
-                    <span style={s.linkText}>{link.url}</span>
-                    <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
-                      onClick={() => handleCopiarLink(inst.id)}>
-                      {link.copied ? 'Copiado' : 'Copiar'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Botones */}
-                {isFreeStarter ? (
-                  creditos !== null && creditos > 0 ? (
-                    <button style={{ ...s.actionBtn, background: inst.color }}
-                      disabled={isLoading}
-                      onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
-                      {isLoading ? 'Generando...' : link ? 'Copiar link' : `Usar 1 crédito (${creditos} disp.)`}
-                    </button>
-                  ) : (
-                    <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
-                      onClick={() => setShowBuyModal(true)}>
-                      {creditos === null ? 'Cargando...' : 'Comprar crédito'}
-                    </button>
-                  )
-                ) : acceso ? (
-                  <button style={{ ...s.actionBtn, background: inst.color }}
-                    disabled={isLoading}
-                    onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
-                    {isLoading ? 'Generando...' : link ? 'Copiar link' : 'Generar link'}
-                  </button>
-                ) : (
-                  <button style={{ ...s.actionBtn, background: '#ccc', cursor: 'not-allowed' }} disabled>
-                    Solo para Master
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <GeneradorLinkEvaluacion
+          consumeCreditos={isFreeStarter}
+          creditos={creditos}
+          onSinCreditos={() => setShowBuyModal(true)}
+          bloqueados={bloqueados}
+        />
       )}
 
       {/* ── RESULTADOS ── */}
@@ -406,40 +262,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
       {/* ── MODAL COMPRAR CRÉDITOS (plan free/starter) ── */}
       {isFreeStarter && showBuyModal && (
-        <div style={s.modalOverlay} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>
-          <div style={s.buyModal} onClick={e => e.stopPropagation()}>
-            <button aria-label="Cerrar" style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>✕</button>
-            <h3 style={s.modalTitle}>Comprar créditos</h3>
-            <p style={s.buyModalSub}>Cada crédito te permite compartir 1 instrumento con una persona.</p>
-            <div style={s.packsGrid}>
-              {CREDIT_PACKS.map(pack => (
-                <button key={pack.id}
-                  style={{ ...s.packCard, ...(buyingPack === pack.id ? s.packCardActive : {}) }}
-                  onClick={() => handleComprar(pack.id)}
-                  disabled={!!buyingPack}>
-                  <div style={s.packCreditos}>{pack.creditos}</div>
-                  <div style={s.packLabel}>{pack.label}</div>
-                  <div style={s.packPrecio}>${pack.precio} USD</div>
-                  {pack.ahorro && <div style={s.packAhorro}>{pack.ahorro}</div>}
-                  {buyingPack === pack.id && <div style={s.packLoading}>Redirigiendo...</div>}
-                </button>
-              ))}
-            </div>
-            {buyMsg && <p style={{ textAlign: 'center', color: '#c62828', fontSize: 13, marginTop: 12 }}>{buyMsg}</p>}
-            <p style={s.paypalNote}>Pago seguro via PayPal.</p>
-          </div>
-        </div>
+        <ModalComprarCreditos onClose={() => setShowBuyModal(false)} />
       )}
     </div>
   );
 }
-
-const CREDIT_PACKS = [
-  { id: 'pack_1',  creditos: 1,  precio: 5,  label: '1 evaluación',   ahorro: null },
-  { id: 'pack_5',  creditos: 5,  precio: 20, label: '5 evaluaciones',  ahorro: 'Ahorra $5' },
-  { id: 'pack_10', creditos: 10, precio: 35, label: '10 evaluaciones', ahorro: 'Ahorra $15' },
-  { id: 'pack_20', creditos: 20, precio: 60, label: '20 evaluaciones', ahorro: 'Ahorra $40' },
-];
 
 // ── ESTILOS ────────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
@@ -449,7 +276,9 @@ const s: Record<string, React.CSSProperties> = {
   subtitulo:      { fontSize:14, color:'#555', margin:0 },
   planBadge:      { fontSize:12, padding:'4px 12px', borderRadius:999, fontWeight:700, textTransform:'capitalize' },
   tabBar:         { display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid #f0f0f0', paddingBottom:0 },
-  tabBtn:         { padding:'10px 20px', borderRadius:'10px 10px 0 0', border:'none', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
+  // Sin `border` abreviada: la pestaña activa cambia solo borderBottom y
+  // mezclar ambas hace que React avise por estilos inconsistentes al alternar.
+  tabBtn:         { padding:'10px 20px', borderRadius:'10px 10px 0 0', borderTop:'none', borderLeft:'none', borderRight:'none', borderBottom:'2px solid transparent', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
   tabBtnActive:   { background:'#fff', color:'#1a1a2e', borderBottom:'2px solid #5C6BC0' },
   grid:           { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 },
   card:           { background:'#fff', borderRadius:16, padding:20, border:'1px solid #f0f0f0', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', position:'relative' },
