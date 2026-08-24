@@ -1,19 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import GeneradorLinkEvaluacion from './GeneradorLinkEvaluacion';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import PerfilesPuesto, { type PerfilPuesto } from './PerfilesPuesto';
 import CandidatosEvaluacion from './CandidatosEvaluacion';
 import ModalComprarCreditos from './ModalComprarCreditos';
 import { useCreditos } from './useCreditos';
+import { CATALOG_LIST } from '@/lib/assessments/catalog';
+import ResultadoImpresion from './ResultadoImpresion';
+import FiltroResultados, {
+  BotonImprimirResultado, EstilosImpresion, PRINT_AREA_ID,
+  clavePersona, opcionesPersonas, useImpresion,
+} from './FiltroResultados';
 
-type TabEmpresa = 'perfiles' | 'candidatos' | 'instrumentos' | 'resultados'
+type TabEmpresa = 'perfiles' | 'candidatos' | 'resultados' | 'catalogo'
 
+// El catálogo va al final y es solo informativo: las pruebas se eligen al
+// crear el Perfil de Puesto, así que tener un segundo selector confundía.
 const TABS: { id: TabEmpresa; label: string }[] = [
-  { id: 'perfiles',    label: 'Perfiles de Puesto' },
-  { id: 'candidatos',  label: 'Candidatos'         },
-  { id: 'instrumentos',label: 'Instrumentos'       },
-  { id: 'resultados',  label: 'Resultados'         },
+  { id: 'perfiles',   label: 'Perfiles de Puesto' },
+  { id: 'candidatos', label: 'Candidatos'         },
+  { id: 'resultados', label: 'Resultados'         },
+  { id: 'catalogo',   label: 'Catálogo de pruebas' },
 ]
 
 interface Props {
@@ -27,6 +34,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
   const [perfiles, setPerfiles]     = useState<PerfilPuesto[]>([]);
   const [resultados, setResultados] = useState<any[]>([]);
   const [loadingRes, setLoadingRes] = useState(false);
+  const [filtroPersonas, setFiltroPersonas] = useState<string[]>([]);
 
   // Créditos — Master evalúa sin costo
   const [showBuyModal, setShowBuyModal] = useState(false);
@@ -46,10 +54,25 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
 
   const handlePerfiles = useCallback((lista: PerfilPuesto[]) => setPerfiles(lista), [])
 
+  const { soloId, imprimirUno } = useImpresion()
+
+  // ── Filtro por candidato (selección múltiple) ──
+  const opcionesFiltro = useMemo(
+    () => opcionesPersonas(resultados, r => ({ nombre: r.candidato_nombre, email: r.candidato_email })),
+    [resultados],
+  )
+
+  // Sin nadie marcado se muestran todos.
+  const resultadosVisibles = useMemo(() => {
+    if (filtroPersonas.length === 0) return resultados
+    return resultados.filter(r => filtroPersonas.includes(clavePersona(r.candidato_nombre, r.candidato_email)))
+  }, [resultados, filtroPersonas])
+
   const MATCH_COLOR = (m: number) => m >= 80 ? '#4CAF50' : m >= 65 ? '#FF9800' : '#F44336'
 
   return (
     <div style={s.container}>
+      <EstilosImpresion />
 
       {/* ── HEADER con créditos ── */}
       <div style={s.header}>
@@ -87,7 +110,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       )}
 
       {/* TABS */}
-      <div style={s.tabBar}>
+      <div style={s.tabBar} className="no-print">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ ...s.tabBtn, ...(activeTab === tab.id ? s.tabActive : {}) }}>
@@ -102,19 +125,35 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       {/* ── CANDIDATOS: a quién se le envía ── */}
       {activeTab === 'candidatos' && <CandidatosEvaluacion perfiles={perfiles} />}
 
-      {/* ── INSTRUMENTOS: link suelto, sin perfil de puesto ── */}
-      {activeTab === 'instrumentos' && (
+      {/* ── CATÁLOGO: ficha informativa de cada prueba ── */}
+      {activeTab === 'catalogo' && (
         <>
           <p style={s.notaTab}>
-            Para una evaluación puntual que no corresponde a ningún puesto. Si estás
-            seleccionando para una vacante, usa <strong>Perfiles de Puesto</strong>:
-            ahí el link se crea solo y los resultados traen el match.
+            Información de cada prueba: de qué trata, cuántos ítems tiene y cuánto
+            demora. Las pruebas se eligen al crear o editar un{' '}
+            <strong>Perfil de Puesto</strong>.
           </p>
-          <GeneradorLinkEvaluacion
-            consumeCreditos={!isMaster}
-            creditos={creditos}
-            onSinCreditos={() => setShowBuyModal(true)}
-          />
+          <div style={s.grid}>
+            {CATALOG_LIST.map(inst => (
+              <div key={inst.id} style={{ ...s.card, borderTop: `3px solid ${inst.color}` }}>
+                <p style={s.cardTitle}>{inst.nombre}</p>
+                <p style={s.cardDesc}>{inst.descripcion}</p>
+                <div style={{ ...s.metaRow, marginTop: 10 }}>
+                  <span style={s.meta}>{inst.totalItems} ítems</span>
+                  <span style={s.meta}>~{inst.tiempoMinutos} min</span>
+                  <span style={s.meta}>{inst.soloEmpresas ? 'Selección' : 'Clínico'}</span>
+                </div>
+                {inst.tags.length > 0 && (
+                  <div style={s.tagsRow}>
+                    {inst.tags.map(t => (
+                      <span key={t} style={{ ...s.tag, background: `${inst.color}18`, color: inst.color }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+                <p style={s.referencia}>{inst.referencia}</p>
+              </div>
+            ))}
+          </div>
         </>
       )}
 
@@ -125,10 +164,40 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
            resultados.length === 0 ? (
             <div style={s.empty}><p>Aún no hay resultados. Envía evaluaciones a tus candidatos.</p></div>
            ) : (
-            <div style={s.resultsList}>
-              {resultados.map((res, i) => {
+            <>
+            <FiltroResultados
+              opciones={opcionesFiltro}
+              seleccion={filtroPersonas}
+              onSeleccion={setFiltroPersonas}
+              visibles={resultadosVisibles.length}
+            />
+            <div id={PRINT_AREA_ID} style={s.resultsList}>
+              {resultadosVisibles.length === 0 && (
+                <p style={s.loading}>Ninguno de los candidatos marcados tiene resultados.</p>
+              )}
+              {resultadosVisibles.map((res, i) => {
+                const claveRes = res.id ?? `${res.candidato_email ?? ''}-${res.instrument_id ?? ''}-${res.created_at ?? i}`
                 return (
-                  <div key={i} style={s.resultCard}>
+                  <div key={claveRes} style={s.resultCard}
+                    className={`print-card${soloId === claveRes ? ' print-target' : ''}`}>
+                    {soloId === claveRes ? (
+                      // En papel va el informe completo, no la tarjeta resumen.
+                      <ResultadoImpresion datos={{
+                        nombre:            res.candidato_nombre || 'Candidato',
+                        email:             res.candidato_email ?? null,
+                        instrumentId:      res.instrument_id,
+                        instrumentoNombre: res.instrumento_nombre || res.instrument_id,
+                        fecha:             res.created_at,
+                        puntuacionBruta:   res.puntuacion_bruta ?? null,
+                        severidadLabel:    res.severidad_label ?? null,
+                        screeningPositivo: res.screening_positivo ?? null,
+                        resultado:         res.resultado_json ?? null,
+                        puesto:            res.job_profile_nombre ?? null,
+                        matchTotal:        res.match_total ?? null,
+                        matchApto:         res.match_apto ?? null,
+                      }} />
+                    ) : (
+                    <>
                     <div style={s.resultHeader}>
                       <div style={{flex:1}}>
                         <p style={s.resName}>{res.candidato_nombre || 'Candidato'}</p>
@@ -156,11 +225,17 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
                         </span>
                       )}
                     </div>
-                    <p style={s.resDate}>{new Date(res.created_at).toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' })}</p>
+                    </>
+                    )}
+                    <div style={s.filaPie} className="no-print">
+                      <p style={s.resDate}>{new Date(res.created_at).toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' })}</p>
+                      <BotonImprimirResultado onClick={() => imprimirUno(claveRes)} />
+                    </div>
                   </div>
                 )
               })}
             </div>
+            </>
           )}
         </div>
       )}
@@ -223,6 +298,7 @@ const s: Record<string, any> = {
   loading:        { textAlign:'center', color:'#555', padding:40 },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },
+  referencia:     { fontSize:10.5, color:'#aaa', margin:'10px 0 0', lineHeight:1.4 },
   resultCard:     { background:'#fff', borderRadius:14, padding:18, border:'1px solid #f0f0f0', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' },
   resultHeader:   { display:'flex', alignItems:'center', gap:12, marginBottom:8 },
   resName:        { fontSize:15, fontWeight:700, color:'#1a1a2e', margin:'0 0 2px' },
@@ -231,6 +307,7 @@ const s: Record<string, any> = {
   resPerfil:      { fontSize:11, color:'#421869', margin:0, fontWeight:600 },
   resPuntuacion:  { fontSize:12, color:'#1a1a2e', margin:'0 0 2px', fontWeight:700 },
   resDate:        { fontSize:11, color:'#888', margin:'4px 0 0' },
+  filaPie:        { display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 },
   matchCircle:    (c: string) => ({ width:56, height:56, borderRadius:'50%', border:`3px solid ${c}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:`${c}11`, flexShrink:0 }),
   matchNum:       { fontSize:15, fontWeight:800, color:'#1a1a2e', lineHeight:1 },
   matchLabel:     { fontSize:9, color:'#555' },

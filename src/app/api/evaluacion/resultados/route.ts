@@ -27,7 +27,7 @@ export async function GET() {
 
   const { data: resultados } = await admin
     .from('assessment_results')
-    .select('id, session_id, instrument_id, puntuacion_bruta, severidad_label, screening_positivo, match_total, match_disc, match_hexaco, match_apto, match_json, created_at')
+    .select('id, session_id, instrument_id, puntuacion_bruta, severidad_label, screening_positivo, resultado_json, match_total, match_disc, match_hexaco, match_apto, match_json, created_at')
     .in('session_id', sesiones.map(s => s.id))
     .order('created_at', { ascending: false })
 

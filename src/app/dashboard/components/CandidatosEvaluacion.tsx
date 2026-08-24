@@ -182,6 +182,11 @@ export default function CandidatosEvaluacion({ perfiles }: { perfiles: PerfilPue
             <input type="checkbox" checked={enviarEmail} onChange={e => setEnviarEmail(e.target.checked)} />
             Enviarles la invitación por correo ahora
           </label>
+          <p style={s.explica}>
+            {enviarEmail
+              ? 'Cada persona recibe ahora un correo con el link del puesto y las evaluaciones que debe rendir.'
+              : 'Las personas quedan agregadas al puesto, pero no se les avisa: tendrás que pasarles tú el link del puesto (lo copias en Perfiles de Puesto).'}
+          </p>
 
           {error && <p style={s.error}>{error}</p>}
           {aviso && <p style={s.aviso}>{aviso}</p>}
@@ -251,7 +256,8 @@ const s: Record<string, React.CSSProperties> = {
   btnSec:      { padding:'6px 12px', borderRadius:8, border:'1px solid #421869', background:'#fff', color:'#421869', fontWeight:600, fontSize:12, cursor:'pointer' },
   btnQuitar:   { background:'none', border:'none', color:'#c62828', cursor:'pointer', fontSize:20, lineHeight:1, padding:'0 6px' },
   hint:        { fontSize:11, color:'#999', margin:'8px 0 0' },
-  checkLine:   { display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', margin:'12px 0', cursor:'pointer' },
+  checkLine:   { display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', margin:'12px 0 4px', cursor:'pointer' },
+  explica:     { fontSize:11.5, color:'#888', margin:'0 0 12px', lineHeight:1.5, paddingLeft:24 },
   error:       { fontSize:12.5, color:'#c62828', background:'#ffebee', borderRadius:8, padding:'8px 12px', margin:'0 0 12px' },
   aviso:       { fontSize:12.5, color:'#2e7d32', background:'#e8f5e9', borderRadius:8, padding:'8px 12px', margin:'0 0 12px', fontWeight:600 },
   btnPrimario: { width:'100%', padding:13, borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, fontFamily:'Raleway, sans-serif' },

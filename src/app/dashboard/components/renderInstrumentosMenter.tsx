@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { INSTRUMENTS, InstrumentId } from '@/lib/assessments/instruments';
 import type { AssessmentResult } from '@/lib/assessments/instruments';
@@ -12,6 +12,11 @@ import { CATALOG_LIST } from '@/lib/assessments/catalog';
 import GeneradorLinkEvaluacion from './GeneradorLinkEvaluacion';
 import ModalComprarCreditos from './ModalComprarCreditos';
 import { useCreditos } from './useCreditos';
+import ResultadoImpresion from './ResultadoImpresion';
+import FiltroResultados, {
+  BotonImprimirResultado, EstilosImpresion, PRINT_AREA_ID,
+  clavePersona, opcionesPersonas, useImpresion,
+} from './FiltroResultados';
 
 interface PersonaResult {
   id: string;
@@ -31,13 +36,27 @@ interface PersonaResult {
 }
 interface Objetivo { id: string; titulo: string; }
 
+type TabMenter = 'personas' | 'empresas' | 'resultados';
+
+const TABS: { id: TabMenter; label: string }[] = [
+  { id: 'personas',   label: 'Test Personas' },
+  { id: 'empresas',   label: 'Test Empresas' },
+  { id: 'resultados', label: 'Resultados'    },
+];
+
+// Los clínicos son para las Personas del Menter; los de selección (DISC,
+// HEXACO, etc.) son los que se le manda a una empresa. Mezclados hacían una
+// sola lista larguísima.
+const TESTS_PERSONAS = CATALOG_LIST.filter(i => !i.soloEmpresas);
+const TESTS_EMPRESAS = CATALOG_LIST.filter(i =>  i.soloEmpresas);
+
 interface Props {
   userId: string;
   menterPlan: string; // 'free' | 'starter' | 'premium' | 'master'
 }
 
 export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) {
-  const [activeTab, setActiveTab] = useState<'biblioteca' | 'resultados'>('biblioteca');
+  const [activeTab, setActiveTab] = useState<TabMenter>('personas');
   const [resultados, setResultados] = useState<PersonaResult[]>([]);
   const [loadingResultados, setLoadingResultados] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PersonaResult | null>(null);
@@ -45,6 +64,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
   const [vinculandoId, setVinculandoId] = useState<string | null>(null);
   const [objetivoSeleccionado, setObjetivoSeleccionado] = useState<string>('');
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [filtroPersonas, setFiltroPersonas] = useState<string[]>([]);
 
   // Free y Starter generan links pagando créditos; Premium y Master, sin costo
   const isFreeStarter = !['premium', 'master'].includes(menterPlan);
@@ -101,6 +121,27 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     setObjetivoSeleccionado('');
   };
 
+  const { soloId, imprimirUno } = useImpresion();
+
+  // ── Filtro por persona (selección múltiple) ────────────────────────────────
+  const opcionesFiltro = useMemo(
+    () => opcionesPersonas(resultados, r => ({
+      nombre: r.candidato_nombre || r.persona_nombre,
+      email:  r.candidato_email  || r.persona_email,
+    })),
+    [resultados],
+  );
+
+  // Sin nadie marcado se muestran todas: el filtro suma, no esconde por defecto.
+  const resultadosVisibles = useMemo(() => {
+    if (filtroPersonas.length === 0) return resultados;
+    return resultados.filter(r =>
+      filtroPersonas.includes(clavePersona(
+        r.candidato_nombre || r.persona_nombre,
+        r.candidato_email  || r.persona_email,
+      )));
+  }, [resultados, filtroPersonas]);
+
   // ── UI ──────────────────────────────────────────────────────────────────────
   const SEVERITY_COLORS: Record<string, string> = {
     Mínima: '#4CAF50', Leve: '#FFC107', Moderada: '#FF9800', Severa: '#F44336',
@@ -114,11 +155,13 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
   return (
     <div style={s.container}>
+      <EstilosImpresion />
+
       {/* HEADER */}
       <div style={s.header}>
         <div>
           <h2 style={s.titulo}>Instrumentos Psicométricos</h2>
-          <p style={s.subtitulo}>Genera un link con las evaluaciones que necesites y compártelo con tus personas</p>
+          <p style={s.subtitulo}>Genera un link con las evaluaciones que necesites y compártelo con quien las tenga que rendir</p>
         </div>
         <span style={{ ...s.planBadge, background: menterPlan === 'master' ? '#FFF3E0' : '#E8EAF6', color: menterPlan === 'master' ? '#E65100' : '#3949AB' }}>
           {menterPlan.charAt(0).toUpperCase() + menterPlan.slice(1)}
@@ -144,18 +187,22 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       )}
 
       {/* TABS */}
-      <div style={s.tabBar}>
-        {(['biblioteca', 'resultados'] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ ...s.tabBtn, ...(activeTab === tab ? s.tabBtnActive : {}) }}>
-            {tab === 'biblioteca' ? 'Enviar evaluaciones' : 'Resultados de personas'}
+      <div style={s.tabBar} className="no-print">
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{ ...s.tabBtn, ...(activeTab === tab.id ? s.tabBtnActive : {}) }}>
+            {tab.label}
           </button>
         ))}
       </div>
 
       {/* ── GENERAR LINK ── */}
-      {activeTab === 'biblioteca' && (
+      {(activeTab === 'personas' || activeTab === 'empresas') && (
         <GeneradorLinkEvaluacion
+          // Al cambiar de pestaña se reinicia la selección: si no, quedarían
+          // marcados instrumentos que ya no están a la vista.
+          key={activeTab}
+          instrumentos={activeTab === 'personas' ? TESTS_PERSONAS : TESTS_EMPRESAS}
           consumeCreditos={isFreeStarter}
           creditos={creditos}
           onSinCreditos={() => setShowBuyModal(true)}
@@ -174,11 +221,38 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
               <p>Aún no hay resultados. Comparte un link de test con tus personas.</p>
             </div>
           ) : (
-            <div style={s.resultsList}>
-              {resultados.map(res => {
+            <>
+            <FiltroResultados
+              opciones={opcionesFiltro}
+              seleccion={filtroPersonas}
+              onSeleccion={setFiltroPersonas}
+              visibles={resultadosVisibles.length}
+              color="#5C6BC0"
+            />
+            <div id={PRINT_AREA_ID} style={s.resultsList}>
+              {resultadosVisibles.length === 0 && (
+                <p style={s.loading}>Ninguna de las personas marcadas tiene resultados.</p>
+              )}
+              {resultadosVisibles.map(res => {
                 const inst = INSTRUMENTS[res.instrument_id as InstrumentId];
                 return (
-                  <div key={res.id} style={s.resultCard}>
+                  <div key={res.id} style={s.resultCard}
+                    className={`print-card${soloId === res.id ? ' print-target' : ''}`}>
+                    {soloId === res.id ? (
+                      // En papel va el informe completo, no la tarjeta resumen.
+                      <ResultadoImpresion datos={{
+                        nombre:            res.candidato_nombre || res.persona_nombre || 'Anónimo',
+                        email:             res.candidato_email || res.persona_email,
+                        instrumentId:      res.instrument_id,
+                        instrumentoNombre: inst?.nombre || res.instrument_id,
+                        fecha:             res.created_at,
+                        puntuacionBruta:   res.puntuacion_bruta,
+                        severidadLabel:    res.severidad_label,
+                        screeningPositivo: res.screening_positivo,
+                        resultado:         res.resultado_json as unknown as Record<string, unknown>,
+                      }} />
+                    ) : (
+                    <>
                     <div style={s.resultHeader}>
                       <span style={{ fontSize: 22 }}>{inst?.icono || '📋'}</span>
                       <div style={{ flex: 1 }}>
@@ -208,9 +282,12 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                         {dim.label && <span style={{ ...s.dimLabel, background: `${SEVERITY_COLORS[dim.label] || '#999'}22`, color: SEVERITY_COLORS[dim.label] || '#999' }}>{dim.label}</span>}
                       </div>
                     ))}
+                    </>
+                    )}
 
                     {/* Acciones */}
-                    <div style={s.resultActions}>
+                    <div style={s.resultActions} className="no-print">
+                      <BotonImprimirResultado onClick={() => imprimirUno(res.id)} color="#5C6BC0" />
                       {res.roadmap_objetivo_id ? (
                         <>
                           <span style={s.vinculadoBadge}>Vinculado al Roadmap</span>
@@ -228,6 +305,7 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                 );
               })}
             </div>
+            </>
           )}
         </div>
       )}
@@ -308,7 +386,7 @@ const s: Record<string, React.CSSProperties> = {
   dimName:        { flex:1, fontSize:13, color:'#555' },
   dimScore:       { fontSize:13, fontWeight:700, color:'#1a1a2e' },
   dimLabel:       { fontSize:11, padding:'2px 8px', borderRadius:999, fontWeight:600 },
-  resultActions:  { marginTop:12, display:'flex', justifyContent:'flex-end' },
+  resultActions:  { marginTop:12, display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8 },
   vinculadoBadge: { fontSize:12, color:'#4CAF50', fontWeight:600 },
   vincularBtn:    { fontSize:13, padding:'6px 14px', borderRadius:8, border:'1px solid #5C6BC0', background:'none', color:'#5C6BC0', cursor:'pointer', fontWeight:600 },
   reubicarBtn:    { fontSize:12, padding:'4px 10px', borderRadius:8, border:'1px solid #ddd', background:'none', color:'#888', cursor:'pointer', marginLeft:8 },

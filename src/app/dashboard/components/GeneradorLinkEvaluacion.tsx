@@ -339,6 +339,11 @@ export default function GeneradorLinkEvaluacion({
               <input type="checkbox" checked={enviarEmail} onChange={e => setEnviarEmail(e.target.checked)} />
               Enviarles la invitación por correo ahora
             </label>
+            <p style={s.explica}>
+              {enviarEmail
+                ? 'Al generar el link, cada correo de la lista recibe la invitación.'
+                : 'No se envía ningún correo: solo se genera el link para que lo compartas tú.'}
+            </p>
           </>
         )}
       </div>
@@ -533,6 +538,7 @@ const s: Record<string, React.CSSProperties> = {
   btnSec:       { padding:'6px 12px', borderRadius:8, border:'1px solid #421869', background:'#fff', color:'#421869', fontWeight:600, fontSize:12, cursor:'pointer' },
   btnQuitar:    { background:'none', border:'none', color:'#c62828', cursor:'pointer', fontSize:20, lineHeight:1, padding:'0 6px' },
   hint:         { fontSize:11, color:'#999', marginTop:8, marginBottom:0 },
+  explica:      { fontSize:11.5, color:'#999', margin:'4px 0 0', lineHeight:1.5, paddingLeft:24 },
   checkLine:    { display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', marginTop:12, cursor:'pointer', flexWrap:'wrap' },
   limites:      { display:'flex', gap:24, flexWrap:'wrap', alignItems:'center', background:'#fafafa', borderRadius:10, padding:'4px 14px 12px' },
   btnLimpiar:   { background:'none', border:'none', color:'#c62828', fontSize:11.5, cursor:'pointer', textDecoration:'underline', padding:0 },
