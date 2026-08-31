@@ -10,6 +10,7 @@ import { INSTRUMENTS, InstrumentId } from '@/lib/assessments/instruments';
 import type { AssessmentResult } from '@/lib/assessments/instruments';
 import { CATALOG_LIST } from '@/lib/assessments/catalog';
 import GeneradorLinkEvaluacion from './GeneradorLinkEvaluacion';
+import RenderInstrumentosEmpresa from './renderInstrumentosEmpresa';
 import ModalComprarCreditos from './ModalComprarCreditos';
 import { useCreditos } from './useCreditos';
 import ResultadoImpresion from './ResultadoImpresion';
@@ -210,6 +211,20 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
         />
       )}
 
+      {/* ── EQUIPOS Y EMPRESAS: perfiles de puesto, candidatos y catálogo ──
+          Vive dentro de "Test Empresas": colgado al final de la vista se veía
+          también en la pestaña de Personas, que es solo para individuos. */}
+      {activeTab === 'empresas' && (
+        <div style={s.bloqueEmpresas}>
+          <h3 style={s.bloqueEmpresasTitulo}>Evaluaciones para Equipos y Empresas</h3>
+          <RenderInstrumentosEmpresa
+            empresaId={userId}
+            isMaster={menterPlan === 'master'}
+            vista="gestion"
+          />
+        </div>
+      )}
+
       {/* ── RESULTADOS ── */}
       {activeTab === 'resultados' && (
         <div>
@@ -307,6 +322,17 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
             </div>
             </>
           )}
+
+          {/* Los resultados de candidatos de empresa también se ven acá: es la
+              única pestaña de resultados, así no hay dos listados sueltos. */}
+          <div style={s.bloqueEmpresas}>
+            <h3 style={s.bloqueEmpresasTitulo}>Resultados de Equipos y Empresas</h3>
+            <RenderInstrumentosEmpresa
+              empresaId={userId}
+              isMaster={menterPlan === 'master'}
+              vista="resultados"
+            />
+          </div>
         </div>
       )}
 
@@ -373,6 +399,8 @@ const s: Record<string, React.CSSProperties> = {
   copyBtn:        { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600, transition:'all 0.2s' },
   actionBtn:      { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
   loading:        { textAlign:'center', color:'#555', padding:40, fontSize:14 },
+  bloqueEmpresas:       { marginTop:36, borderTop:'2px solid #f0f0f0', paddingTop:28 },
+  bloqueEmpresasTitulo: { fontFamily:'Raleway, sans-serif', color:'#421869', fontSize:18, fontWeight:800, margin:'0 0 20px' },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },
   resultCard:     { background:'#fff', borderRadius:14, padding:18, border:'1px solid #f0f0f0', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' },

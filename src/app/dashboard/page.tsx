@@ -7388,14 +7388,10 @@ type SectionMap = { [K in TabId]: { title: string; content: React.ReactNode } }
     destacados:   { title: isMenter ? 'Directorio de Menters' : 'Menters Destacados', content: renderDestacados() },
      ingresos:    { title: 'Mis Ingresos', content: isMenter ? renderIngresos() : renderProximamente('Ingresos', '') },
     objetivos:            { title: 'Objetivos Empresariales', content: meta?.role === 'empresa' ? renderObjetivosEmpresa() : renderProximamente('Objetivos Empresariales', '') },
+    // El bloque de empresas ya no cuelga acá: vive dentro de la pestaña
+    // "Test Empresas" del propio componente, que es donde corresponde.
     instrumentos:         { title: 'Instrumentos', content: isMenter && user?.id
-      ? <>
-          <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
-          <div style={{ marginTop: 36, borderTop: '2px solid #f0f0f0', paddingTop: 28 }}>
-            <h3 style={{ fontFamily: 'Raleway, sans-serif', color: '#421869', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Evaluaciones para Equipos y Empresas</h3>
-            <RenderInstrumentosEmpresa empresaId={user.id} isMaster={plan === 'master'} />
-          </div>
-        </>
+      ? <RenderInstrumentosMenter userId={user.id} menterPlan={plan} />
       : renderProximamente('Instrumentos', '') },
     resultados_tests:     { title: 'Mis Resultados', content: !isMenter && user?.id ? <RenderResultadosTests userId={user.id} /> : renderProximamente('Mis Resultados', '') },
     instrumentos_empresa: { title: 'Instrumentos', content: (meta?.role === 'empresa' || (isMenter && plan === 'master')) && user?.id ? <RenderInstrumentosEmpresa empresaId={user.id} isMaster={isMenter && plan === 'master'} /> : renderProximamente('Instrumentos', '') },

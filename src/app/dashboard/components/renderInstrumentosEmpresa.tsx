@@ -14,6 +14,13 @@ import FiltroResultados, {
 
 type TabEmpresa = 'perfiles' | 'candidatos' | 'resultados' | 'catalogo'
 
+// Cómo se muestra el módulo:
+//  · completa   → dashboard de la empresa (header, créditos y las 4 pestañas)
+//  · gestion    → embebido en "Test Empresas" del Menter: sin header ni
+//                 Resultados, porque esa pestaña ya vive dentro de otro tab
+//  · resultados → solo el listado, para la pestaña "Resultados" del Menter
+export type VistaEmpresa = 'completa' | 'gestion' | 'resultados'
+
 // El catálogo va al final y es solo informativo: las pruebas se eligen al
 // crear el Perfil de Puesto, así que tener un segundo selector confundía.
 const TABS: { id: TabEmpresa; label: string }[] = [
@@ -27,10 +34,17 @@ interface Props {
   empresaId: string;
   menterId?: string;
   isMaster?: boolean;
+  vista?: VistaEmpresa;
 }
 
-export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props) {
+export default function RenderInstrumentosEmpresa({ empresaId, isMaster, vista = 'completa' }: Props) {
   const [activeTab, setActiveTab]   = useState<TabEmpresa>('perfiles');
+  const soloResultados = vista === 'resultados';
+  const esCompleta     = vista === 'completa';
+  // Embebido en el Menter, los resultados se ven todos juntos en su pestaña
+  // "Resultados": acá sobra la pestaña propia.
+  const tabsVisibles   = esCompleta ? TABS : TABS.filter(t => t.id !== 'resultados');
+  const mostrarResultados = soloResultados || activeTab === 'resultados';
   const [perfiles, setPerfiles]     = useState<PerfilPuesto[]>([]);
   const [resultados, setResultados] = useState<any[]>([]);
   const [loadingRes, setLoadingRes] = useState(false);
@@ -41,7 +55,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
   const { creditos, mensaje: buyMsg } = useCreditos(empresaId, !isMaster);
 
   useEffect(() => {
-    if (activeTab !== 'resultados') return
+    if (!mostrarResultados) return
     let cancelado = false
     setLoadingRes(true)
     fetch('/api/evaluacion/resultados')
@@ -50,7 +64,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       .catch(() => { if (!cancelado) setResultados([]) })
       .finally(() => { if (!cancelado) setLoadingRes(false) })
     return () => { cancelado = true }
-  }, [activeTab])
+  }, [mostrarResultados])
 
   const handlePerfiles = useCallback((lista: PerfilPuesto[]) => setPerfiles(lista), [])
 
@@ -75,9 +89,10 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       <EstilosImpresion />
 
       {/* ── HEADER con créditos ── */}
+      {esCompleta && (
       <div style={s.header}>
         <div>
-          <h2 style={s.titulo}>Instrumentos de Selección y Diagnóstico</h2>
+          <h2 style={s.titulo}>Instrumentos Psicométricos</h2>
           <p style={s.sub}>Envía evaluaciones a candidatos y colaboradores</p>
         </div>
         {!isMaster && (
@@ -90,14 +105,15 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
           </div>
         )}
       </div>
+      )}
 
-      {buyMsg && (
+      {esCompleta && buyMsg && (
         <div style={{ background: '#e8f5e9', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#2e7d32', fontWeight: 600 }}>
           {buyMsg}
         </div>
       )}
 
-      {!isMaster && creditos !== null && creditos <= 0 && (
+      {esCompleta && !isMaster && creditos !== null && creditos <= 0 && (
         <div style={s.noCreditsBanner}>
           <span style={{ fontWeight: 700 }}>
             {creditos < 0
@@ -110,23 +126,25 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       )}
 
       {/* TABS */}
+      {!soloResultados && (
       <div style={s.tabBar} className="no-print">
-        {TABS.map(tab => (
+        {tabsVisibles.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ ...s.tabBtn, ...(activeTab === tab.id ? s.tabActive : {}) }}>
             {tab.label}
           </button>
         ))}
       </div>
+      )}
 
       {/* ── PERFILES DE PUESTO: define los tests y crea el link ── */}
-      {activeTab === 'perfiles' && <PerfilesPuesto onPerfilesChange={handlePerfiles} />}
+      {!soloResultados && activeTab === 'perfiles' && <PerfilesPuesto onPerfilesChange={handlePerfiles} />}
 
       {/* ── CANDIDATOS: a quién se le envía ── */}
-      {activeTab === 'candidatos' && <CandidatosEvaluacion perfiles={perfiles} />}
+      {!soloResultados && activeTab === 'candidatos' && <CandidatosEvaluacion perfiles={perfiles} />}
 
       {/* ── CATÁLOGO: ficha informativa de cada prueba ── */}
-      {activeTab === 'catalogo' && (
+      {!soloResultados && activeTab === 'catalogo' && (
         <>
           <p style={s.notaTab}>
             Información de cada prueba: de qué trata, cuántos ítems tiene y cuánto
@@ -158,7 +176,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       )}
 
       {/* ── RESULTADOS ── */}
-      {activeTab === 'resultados' && (
+      {mostrarResultados && (
         <div>
           {loadingRes ? <div style={s.loading}>Cargando...</div> :
            resultados.length === 0 ? (
@@ -241,7 +259,7 @@ export default function RenderInstrumentosEmpresa({ empresaId, isMaster }: Props
       )}
 
       {/* ── MODAL COMPRAR CRÉDITOS ── */}
-      {!isMaster && showBuyModal && (
+      {esCompleta && !isMaster && showBuyModal && (
         <ModalComprarCreditos onClose={() => setShowBuyModal(false)} />
       )}
 
