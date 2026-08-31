@@ -197,7 +197,24 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
         ))}
       </div>
 
+      {/* ── EQUIPOS Y EMPRESAS: perfiles de puesto, candidatos y catálogo ──
+          Encabeza la pestaña "Test Empresas": es el camino normal para evaluar
+          a una empresa; el link suelto de abajo es el atajo. */}
+      {activeTab === 'empresas' && (
+        <div style={s.bloqueEmpresasInicio}>
+          <h3 style={s.bloqueEmpresasTitulo}>Evaluaciones para Equipos y Empresas</h3>
+          <RenderInstrumentosEmpresa
+            empresaId={userId}
+            isMaster={menterPlan === 'master'}
+            vista="gestion"
+          />
+        </div>
+      )}
+
       {/* ── GENERAR LINK ── */}
+      {activeTab === 'empresas' && (
+        <h3 style={s.bloqueEmpresasTitulo}>Link suelto con tests de empresa</h3>
+      )}
       {(activeTab === 'personas' || activeTab === 'empresas') && (
         <GeneradorLinkEvaluacion
           // Al cambiar de pestaña se reinicia la selección: si no, quedarían
@@ -209,20 +226,6 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
           onSinCreditos={() => setShowBuyModal(true)}
           bloqueados={bloqueados}
         />
-      )}
-
-      {/* ── EQUIPOS Y EMPRESAS: perfiles de puesto, candidatos y catálogo ──
-          Vive dentro de "Test Empresas": colgado al final de la vista se veía
-          también en la pestaña de Personas, que es solo para individuos. */}
-      {activeTab === 'empresas' && (
-        <div style={s.bloqueEmpresas}>
-          <h3 style={s.bloqueEmpresasTitulo}>Evaluaciones para Equipos y Empresas</h3>
-          <RenderInstrumentosEmpresa
-            empresaId={userId}
-            isMaster={menterPlan === 'master'}
-            vista="gestion"
-          />
-        </div>
       )}
 
       {/* ── RESULTADOS ── */}
@@ -400,6 +403,8 @@ const s: Record<string, React.CSSProperties> = {
   actionBtn:      { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
   loading:        { textAlign:'center', color:'#555', padding:40, fontSize:14 },
   bloqueEmpresas:       { marginTop:36, borderTop:'2px solid #f0f0f0', paddingTop:28 },
+  // Arriba del todo no lleva línea superior: separa por abajo del bloque que sigue.
+  bloqueEmpresasInicio: { marginBottom:28, borderBottom:'2px solid #f0f0f0', paddingBottom:20 },
   bloqueEmpresasTitulo: { fontFamily:'Raleway, sans-serif', color:'#421869', fontSize:18, fontWeight:800, margin:'0 0 20px' },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },
