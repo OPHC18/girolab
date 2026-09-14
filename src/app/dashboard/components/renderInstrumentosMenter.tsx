@@ -46,10 +46,8 @@ const TABS: { id: TabMenter; label: string }[] = [
 ];
 
 // Los clínicos son para las Personas del Menter; los de selección (DISC,
-// HEXACO, etc.) son los que se le manda a una empresa. Mezclados hacían una
-// sola lista larguísima.
+// HEXACO, etc.) se eligen al crear un Perfil de Puesto en "Test Empresas".
 const TESTS_PERSONAS = CATALOG_LIST.filter(i => !i.soloEmpresas);
-const TESTS_EMPRESAS = CATALOG_LIST.filter(i =>  i.soloEmpresas);
 
 interface Props {
   userId: string;
@@ -198,10 +196,10 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       </div>
 
       {/* ── EQUIPOS Y EMPRESAS: perfiles de puesto, candidatos y catálogo ──
-          Encabeza la pestaña "Test Empresas": es el camino normal para evaluar
-          a una empresa; el link suelto de abajo es el atajo. */}
+          Todo envío a una empresa pasa por un puesto. No hay link suelto:
+          para mandar tests sin puesto está la pestaña "Test Personas". */}
       {activeTab === 'empresas' && (
-        <div style={s.bloqueEmpresasInicio}>
+        <div>
           <h3 style={s.bloqueEmpresasTitulo}>Evaluaciones para Equipos y Empresas</h3>
           <RenderInstrumentosEmpresa
             empresaId={userId}
@@ -212,15 +210,9 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       )}
 
       {/* ── GENERAR LINK ── */}
-      {activeTab === 'empresas' && (
-        <h3 style={s.bloqueEmpresasTitulo}>Link suelto con tests de empresa</h3>
-      )}
-      {(activeTab === 'personas' || activeTab === 'empresas') && (
+      {activeTab === 'personas' && (
         <GeneradorLinkEvaluacion
-          // Al cambiar de pestaña se reinicia la selección: si no, quedarían
-          // marcados instrumentos que ya no están a la vista.
-          key={activeTab}
-          instrumentos={activeTab === 'personas' ? TESTS_PERSONAS : TESTS_EMPRESAS}
+          instrumentos={TESTS_PERSONAS}
           consumeCreditos={isFreeStarter}
           creditos={creditos}
           onSinCreditos={() => setShowBuyModal(true)}
@@ -404,7 +396,6 @@ const s: Record<string, React.CSSProperties> = {
   loading:        { textAlign:'center', color:'#555', padding:40, fontSize:14 },
   bloqueEmpresas:       { marginTop:36, borderTop:'2px solid #f0f0f0', paddingTop:28 },
   // Arriba del todo no lleva línea superior: separa por abajo del bloque que sigue.
-  bloqueEmpresasInicio: { marginBottom:28, borderBottom:'2px solid #f0f0f0', paddingBottom:20 },
   bloqueEmpresasTitulo: { fontFamily:'Raleway, sans-serif', color:'#421869', fontSize:18, fontWeight:800, margin:'0 0 20px' },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },

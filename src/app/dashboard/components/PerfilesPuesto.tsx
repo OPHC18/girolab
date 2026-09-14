@@ -87,7 +87,7 @@ export default function PerfilesPuesto({ onPerfilesChange }: Props) {
       hexaco_minimo: p.hexaco_minimo,
     });
     setCandidatos(p.candidatos || []);
-    setEditandoId(p.id); setError(null); setAviso(null); setModal('editar');
+    setEditandoId(p.id); setError(null); setAviso(null); setEnviarEmail(true); setModal('editar');
   };
 
   const toggleTest = (id: string) =>
@@ -125,16 +125,19 @@ export default function PerfilesPuesto({ onPerfilesChange }: Props) {
           ...(esNuevo ? {} : { id: editandoId }),
           ...form,
           candidatos: candidatos.filter(c => EMAIL_RE.test(c.email.trim())),
-          enviar_email: esNuevo && enviarEmail,
+          // Al editar, el servidor solo invita a los que aún no tenían invitación
+          enviar_email: enviarEmail,
         }),
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || 'No se pudo guardar el puesto.'); return; }
 
-      const enviados = json.emails?.enviados?.length ?? 0;
-      setAviso(esNuevo
-        ? `Puesto creado con su link${enviados > 0 ? ` · invitación enviada a ${enviados} persona${enviados !== 1 ? 's' : ''}` : ''}.`
-        : 'Puesto actualizado. El link sigue siendo el mismo.');
+      const { enviados = [], fallidos = [] } = json.emails ?? {};
+      const envio = [
+        enviados.length > 0 ? `invitación enviada a ${enviados.length} persona${enviados.length !== 1 ? 's' : ''}` : '',
+        fallidos.length > 0 ? `no se pudo enviar a ${fallidos.join(', ')}` : '',
+      ].filter(Boolean).join(' · ');
+      setAviso((esNuevo ? 'Puesto creado con su link' : 'Puesto actualizado') + (envio ? ` · ${envio}` : '') + '.');
       setModal(null);
       await cargar();
     } catch {
@@ -324,14 +327,16 @@ export default function PerfilesPuesto({ onPerfilesChange }: Props) {
                 ))}
               </div>
               <p style={s.hint}>Opcional. CSV: una fila por postulante, formato <code>Nombre,correo@email.com</code></p>
-              {modal === 'nuevo' && candidatos.length > 0 && (
+              {candidatos.length > 0 && (
                 <label style={s.checkLine}>
                   <input type="checkbox" checked={enviarEmail} onChange={e => setEnviarEmail(e.target.checked)} />
-                  Enviarles la invitación por correo al crear el puesto
+                  {modal === 'nuevo'
+                    ? 'Enviarles la invitación por correo al crear el puesto'
+                    : 'Enviar la invitación a los postulantes que aún no la recibieron'}
                 </label>
               )}
               {modal === 'editar' && (
-                <p style={s.hint}>Para invitar gente nueva a este puesto, usa la pestaña Candidatos.</p>
+                <p style={s.hint}>A quien ya fue invitado no se le vuelve a enviar el correo.</p>
               )}
             </div>
 

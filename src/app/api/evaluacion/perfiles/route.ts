@@ -7,8 +7,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase-server'
 import { getSessionUser } from '@/lib/admin'
 import { crearLinkDeEvaluacion, validarDatosLink } from '@/lib/assessments/crear-link'
-import { normalizarDestinatarios } from '@/lib/assessments/invitaciones'
-import { urlLink } from '@/lib/assessments/links'
+import { invitarParticipantes, normalizarDestinatarios } from '@/lib/assessments/invitaciones'
+import { resolverOwner, urlLink, type EvaluacionLink } from '@/lib/assessments/links'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -134,16 +134,58 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 })
 
+  // Solo se invita a quien todavía no es participante del link: guardar un
+  // cambio de percentiles no puede reenviarle el correo a todos. Se compara
+  // contra los participantes y no contra la lista guardada del puesto, porque
+  // antes editar guardaba correos sin invitarlos y esos tienen que salir ahora.
+  const { data: participantes } = actual.link_id && campos.candidatos.length
+    ? await admin
+        .from('assessment_link_participants')
+        .select('email')
+        .eq('link_id', actual.link_id)
+        .in('email', campos.candidatos.map(c => c.email))
+    : { data: [] as { email: string }[] }
+
+  const yaInvitados = new Set((participantes ?? []).map(p => String(p.email).toLowerCase()))
+  const agregados = campos.candidatos.filter(c => !yaInvitados.has(c.email))
+
   // El link conserva su token — lo que ya se repartió sigue sirviendo — pero
   // pasa a pedir los tests que ahora tiene el puesto.
   if (actual.link_id) {
-    await admin
+    const { data: link } = await admin
       .from('assessment_links')
       .update({ instrument_ids: campos.instrument_ids, titulo: `Evaluación · ${campos.nombre}` })
       .eq('id', actual.link_id)
+      .select('*')
+      .single()
+
+    if (!link || agregados.length === 0) return NextResponse.json({ ok: true, perfil })
+
+    const { nombre: ownerNombre } = await resolverOwner(admin, user)
+    const emails = await invitarParticipantes(admin, link as EvaluacionLink, agregados, {
+      remitenteNombre: ownerNombre,
+      puestoNombre:    campos.nombre,
+      enviarEmail:     !!body.enviar_email,
+    })
+    return NextResponse.json({ ok: true, perfil, emails })
   }
 
-  return NextResponse.json({ ok: true, perfil })
+  // Puesto antiguo sin link: se le crea ahora, invitando a los que se agregaron
+  try {
+    const { link, emails } = await crearLinkDeEvaluacion(admin, user, {
+      instrumentos:  campos.instrument_ids,
+      titulo:        `Evaluación · ${campos.nombre}`,
+      jobProfileId:  perfil.id,
+      contexto:      'seleccion_talento',
+      destinatarios: agregados,
+      enviarEmail:   !!body.enviar_email,
+    })
+    await admin.from('job_profiles').update({ link_id: link.id }).eq('id', perfil.id)
+    return NextResponse.json({ ok: true, perfil: { ...perfil, link_id: link.id }, emails })
+  } catch (e) {
+    console.error('[perfiles] No se pudo crear el link del perfil al editar:', e)
+    return NextResponse.json({ error: 'Se guardó el puesto, pero no se pudo crear su link' }, { status: 500 })
+  }
 }
 
 // ── DELETE: eliminar perfil y cerrar su link ─────────────────────────────
