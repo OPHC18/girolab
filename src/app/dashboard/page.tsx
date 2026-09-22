@@ -840,6 +840,25 @@ const handleCancelar = async () => {
   if (!error) {
     setCitas(prev => prev.map(x => x.id === modalCancelar.id ? { ...x, status: 'cancelada' } : x))
     setCitasMenter(prev => prev.map(x => x.id === modalCancelar.id ? { ...x, status: 'cancelada' } : x))
+    const c = modalCancelar
+    const otroUserId = isMenter ? c.client_id : c.menter_id
+    const quienCancela = isMenter ? c.menter_name : (meta?.nombre || 'La persona')
+    const fechaStr = c.date ? new Date(c.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }) : ''
+    if (otroUserId) {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      if (s) {
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s.access_token}` },
+          body: JSON.stringify({
+            user_id: otroUserId,
+            title: 'Cita cancelada',
+            body: `${quienCancela} canceló la sesión del ${fechaStr}.`,
+            url: isMenter ? '/dashboard?tab=mis-citas' : '/dashboard?tab=citas',
+          }),
+        }).catch(() => {})
+      }
+    }
     setModalCancelar(null)
   }
   setCancelarLoading(false)
@@ -883,6 +902,23 @@ const handleCancelar = async () => {
         nuevaHoraFin:    reprogramarHoraFin,
         appointmentId:   modalReprogramar.id,
       })
+    }
+
+    const otroUserIdRepro = esMenter ? modalReprogramar.client_id : modalReprogramar.menter_id
+    if (otroUserIdRepro) {
+      const { data: { session: sRepro } } = await supabase.auth.getSession()
+      if (sRepro) {
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sRepro.access_token}` },
+          body: JSON.stringify({
+            user_id: otroUserIdRepro,
+            title: 'Solicitud de cambio de horario',
+            body: `${solicitante} propone mover tu cita al ${new Date(reprogramarFecha + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${reprogramarHoraInicio}.`,
+            url: esMenter ? '/dashboard?tab=mis-citas' : '/dashboard?tab=citas',
+          }),
+        }).catch(() => {})
+      }
     }
 
     setModalReprogramar(null)
@@ -941,6 +977,23 @@ const handleAceptarReprogramacion = async (c: any) => {
         nuevaHoraFin:    c.reprogramacion_hora_fin?.slice(0, 5) || '',
       })
     }
+
+    const propuestoPorId = propuestoPor === 'menter' ? c.menter_id : c.client_id
+    if (propuestoPorId) {
+      const { data: { session: sAcept } } = await supabase.auth.getSession()
+      if (sAcept) {
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sAcept.access_token}` },
+          body: JSON.stringify({
+            user_id: propuestoPorId,
+            title: 'Cambio de horario aceptado',
+            body: `${contraparte} aceptó tu solicitud de cambio al ${new Date(c.reprogramacion_fecha + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}.`,
+            url: propuestoPor === 'menter' ? '/dashboard?tab=citas' : '/dashboard?tab=mis-citas',
+          }),
+        }).catch(() => {})
+      }
+    }
   }
 }
 
@@ -983,6 +1036,23 @@ const handleRechazarReprogramacion = async (c: any) => {
         fechaOriginal: new Date(c.date + 'T00:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
         horaOriginal:  c.start_time?.slice(0, 5) || '',
       })
+    }
+
+    const propuestoPorId = propuestoPor === 'menter' ? c.menter_id : c.client_id
+    if (propuestoPorId) {
+      const { data: { session: sRech } } = await supabase.auth.getSession()
+      if (sRech) {
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sRech.access_token}` },
+          body: JSON.stringify({
+            user_id: propuestoPorId,
+            title: 'Cambio de horario rechazado',
+            body: `${contraparte} no aceptó el cambio. La cita fue cancelada.`,
+            url: propuestoPor === 'menter' ? '/dashboard?tab=citas' : '/dashboard?tab=mis-citas',
+          }),
+        }).catch(() => {})
+      }
     }
   }
 }
@@ -1298,11 +1368,32 @@ const verRes = await fetch('/api/auth/send-verification', {
   }
 
   // Leer todos los campos de perfil desde la tabla (fuente única de verdad)
-  const { data: perfil } = await supabase
+  const { data: perfil, error: perfilError } = await supabase
     .from('user_profiles')
     .select('telefono, pais, cumpleanos, empresa, cargo')
     .eq('user_id', u.id)
     .single()
+
+  // Si no existe la fila (registro con email-confirmation sin sesión activa en signUp),
+  // la creamos ahora que sí tenemos sesión válida.
+  if (perfilError?.code === 'PGRST116' || !perfil) {
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    if (authSession?.access_token) {
+      fetch('/api/auth/register-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authSession.access_token}`,
+        },
+        body: JSON.stringify({
+          userId:     u.id,
+          empresa:    m.empresa  || null,
+          cargo:      m.cargo    || null,
+          respuestas: m.respuestas || null,
+        }),
+      }).catch(() => {})
+    }
+  }
 
   const telefono   = perfil?.telefono   || ''
   const pais       = perfil?.pais       || ''

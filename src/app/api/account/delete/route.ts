@@ -3,8 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { emailEliminadoPorAdmin } from '@/lib/email'
-
-const ADMIN_EMAILS = ['omar@girolab.net', 'admin@girolab.net', 'luana@girolab.net', 'daniela@girolab.net', 'omarphc@hotmail.com']
+import { ADMIN_EMAILS } from '@/lib/admin'
 
 export async function POST(req: NextRequest) {
   // 1. Verificar sesión del usuario que hace la petición
