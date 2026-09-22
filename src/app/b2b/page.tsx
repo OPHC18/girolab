@@ -268,7 +268,14 @@ export default function B2BPage() {
       <div style={{ fontFamily: 'DM Sans, sans-serif', background: '#0d0d0d', minHeight: '100vh', color: 'white' }}>
 
         {/* ── HEADER — totalmente transparente ──────────────────────────── */}
-        <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
+        <header style={{
+  position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+  background: scrollY > 20 ? 'rgba(13,13,13,0.85)' : 'transparent',
+  backdropFilter: scrollY > 20 ? 'blur(12px)' : 'none',
+  WebkitBackdropFilter: scrollY > 20 ? 'blur(12px)' : 'none',
+  borderBottom: scrollY > 20 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+  transition: 'background 0.3s ease, backdrop-filter 0.3s ease',
+}}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, padding: '0 24px' }}>
             <a href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
               <DotLottieReact
@@ -316,7 +323,7 @@ export default function B2BPage() {
         {/* ── OMAR ──────────────────────────────────────────────────────── */}
         <section id="equipo" data-animate style={{ padding: '80px 24px', background: 'rgba(255,255,255,0.03)' }}
           className={`sec${vis('equipo') ? ' vis' : ''}`}>
-          <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 48, alignItems: 'center' }}>
+          <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 32 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div style={{ width: 220, height: 220, borderRadius: '50%', overflow: 'hidden', border: '4px solid rgba(123,47,212,0.4)', boxShadow: '0 0 40px rgba(123,47,212,0.3)', background: '#1a1a2e', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img src="/omar-herrera.jpg" alt="Omar Herrera" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', position: 'absolute', inset: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
@@ -328,7 +335,7 @@ export default function B2BPage() {
               <div style={{ fontSize: 12, letterSpacing: 4, color: '#ffa719', fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>Fundador</div>
               <h2 style={{ fontFamily: 'Raleway, sans-serif', fontSize: 36, fontWeight: 900, margin: '0 0 8px', color: 'white' }}>Omar Herrera</h2>
               <p style={{ color: '#b794f4', fontSize: 15, fontWeight: 600, margin: '0 0 20px' }}>Coach Ontológico, Organizacional y Sistémico · CEO Giro Lab</p>
-              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 16, lineHeight: 1.8, margin: 0, maxWidth: 540 }}>
+              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 16, lineHeight: 1.8, margin: '0 auto', maxWidth: 540, textAlign: 'left' }}>
                 9 años acompañando a organizaciones desde el coaching ontológico, organizacional y sistémico. He trabajado con equipos de distintos tamaños y sectores, facilitando procesos de transformación genuina: donde las personas se reconectan con su propósito y los equipos recuperan coherencia, energía y resultados. Creo que el bienestar no es un beneficio extra — es la base de todo rendimiento sostenible.
               </p>
             </div>
