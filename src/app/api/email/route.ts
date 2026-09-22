@@ -177,8 +177,8 @@ export async function POST(req: NextRequest) {
         to: [{ email: data.correo, name: data.nombres }],
         subject: 'Giro Lab — Recibimos tu consulta',
         htmlContent: `<div style="font-family:DM Sans,sans-serif;max-width:600px;margin:0 auto;padding:32px">
-          <h2 style="font-family:Raleway,sans-serif;color:#421869">Hola ${data.nombres}, gracias por escribirnos</h2>
-          <p>Recibimos tu consulta sobre bienestar organizacional para <b>${data.empresa}</b>.</p>
+          <h2 style="font-family:Raleway,sans-serif;color:#421869">Hola ${escapeHtml(data.nombres)}, gracias por escribirnos</h2>
+          <p>Recibimos tu consulta sobre bienestar organizacional para <b>${escapeHtml(data.empresa)}</b>.</p>
           <p>Nuestro equipo la está revisando y en breve te haremos llegar nuestra presentación y una propuesta personalizada.</p>
           <p>Si necesitas atención inmediata, escríbenos directamente a <a href="mailto:omar@girolab.net">omar@girolab.net</a>.</p>
           <p style="margin-top:32px;color:#888;font-size:13px">— Equipo Giro Lab</p>

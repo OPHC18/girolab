@@ -1,15 +1,24 @@
 // src/app/dashboard/components/renderInstrumentosMenter.tsx
-// Tab "Instrumentos" exclusivo para Menters Premium y Master
-// Permite ver todos los tests, generar links compartibles, y ver resultados de sus Personas
+// Tab "Instrumentos" del Menter: genera links de evaluación reutilizables
+// (uno o varios instrumentos por link) y muestra los resultados de sus Personas.
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { INSTRUMENTS, InstrumentId } from '@/lib/assessments/instruments';
 import type { AssessmentResult } from '@/lib/assessments/instruments';
+import { CATALOG_LIST } from '@/lib/assessments/catalog';
+import GeneradorLinkEvaluacion from './GeneradorLinkEvaluacion';
+import RenderInstrumentosEmpresa from './renderInstrumentosEmpresa';
+import ModalComprarCreditos from './ModalComprarCreditos';
+import { useCreditos } from './useCreditos';
+import ResultadoImpresion from './ResultadoImpresion';
+import FiltroResultados, {
+  BotonImprimirResultado, EstilosImpresion, PRINT_AREA_ID,
+  clavePersona, opcionesPersonas, useImpresion,
+} from './FiltroResultados';
 
-interface ShareLink { token: string; url: string; copied: boolean; }
 interface PersonaResult {
   id: string;
   candidato_nombre: string | null;
@@ -28,30 +37,44 @@ interface PersonaResult {
 }
 interface Objetivo { id: string; titulo: string; }
 
+type TabMenter = 'personas' | 'empresas' | 'resultados';
+
+const TABS: { id: TabMenter; label: string }[] = [
+  { id: 'personas',   label: 'Test Personas' },
+  { id: 'empresas',   label: 'Test Empresas' },
+  { id: 'resultados', label: 'Resultados'    },
+];
+
+// Los clínicos son para las Personas del Menter; los de selección (DISC,
+// HEXACO, etc.) se eligen al crear un Perfil de Puesto en "Test Empresas".
+const TESTS_PERSONAS = CATALOG_LIST.filter(i => !i.soloEmpresas);
+
 interface Props {
   userId: string;
   menterPlan: string; // 'free' | 'starter' | 'premium' | 'master'
 }
 
 export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) {
-  const [activeTab, setActiveTab] = useState<'biblioteca' | 'resultados'>('biblioteca');
-  const [shareLinks, setShareLinks] = useState<Record<InstrumentId, ShareLink | null>>({} as any);
-  const [loadingLink, setLoadingLink] = useState<InstrumentId | null>(null);
+  const [activeTab, setActiveTab] = useState<TabMenter>('personas');
   const [resultados, setResultados] = useState<PersonaResult[]>([]);
   const [loadingResultados, setLoadingResultados] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PersonaResult | null>(null);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [vinculandoId, setVinculandoId] = useState<string | null>(null);
   const [objetivoSeleccionado, setObjetivoSeleccionado] = useState<string>('');
-  const [creditos, setCreditos]         = useState<number | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
-  const [buyingPack, setBuyingPack]     = useState<string | null>(null);
-  const [buyMsg, setBuyMsg]             = useState<string | null>(null);
+  const [filtroPersonas, setFiltroPersonas] = useState<string[]>([]);
 
+  // Free y Starter generan links pagando créditos; Premium y Master, sin costo
   const isFreeStarter = !['premium', 'master'].includes(menterPlan);
+  const { creditos, setCreditos, mensaje: buyMsg } = useCreditos(userId, isFreeStarter);
 
-  const canAccess = (plan: ('master' | 'premium')[]) =>
-    menterPlan === 'master' || (menterPlan === 'premium' && !plan.every(p => p === 'master'));
+  // Instrumentos reservados a Master, deshabilitados para Premium
+  const bloqueados = Object.fromEntries(
+    CATALOG_LIST
+      .filter(i => menterPlan === 'premium' && i.planesMenter.every(p => p === 'master'))
+      .map(i => [i.id, 'Solo Master'])
+  );
 
   // Cargar resultados de personas
   useEffect(() => {
@@ -82,88 +105,6 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       });
   }, [selectedResult, userId]);
 
-  useEffect(() => {
-    if (!isFreeStarter) return;
-    supabase.from('instrumento_creditos').select('creditos').eq('empresa_id', userId).maybeSingle()
-      .then(({ data }) => setCreditos(data?.creditos ?? 0));
-  }, [userId, isFreeStarter]);
-
-  useEffect(() => {
-    if (!isFreeStarter) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('pp') === 'ok') {
-      const orderId = sessionStorage.getItem('paypal_order_id');
-      if (orderId) {
-        sessionStorage.removeItem('paypal_order_id');
-        fetch('/api/paypal/capture-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order_id: orderId }),
-        })
-          .then(r => r.json())
-          .then(d => { if (d.ok) { setCreditos(d.creditos_nuevos); setBuyMsg('¡Créditos acreditados!'); } });
-      }
-    }
-  }, [isFreeStarter]);
-
-  // Generar link compartible
-  const handleGenerarLink = async (instrumentId: InstrumentId) => {
-    if (isFreeStarter) {
-      if (!creditos || creditos <= 0) { setShowBuyModal(true); return; }
-    } else if (!canAccess(INSTRUMENTS[instrumentId].planesMenter)) {
-      return;
-    }
-    setLoadingLink(instrumentId);
-    const { data, error } = await supabase.rpc('create_assessment_link', {
-      p_instrument_id: instrumentId,
-      p_menter_id: userId,
-    });
-    if (!error && data) {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://girolab.net';
-      const url = `${origin}/test/${instrumentId}?t=${data.token}`;
-      setShareLinks(prev => ({ ...prev, [instrumentId]: { token: data.token, url, copied: false } }));
-      if (isFreeStarter) {
-        const nuevos = (creditos || 0) - 1;
-        await supabase.from('instrumento_creditos').upsert(
-          { empresa_id: userId, creditos: nuevos, updated_at: new Date().toISOString() },
-          { onConflict: 'empresa_id' }
-        );
-        setCreditos(nuevos);
-      }
-    }
-    setLoadingLink(null);
-  };
-
-  // Copiar link
-  const handleCopiarLink = (instrumentId: InstrumentId) => {
-    const link = shareLinks[instrumentId];
-    if (!link) return;
-    navigator.clipboard.writeText(link.url);
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'enlace_test_copiado', { instrument: instrumentId })
-    }
-    setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: true } }));
-    setTimeout(() => setShareLinks(prev => ({ ...prev, [instrumentId]: { ...link, copied: false } })), 2000);
-  };
-
-  const handleComprar = async (packId: string) => {
-    setBuyingPack(packId);
-    setBuyMsg(null);
-    const res = await fetch('/api/paypal/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack_id: packId }),
-    });
-    const d = await res.json();
-    if (d.approve_url) {
-      sessionStorage.setItem('paypal_order_id', d.order_id);
-      window.location.href = d.approve_url;
-    } else {
-      setBuyMsg('Error al iniciar el pago. Intenta de nuevo.');
-      setBuyingPack(null);
-    }
-  };
-
   // Vincular resultado al Roadmap
   const handleVincular = async (resultId: string) => {
     if (!objetivoSeleccionado) return;
@@ -179,6 +120,27 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
     setObjetivoSeleccionado('');
   };
 
+  const { soloId, imprimirUno } = useImpresion();
+
+  // ── Filtro por persona (selección múltiple) ────────────────────────────────
+  const opcionesFiltro = useMemo(
+    () => opcionesPersonas(resultados, r => ({
+      nombre: r.candidato_nombre || r.persona_nombre,
+      email:  r.candidato_email  || r.persona_email,
+    })),
+    [resultados],
+  );
+
+  // Sin nadie marcado se muestran todas: el filtro suma, no esconde por defecto.
+  const resultadosVisibles = useMemo(() => {
+    if (filtroPersonas.length === 0) return resultados;
+    return resultados.filter(r =>
+      filtroPersonas.includes(clavePersona(
+        r.candidato_nombre || r.persona_nombre,
+        r.candidato_email  || r.persona_email,
+      )));
+  }, [resultados, filtroPersonas]);
+
   // ── UI ──────────────────────────────────────────────────────────────────────
   const SEVERITY_COLORS: Record<string, string> = {
     Mínima: '#4CAF50', Leve: '#FFC107', Moderada: '#FF9800', Severa: '#F44336',
@@ -192,11 +154,13 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
   return (
     <div style={s.container}>
+      <EstilosImpresion />
+
       {/* HEADER */}
       <div style={s.header}>
         <div>
           <h2 style={s.titulo}>Instrumentos Psicométricos</h2>
-          <p style={s.subtitulo}>Comparte tests validados con tus personas y visualiza sus resultados</p>
+          <p style={s.subtitulo}>Genera un link con las evaluaciones que necesites y compártelo con quien las tenga que rendir</p>
         </div>
         <span style={{ ...s.planBadge, background: menterPlan === 'master' ? '#FFF3E0' : '#E8EAF6', color: menterPlan === 'master' ? '#E65100' : '#3949AB' }}>
           {menterPlan.charAt(0).toUpperCase() + menterPlan.slice(1)}
@@ -206,7 +170,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       {isFreeStarter && (
         <div style={s.creditBanner}>
           <span style={s.creditBannerText}>
-            {creditos === null ? '...' : creditos} crédito{creditos !== 1 ? 's' : ''} disponibles
+            {creditos === null
+              ? '...'
+              : creditos < 0
+                ? `Sin créditos · ${Math.abs(creditos)} evaluación${Math.abs(creditos) !== 1 ? 'es' : ''} pendiente${Math.abs(creditos) !== 1 ? 's' : ''} de pago`
+                : `${creditos} crédito${creditos !== 1 ? 's' : ''} disponible${creditos !== 1 ? 's' : ''}`}
           </span>
           <button style={s.creditBannerBtn} onClick={() => setShowBuyModal(true)}>+ Comprar</button>
         </div>
@@ -218,93 +186,38 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
       )}
 
       {/* TABS */}
-      <div style={s.tabBar}>
-        {(['biblioteca', 'resultados'] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ ...s.tabBtn, ...(activeTab === tab ? s.tabBtnActive : {}) }}>
-            {tab === 'biblioteca' ? 'Biblioteca' : 'Resultados de personas'}
+      <div style={s.tabBar} className="no-print">
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{ ...s.tabBtn, ...(activeTab === tab.id ? s.tabBtnActive : {}) }}>
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* ── BIBLIOTECA ── */}
-      {activeTab === 'biblioteca' && (
-        <div style={s.grid}>
-          {(Object.values(INSTRUMENTS) as typeof INSTRUMENTS[InstrumentId][]).map(inst => {
-            const acceso = canAccess(inst.planesMenter);
-            const link = shareLinks[inst.id];
-            const isLoading = loadingLink === inst.id;
-            const soloMaster = inst.planesMenter.every((p: string) => p === 'master');
-
-            return (
-              <div key={inst.id} style={{ ...s.card, opacity: isFreeStarter ? 0.88 : acceso ? 1 : 0.6 }}>
-                {/* Badge Master-only */}
-                {soloMaster && menterPlan === 'premium' && (
-                  <span style={s.masterOnlyBadge}>Solo Master</span>
-                )}
-                {/* Ícono + nombre */}
-                <div style={s.cardHeader}>
-                  <span style={{ fontSize: 28 }}>{inst.icono}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={s.cardTitle}>{inst.nombre}</p>
-                    <p style={s.cardDesc}>{inst.descripcion}</p>
-                  </div>
-                </div>
-
-                {/* Meta */}
-                <div style={s.metaRow}>
-                  <span style={s.meta}>{inst.totalItems} ítems</span>
-                  <span style={s.meta}>~{inst.tiempoMinutos} min</span>
-                  <span style={s.meta}>{inst.referencia}</span>
-                </div>
-
-                {/* Tags */}
-                <div style={s.tagsRow}>
-                  {inst.tagsMenters.map((tag: string) => (
-                    <span key={tag} style={{ ...s.tag, background: `${inst.color}22`, color: inst.color }}>{tag}</span>
-                  ))}
-                </div>
-
-                {/* Link generado */}
-                {link && (
-                  <div style={s.linkBox}>
-                    <span style={s.linkText}>{link.url}</span>
-                    <button style={{ ...s.copyBtn, background: link.copied ? '#4CAF5022' : '#f5f5f5', color: link.copied ? '#4CAF50' : '#444' }}
-                      onClick={() => handleCopiarLink(inst.id)}>
-                      {link.copied ? 'Copiado' : 'Copiar'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Botones */}
-                {isFreeStarter ? (
-                  creditos !== null && creditos > 0 ? (
-                    <button style={{ ...s.actionBtn, background: inst.color }}
-                      disabled={isLoading}
-                      onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
-                      {isLoading ? 'Generando...' : link ? 'Copiar link' : `Usar 1 crédito (${creditos} disp.)`}
-                    </button>
-                  ) : (
-                    <button style={{ ...s.actionBtn, background: '#ffa719', color: '#2d2926' }}
-                      onClick={() => setShowBuyModal(true)}>
-                      {creditos === null ? 'Cargando...' : 'Comprar crédito'}
-                    </button>
-                  )
-                ) : acceso ? (
-                  <button style={{ ...s.actionBtn, background: inst.color }}
-                    disabled={isLoading}
-                    onClick={() => link ? handleCopiarLink(inst.id) : handleGenerarLink(inst.id)}>
-                    {isLoading ? 'Generando...' : link ? 'Copiar link' : 'Generar link'}
-                  </button>
-                ) : (
-                  <button style={{ ...s.actionBtn, background: '#ccc', cursor: 'not-allowed' }} disabled>
-                    Solo para Master
-                  </button>
-                )}
-              </div>
-            );
-          })}
+      {/* ── EQUIPOS Y EMPRESAS: perfiles de puesto, candidatos y catálogo ──
+          Todo envío a una empresa pasa por un puesto. No hay link suelto:
+          para mandar tests sin puesto está la pestaña "Test Personas". */}
+      {activeTab === 'empresas' && (
+        <div>
+          <h3 style={s.bloqueEmpresasTitulo}>Evaluaciones para Equipos y Empresas</h3>
+          <RenderInstrumentosEmpresa
+            empresaId={userId}
+            isMaster={menterPlan === 'master'}
+            vista="gestion"
+          />
         </div>
+      )}
+
+      {/* ── GENERAR LINK ── */}
+      {activeTab === 'personas' && (
+        <GeneradorLinkEvaluacion
+          instrumentos={TESTS_PERSONAS}
+          consumeCreditos={isFreeStarter}
+          creditos={creditos}
+          onSinCreditos={() => setShowBuyModal(true)}
+          bloqueados={bloqueados}
+        />
       )}
 
       {/* ── RESULTADOS ── */}
@@ -318,11 +231,38 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
               <p>Aún no hay resultados. Comparte un link de test con tus personas.</p>
             </div>
           ) : (
-            <div style={s.resultsList}>
-              {resultados.map(res => {
+            <>
+            <FiltroResultados
+              opciones={opcionesFiltro}
+              seleccion={filtroPersonas}
+              onSeleccion={setFiltroPersonas}
+              visibles={resultadosVisibles.length}
+              color="#5C6BC0"
+            />
+            <div id={PRINT_AREA_ID} style={s.resultsList}>
+              {resultadosVisibles.length === 0 && (
+                <p style={s.loading}>Ninguna de las personas marcadas tiene resultados.</p>
+              )}
+              {resultadosVisibles.map(res => {
                 const inst = INSTRUMENTS[res.instrument_id as InstrumentId];
                 return (
-                  <div key={res.id} style={s.resultCard}>
+                  <div key={res.id} style={s.resultCard}
+                    className={`print-card${soloId === res.id ? ' print-target' : ''}`}>
+                    {soloId === res.id ? (
+                      // En papel va el informe completo, no la tarjeta resumen.
+                      <ResultadoImpresion datos={{
+                        nombre:            res.candidato_nombre || res.persona_nombre || 'Anónimo',
+                        email:             res.candidato_email || res.persona_email,
+                        instrumentId:      res.instrument_id,
+                        instrumentoNombre: inst?.nombre || res.instrument_id,
+                        fecha:             res.created_at,
+                        puntuacionBruta:   res.puntuacion_bruta,
+                        severidadLabel:    res.severidad_label,
+                        screeningPositivo: res.screening_positivo,
+                        resultado:         res.resultado_json as unknown as Record<string, unknown>,
+                      }} />
+                    ) : (
+                    <>
                     <div style={s.resultHeader}>
                       <span style={{ fontSize: 22 }}>{inst?.icono || '📋'}</span>
                       <div style={{ flex: 1 }}>
@@ -352,9 +292,12 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                         {dim.label && <span style={{ ...s.dimLabel, background: `${SEVERITY_COLORS[dim.label] || '#999'}22`, color: SEVERITY_COLORS[dim.label] || '#999' }}>{dim.label}</span>}
                       </div>
                     ))}
+                    </>
+                    )}
 
                     {/* Acciones */}
-                    <div style={s.resultActions}>
+                    <div style={s.resultActions} className="no-print">
+                      <BotonImprimirResultado onClick={() => imprimirUno(res.id)} color="#5C6BC0" />
                       {res.roadmap_objetivo_id ? (
                         <>
                           <span style={s.vinculadoBadge}>Vinculado al Roadmap</span>
@@ -372,7 +315,19 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
                 );
               })}
             </div>
+            </>
           )}
+
+          {/* Los resultados de candidatos de empresa también se ven acá: es la
+              única pestaña de resultados, así no hay dos listados sueltos. */}
+          <div style={s.bloqueEmpresas}>
+            <h3 style={s.bloqueEmpresasTitulo}>Resultados de Equipos y Empresas</h3>
+            <RenderInstrumentosEmpresa
+              empresaId={userId}
+              isMaster={menterPlan === 'master'}
+              vista="resultados"
+            />
+          </div>
         </div>
       )}
 
@@ -406,40 +361,11 @@ export default function RenderInstrumentosMenter({ userId, menterPlan }: Props) 
 
       {/* ── MODAL COMPRAR CRÉDITOS (plan free/starter) ── */}
       {isFreeStarter && showBuyModal && (
-        <div style={s.modalOverlay} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>
-          <div style={s.buyModal} onClick={e => e.stopPropagation()}>
-            <button aria-label="Cerrar" style={s.closeBtn} onClick={() => { setShowBuyModal(false); setBuyingPack(null); setBuyMsg(null); }}>✕</button>
-            <h3 style={s.modalTitle}>Comprar créditos</h3>
-            <p style={s.buyModalSub}>Cada crédito te permite compartir 1 instrumento con una persona.</p>
-            <div style={s.packsGrid}>
-              {CREDIT_PACKS.map(pack => (
-                <button key={pack.id}
-                  style={{ ...s.packCard, ...(buyingPack === pack.id ? s.packCardActive : {}) }}
-                  onClick={() => handleComprar(pack.id)}
-                  disabled={!!buyingPack}>
-                  <div style={s.packCreditos}>{pack.creditos}</div>
-                  <div style={s.packLabel}>{pack.label}</div>
-                  <div style={s.packPrecio}>${pack.precio} USD</div>
-                  {pack.ahorro && <div style={s.packAhorro}>{pack.ahorro}</div>}
-                  {buyingPack === pack.id && <div style={s.packLoading}>Redirigiendo...</div>}
-                </button>
-              ))}
-            </div>
-            {buyMsg && <p style={{ textAlign: 'center', color: '#c62828', fontSize: 13, marginTop: 12 }}>{buyMsg}</p>}
-            <p style={s.paypalNote}>Pago seguro via PayPal.</p>
-          </div>
-        </div>
+        <ModalComprarCreditos onClose={() => setShowBuyModal(false)} />
       )}
     </div>
   );
 }
-
-const CREDIT_PACKS = [
-  { id: 'pack_1',  creditos: 1,  precio: 5,  label: '1 evaluación',   ahorro: null },
-  { id: 'pack_5',  creditos: 5,  precio: 20, label: '5 evaluaciones',  ahorro: 'Ahorra $5' },
-  { id: 'pack_10', creditos: 10, precio: 35, label: '10 evaluaciones', ahorro: 'Ahorra $15' },
-  { id: 'pack_20', creditos: 20, precio: 60, label: '20 evaluaciones', ahorro: 'Ahorra $40' },
-];
 
 // ── ESTILOS ────────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
@@ -449,7 +375,9 @@ const s: Record<string, React.CSSProperties> = {
   subtitulo:      { fontSize:14, color:'#555', margin:0 },
   planBadge:      { fontSize:12, padding:'4px 12px', borderRadius:999, fontWeight:700, textTransform:'capitalize' },
   tabBar:         { display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid #f0f0f0', paddingBottom:0 },
-  tabBtn:         { padding:'10px 20px', borderRadius:'10px 10px 0 0', border:'none', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
+  // Sin `border` abreviada: la pestaña activa cambia solo borderBottom y
+  // mezclar ambas hace que React avise por estilos inconsistentes al alternar.
+  tabBtn:         { padding:'10px 20px', borderRadius:'10px 10px 0 0', borderTop:'none', borderLeft:'none', borderRight:'none', borderBottom:'2px solid transparent', background:'none', color:'#888', cursor:'pointer', fontSize:14, fontWeight:500 },
   tabBtnActive:   { background:'#fff', color:'#1a1a2e', borderBottom:'2px solid #5C6BC0' },
   grid:           { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 },
   card:           { background:'#fff', borderRadius:16, padding:20, border:'1px solid #f0f0f0', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', position:'relative' },
@@ -466,6 +394,9 @@ const s: Record<string, React.CSSProperties> = {
   copyBtn:        { fontSize:12, padding:'4px 10px', borderRadius:6, border:'none', cursor:'pointer', fontWeight:600, transition:'all 0.2s' },
   actionBtn:      { width:'100%', padding:'12px', borderRadius:10, border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' },
   loading:        { textAlign:'center', color:'#555', padding:40, fontSize:14 },
+  bloqueEmpresas:       { marginTop:36, borderTop:'2px solid #f0f0f0', paddingTop:28 },
+  // Arriba del todo no lleva línea superior: separa por abajo del bloque que sigue.
+  bloqueEmpresasTitulo: { fontFamily:'Raleway, sans-serif', color:'#421869', fontSize:18, fontWeight:800, margin:'0 0 20px' },
   empty:          { textAlign:'center', color:'#666', padding:60, display:'flex', flexDirection:'column', alignItems:'center', gap:12 },
   resultsList:    { display:'flex', flexDirection:'column', gap:12 },
   resultCard:     { background:'#fff', borderRadius:14, padding:18, border:'1px solid #f0f0f0', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' },
@@ -479,7 +410,7 @@ const s: Record<string, React.CSSProperties> = {
   dimName:        { flex:1, fontSize:13, color:'#555' },
   dimScore:       { fontSize:13, fontWeight:700, color:'#1a1a2e' },
   dimLabel:       { fontSize:11, padding:'2px 8px', borderRadius:999, fontWeight:600 },
-  resultActions:  { marginTop:12, display:'flex', justifyContent:'flex-end' },
+  resultActions:  { marginTop:12, display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8 },
   vinculadoBadge: { fontSize:12, color:'#4CAF50', fontWeight:600 },
   vincularBtn:    { fontSize:13, padding:'6px 14px', borderRadius:8, border:'1px solid #5C6BC0', background:'none', color:'#5C6BC0', cursor:'pointer', fontWeight:600 },
   reubicarBtn:    { fontSize:12, padding:'4px 10px', borderRadius:8, border:'1px solid #ddd', background:'none', color:'#888', cursor:'pointer', marginLeft:8 },

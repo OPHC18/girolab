@@ -318,22 +318,28 @@ function DiscBarsChart({ percentiles }: { percentiles: Record<string, number> })
 function ScreeningGauge({ positive, score, max, label }: { positive: boolean; score: number; max: number; label: string }) {
   const color = positive ? CHART_COLORS.amber : CHART_COLORS.green;
   const pct = Math.min((score / max) * 100, 100);
-  const r = 60; const cx = 80; const cy = 80;
-  const startAngle = Math.PI; const endAngle = 2 * Math.PI;
-  const angle = startAngle + (pct / 100) * Math.PI;
-  const x1 = cx + r * Math.cos(startAngle); const y1 = cy + r * Math.sin(startAngle);
-  const x2 = cx + r * Math.cos(endAngle);   const y2 = cy + r * Math.sin(endAngle);
-  const nx = cx + r * Math.cos(angle);       const ny = cy + r * Math.sin(angle);
-  const trackPath = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
-  const valuePath = `M ${x1} ${y1} A ${r} ${r} 0 ${pct > 50 ? 1 : 0} 1 ${nx} ${ny}`;
+  const r = 56; const cx = 80; const cy = 76;
+  const circ = 2 * Math.PI * r;
+  const half = circ / 2;
+  const filled = (pct / 100) * half;
+  // strokeDashoffset=half shifts the start of the dash pattern to the LEFT endpoint (9 o'clock),
+  // making the visible arc go clockwise through the TOP — no transform needed.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 8 }}>
-      <svg viewBox="0 0 160 90" width="160" style={{ display: 'block' }}>
-        <path d={trackPath} fill="none" stroke="#f0f0f0" strokeWidth="10" strokeLinecap="round" />
-        <path d={valuePath} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" />
-        <text x={cx} y={cy - 8} textAnchor="middle" fontSize="22" fontWeight="800" fill={color}
+      <svg viewBox="0 0 160 88" width="160" height="88" style={{ display: 'block', overflow: 'hidden' }}>
+        <circle cx={cx} cy={cy} r={r}
+          fill="none" stroke="#f0f0f0" strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${half} ${half}`}
+          strokeDashoffset={half}
+        />
+        <circle cx={cx} cy={cy} r={r}
+          fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ - filled}`}
+          strokeDashoffset={half}
+        />
+        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="22" fontWeight="800" fill={color}
           fontFamily="system-ui, sans-serif">{score}/{max}</text>
-        <text x={cx} y={cy + 8} textAnchor="middle" fontSize="9" fill="#888"
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="9" fill="#888"
           fontFamily="system-ui, sans-serif">{label}</text>
       </svg>
       <span style={{
@@ -789,7 +795,13 @@ export default function ResultadoPage() {
       : rawNormalized.toUpperCase();
   const resultId   = searchParams?.get('r') || '';
   const token      = searchParams?.get('t') || '';
+  // Link de evaluación multiuso: encadena la siguiente evaluación pendiente
+  const participanteToken = searchParams?.get('p') || '';
+  const linkToken         = searchParams?.get('e') || '';
 
+  const [siguiente, setSiguiente] = useState<{ instrument_id: string; nombre: string; session_token: string } | null>(null);
+  const [restantes, setRestantes] = useState(0);
+  const [totalLink, setTotalLink] = useState(0);
   const [result, setResult]       = useState<any>(null);
   const [loading, setLoading]     = useState(true);
   const [showFallback, setShowFallback] = useState(false);
@@ -797,12 +809,34 @@ export default function ResultadoPage() {
   const [sharing, setSharing]     = useState(false);
   const [shared, setShared]       = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const cacheHandledRef = useRef(false);
 
   const inst = INSTRUMENTS[instrumentId as InstrumentId] ||
                EMPRESA_INSTRUMENTS[instrumentId as EmpresaInstrumentId];
   const cfg  = CARD_CONFIGS[instrumentId];
 
   useEffect(() => {
+    // Fast path: use sessionStorage result from just-completed test.
+    // Must run BEFORE setResult(null)/setLoading(true) so Strict Mode's second
+    // invocation doesn't wipe the result set by the first.
+    if (!cacheHandledRef.current && typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('girolab_pending_result')
+        if (raw) {
+          const cached = JSON.parse(raw)
+          if (cached.instrumentId === instrumentId && Date.now() - cached.savedAt < 600_000) {
+            cacheHandledRef.current = true
+            sessionStorage.removeItem('girolab_pending_result')
+            setResult(cached.result)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (_) {}
+    }
+    // If cache was already handled (Strict Mode second run), just skip entirely
+    if (cacheHandledRef.current) return
+
     setLoading(true);
     setResult(null);
     setShowFallback(false);
@@ -810,38 +844,91 @@ export default function ResultadoPage() {
     const timer = setTimeout(() => setShowFallback(true), 8000);
 
     const init = async () => {
-      // Arrancan en paralelo: getSession (caché local, sin red) + primer fetch del resultado
       const sessionPromise = supabase.auth.getSession()
 
-      if (resultId) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
-            if (res.ok) {
-              const data = await res.json()
-              if (data.resultado_json) {
-                clearTimeout(timer)
-                setResult(data.resultado_json)
-                setLoading(false)
-                const { data: { session } } = await sessionPromise
-                setUser(session?.user ?? null)
-                if (typeof window !== 'undefined' && (window as any).gtag) {
-                  (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+      try {
+        if (resultId) {
+          for (let attempt = 0; attempt < 5; attempt++) {
+            try {
+              const res = await fetch(`/api/assessment/result?r=${resultId}&t=${encodeURIComponent(token)}`)
+              if (res.ok) {
+                const json = await res.json()
+                if (json.resultado_json) {
+                  setResult(json.resultado_json)
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('girolab_pending_result')
+                    if ((window as any).gtag) {
+                      (window as any).gtag('event', 'test_resultado_visto', { instrument: instrumentId, result_id: resultId })
+                    }
+                  }
+                  return
                 }
+              } else {
+                console.warn('[resultado] API status', res.status, 'attempt', attempt + 1)
+              }
+            } catch (e) {
+              console.warn('[resultado] fetch error attempt', attempt + 1, e)
+            }
+            if (attempt < 4) await new Promise(r => setTimeout(r, attempt < 2 ? 500 : 1500))
+          }
+        }
+
+        // Fallback: result saved to sessionStorage before redirect (handles API failures and missing ?r=)
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = sessionStorage.getItem('girolab_pending_result')
+            if (raw) {
+              const cached = JSON.parse(raw)
+              if (cached.instrumentId === instrumentId && Date.now() - cached.savedAt < 600_000) {
+                sessionStorage.removeItem('girolab_pending_result')
+                setResult(cached.result)
                 return
               }
             }
           } catch (_) {}
-          if (attempt < 2) await new Promise(r => setTimeout(r, 300))
         }
+      } finally {
+        clearTimeout(timer)
+        const { data: { session } } = await sessionPromise
+        setUser(session?.user ?? null)
+        setLoading(false)
       }
-
-      const { data: { session } } = await sessionPromise
-      setUser(session?.user ?? null)
     };
     init();
     return () => clearTimeout(timer);
   }, [resultId, token]);
+
+  // ── Encadenado de evaluaciones de un link multiuso ──────────────────────
+  // Al terminar la última se cierra el recorrido y se avisa una sola vez a
+  // quien generó el link.
+  useEffect(() => {
+    if (!participanteToken || !linkToken) return;
+    let cancelado = false;
+
+    (async () => {
+      try {
+        const res  = await fetch(`/api/evaluacion/${linkToken}?p=${participanteToken}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelado) return;
+
+        const progreso: { completado: boolean }[] = json.progreso ?? [];
+        setTotalLink(progreso.length);
+        setRestantes(progreso.filter(p => !p.completado).length);
+        setSiguiente(json.siguiente ?? null);
+
+        if (progreso.length > 0 && !json.siguiente) {
+          await fetch(`/api/evaluacion/${linkToken}/finalizar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participante_token: participanteToken }),
+          });
+        }
+      } catch { /* el resultado ya se muestra; el encadenado es complementario */ }
+    })();
+
+    return () => { cancelado = true; };
+  }, [participanteToken, linkToken, resultId]);
 
   const handleShare = async () => {
     if (!cfg || !result) return;
@@ -875,7 +962,7 @@ const handleRegister = () => {
 }
 
   if (loading) return <LoadingScreen showFallback={showFallback} onRegister={handleRegister} />;
-  if (!result || !inst || !cfg) return <div style={rs.notFound}>Resultado no encontrado.</div>;
+  if (!result || !inst || !cfg) return <ErrorScreen onRetry={() => window.location.reload()} />;
 
   const headline = cfg.headline(result);
   const subline  = cfg.subline(result);
@@ -917,6 +1004,33 @@ const handleRegister = () => {
       <style>{`@keyframes animateUp{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-110vh) rotate(720deg);opacity:0}} @media(max-width:860px){.rs-cols{flex-direction:column!important}}`}</style>
 
       <div style={rs.wrapper}>
+      {/* Barra de avance del link multiuso */}
+      {totalLink > 0 && (
+        <div style={rs.linkBar}>
+          {siguiente ? (
+            <>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <p style={rs.linkBarTitle}>
+                  Te {restantes === 1 ? 'queda 1 evaluación' : `quedan ${restantes} evaluaciones`}
+                </p>
+                <p style={rs.linkBarSub}>Sigue: {siguiente.nombre}</p>
+              </div>
+              <button
+                style={rs.linkBarBtn}
+                onClick={() => router.push(
+                  `/test/${siguiente.instrument_id}?t=${siguiente.session_token}&p=${participanteToken}&e=${linkToken}`
+                )}>
+                Continuar →
+              </button>
+            </>
+          ) : (
+            <div style={{ flex: 1 }}>
+              <p style={rs.linkBarTitle}>Completaste todas las evaluaciones</p>
+              <p style={rs.linkBarSub}>Quien te envió el enlace ya puede ver tus resultados.</p>
+            </div>
+          )}
+        </div>
+      )}
       <div className="rs-cols" style={rs.cols}>
         {/* IZQUIERDA: card + interpretación rica */}
         <div style={rs.colLeft}>
@@ -1039,6 +1153,25 @@ const handleRegister = () => {
   );
 }
 
+function ErrorScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div style={{ minHeight:'100vh', background:'#421869', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+      <p style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'Raleway, sans-serif', fontWeight: 700, fontSize: 18, margin: 0 }}>
+        No pudimos cargar tu resultado
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.6)', fontFamily: "'DM Sans', system-ui", fontSize: 15, margin: 0, lineHeight: 1.5, maxWidth: 300 }}>
+        Puede ser un problema temporal. Intenta recargar la página.
+      </p>
+      <button
+        onClick={onRetry}
+        style={{ marginTop: 8, padding: '13px 32px', borderRadius: 12, background: '#fff', color: '#421869', border: 'none', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: "'Raleway', sans-serif" }}
+      >
+        Recargar
+      </button>
+    </div>
+  );
+}
+
 function LoadingScreen({ showFallback, onRegister }: { showFallback?: boolean; onRegister?: () => void }) {
   return (
     <div style={{ minHeight:'100vh', background:'#421869', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap: 16 }}>
@@ -1072,6 +1205,10 @@ const rs: Record<string, React.CSSProperties> = {
   circles:        { position:'fixed', top:0, left:0, width:'100%', height:'100%', overflow:'hidden', margin:0, padding:0, zIndex:0, pointerEvents:'none', listStyle:'none' },
   notFound:       { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#888' },
   wrapper:        { position:'relative', zIndex:1, maxWidth:1020, margin:'0 auto', padding:'32px 20px 60px' },
+  linkBar:        { display:'flex', alignItems:'center', gap:16, flexWrap:'wrap', background:'#fff', borderRadius:16, padding:'16px 20px', marginBottom:20, boxShadow:'0 4px 16px rgba(0,0,0,0.12)' },
+  linkBarTitle:   { fontSize:15, fontWeight:800, color:'#421869', margin:0, fontFamily:"'Raleway', sans-serif" },
+  linkBarSub:     { fontSize:13, color:'#777', margin:'3px 0 0' },
+  linkBarBtn:     { padding:'12px 26px', borderRadius:30, background:'#421869', color:'#fff', border:'none', fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:"'Raleway', sans-serif", flexShrink:0 },
   cols:           { display:'flex', flexDirection:'row', gap:24, alignItems:'flex-start' },
   colLeft:        { flex:1, display:'flex', flexDirection:'column', gap:12 },
   colRight:       { width:340, flexShrink:0, display:'flex', flexDirection:'column', gap:16 },

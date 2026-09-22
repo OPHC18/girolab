@@ -93,3 +93,13 @@ export function infoTable(rows: string): string {
     <tbody>${rows}</tbody>
   </table>`
 }
+
+/** Escapa texto de usuario antes de incrustarlo en el HTML del correo. */
+export function escapeHtml(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}

@@ -91,10 +91,13 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
     }, 320);
   }, [currentItem, responses, isLast, autoAvance, onComplete]);
 
+  // Se puede cambiar la respuesta mientras no se confirme con "Siguiente":
+  // un dedazo no debe quedar grabado en un instrumento clínico. No hace falta
+  // proteger del doble clic acá porque seleccionar no avanza nada; quien
+  // controla el avance es handleNext, que sí limpia el temporizador.
   const handleSelect = useCallback((valor: number) => {
-    if (selected !== null) return; // evita doble clic
     setSelected(valor);
-  }, [selected]);
+  }, []);
 
   const handleNext = () => {
     if (selected === null && npiChoice === null) return;
@@ -110,9 +113,8 @@ export default function TestStepper({ config, items, onComplete, onBack }: Props
     setTimeout(() => setItemIndex(i => i - 1), 200);
   };
 
-  // NPI: elegir A o B
+  // NPI: elegir A o B — también se puede corregir antes de confirmar
   const handleNPI = (choice: 'A' | 'B') => {
-    if (npiChoice !== null) return;
     setNpiChoice(choice);
   };
 

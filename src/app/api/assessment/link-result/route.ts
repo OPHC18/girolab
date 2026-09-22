@@ -33,11 +33,12 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Vincular por email (flujo donde el usuario se registró por otra ruta)
+  // La columna es candidato_email — 'email' no existe y el filtro nunca casaba.
   if (user.email) {
     const { data: sessions } = await admin
       .from('assessment_sessions')
       .select('id')
-      .eq('email', user.email)
+      .ilike('candidato_email', user.email)
 
     if (sessions?.length) {
       const sessionIds = sessions.map(s => s.id)
