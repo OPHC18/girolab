@@ -3,7 +3,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient'; // Asegúrate de que la ruta a tu cliente de Supabase sea correcta
+import { supabase } from '../lib/supabase';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, 
   Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine 
